@@ -2,6 +2,9 @@
 @source "../src";
 @import "tw-animate-css";
 
+/* Safelist dynamic status classes (built from runtime template strings) */
+@source inline("bg-ok bg-ok-bg text-ok bg-warn bg-warn-bg text-warn bg-fail bg-fail-bg text-fail bg-info bg-info-bg text-info bg-neutral bg-neutral-bg text-neutral");
+
 @import "@fontsource/space-grotesk/500.css";
 @import "@fontsource/space-grotesk/600.css";
 @import "@fontsource/space-grotesk/700.css";
