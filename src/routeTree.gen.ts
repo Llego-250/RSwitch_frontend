@@ -9,8 +9,56 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as UsersRouteImport } from './routes/users'
+import { Route as ReportsRouteImport } from './routes/reports'
+import { Route as PipelinesRouteImport } from './routes/pipelines'
+import { Route as MappingRouteImport } from './routes/mapping'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as IntegrationsRouteImport } from './routes/integrations'
+import { Route as FraudRouteImport } from './routes/fraud'
+import { Route as CreditRiskRouteImport } from './routes/credit-risk'
 import { Route as IndexRouteImport } from './routes/index'
 
+const UsersRoute = UsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReportsRoute = ReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PipelinesRoute = PipelinesRouteImport.update({
+  id: '/pipelines',
+  path: '/pipelines',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MappingRoute = MappingRouteImport.update({
+  id: '/mapping',
+  path: '/mapping',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IntegrationsRoute = IntegrationsRouteImport.update({
+  id: '/integrations',
+  path: '/integrations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FraudRoute = FraudRouteImport.update({
+  id: '/fraud',
+  path: '/fraud',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CreditRiskRoute = CreditRiskRouteImport.update({
+  id: '/credit-risk',
+  path: '/credit-risk',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -19,28 +67,144 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/credit-risk': typeof CreditRiskRoute
+  '/fraud': typeof FraudRoute
+  '/integrations': typeof IntegrationsRoute
+  '/login': typeof LoginRoute
+  '/mapping': typeof MappingRoute
+  '/pipelines': typeof PipelinesRoute
+  '/reports': typeof ReportsRoute
+  '/users': typeof UsersRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/credit-risk': typeof CreditRiskRoute
+  '/fraud': typeof FraudRoute
+  '/integrations': typeof IntegrationsRoute
+  '/login': typeof LoginRoute
+  '/mapping': typeof MappingRoute
+  '/pipelines': typeof PipelinesRoute
+  '/reports': typeof ReportsRoute
+  '/users': typeof UsersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/credit-risk': typeof CreditRiskRoute
+  '/fraud': typeof FraudRoute
+  '/integrations': typeof IntegrationsRoute
+  '/login': typeof LoginRoute
+  '/mapping': typeof MappingRoute
+  '/pipelines': typeof PipelinesRoute
+  '/reports': typeof ReportsRoute
+  '/users': typeof UsersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/credit-risk'
+    | '/fraud'
+    | '/integrations'
+    | '/login'
+    | '/mapping'
+    | '/pipelines'
+    | '/reports'
+    | '/users'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/credit-risk'
+    | '/fraud'
+    | '/integrations'
+    | '/login'
+    | '/mapping'
+    | '/pipelines'
+    | '/reports'
+    | '/users'
+  id:
+    | '__root__'
+    | '/'
+    | '/credit-risk'
+    | '/fraud'
+    | '/integrations'
+    | '/login'
+    | '/mapping'
+    | '/pipelines'
+    | '/reports'
+    | '/users'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CreditRiskRoute: typeof CreditRiskRoute
+  FraudRoute: typeof FraudRoute
+  IntegrationsRoute: typeof IntegrationsRoute
+  LoginRoute: typeof LoginRoute
+  MappingRoute: typeof MappingRoute
+  PipelinesRoute: typeof PipelinesRoute
+  ReportsRoute: typeof ReportsRoute
+  UsersRoute: typeof UsersRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/users': {
+      id: '/users'
+      path: '/users'
+      fullPath: '/users'
+      preLoaderRoute: typeof UsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reports': {
+      id: '/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof ReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pipelines': {
+      id: '/pipelines'
+      path: '/pipelines'
+      fullPath: '/pipelines'
+      preLoaderRoute: typeof PipelinesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mapping': {
+      id: '/mapping'
+      path: '/mapping'
+      fullPath: '/mapping'
+      preLoaderRoute: typeof MappingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/integrations': {
+      id: '/integrations'
+      path: '/integrations'
+      fullPath: '/integrations'
+      preLoaderRoute: typeof IntegrationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/fraud': {
+      id: '/fraud'
+      path: '/fraud'
+      fullPath: '/fraud'
+      preLoaderRoute: typeof FraudRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/credit-risk': {
+      id: '/credit-risk'
+      path: '/credit-risk'
+      fullPath: '/credit-risk'
+      preLoaderRoute: typeof CreditRiskRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -53,6 +217,14 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CreditRiskRoute: CreditRiskRoute,
+  FraudRoute: FraudRoute,
+  IntegrationsRoute: IntegrationsRoute,
+  LoginRoute: LoginRoute,
+  MappingRoute: MappingRoute,
+  PipelinesRoute: PipelinesRoute,
+  ReportsRoute: ReportsRoute,
+  UsersRoute: UsersRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
