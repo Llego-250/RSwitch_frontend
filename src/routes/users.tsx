@@ -162,7 +162,6 @@ function UsersTab() {
               border: "1px solid var(--border)",
               backgroundColor: "var(--paper)",
               color: "var(--neutral-900)",
-              focusRingColor: "var(--primary-500)",
             }}
           />
         </div>
