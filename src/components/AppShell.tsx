@@ -71,10 +71,10 @@ export function AppShell({
   const avatarInitial = roleLabel.charAt(0).toUpperCase();
 
   return (
-    <div className="min-h-dvh flex flex-col bg-paper text-ink">
+    <div className="min-h-dvh bg-paper text-ink">
 
       {/* ─── GLOBAL TOP BAR (spec §5.2 — 56px, Primary 900) ─── */}
-      <header className="h-14 shrink-0 flex items-center px-4 gap-3 z-30 relative"
+      <header className="fixed top-0 left-0 right-0 h-14 flex items-center px-4 gap-3 z-30"
         style={{ backgroundColor: "var(--topbar)" }}>
 
         {/* Mobile hamburger */}
@@ -217,24 +217,21 @@ export function AppShell({
         </div>
       </header>
 
-      {/* ─── BODY ─── */}
-      <div className="flex flex-1 min-h-0">
-
-        {/* ─── LEFT SIDEBAR (spec §5.1 — 256px, White, 1px border) ─── */}
-        <nav
-          className={`
-            w-64 shrink-0 flex flex-col overflow-y-auto
-            fixed lg:relative inset-y-0 left-0 z-20 lg:z-auto
-            transform transition-transform duration-200
-            ${mobileNavOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
-          `}
-          style={{
-            backgroundColor: "var(--card)",
-            borderRight: "1px solid var(--border)",
-            top: "56px",
-            bottom: 0,
-          }}
-        >
+      {/* ─── SIDEBAR (always fixed below topbar) ─── */}
+      <nav
+        className={`
+          fixed left-0 z-20 flex flex-col overflow-y-auto
+          transition-transform duration-200
+          ${mobileNavOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
+        `}
+        style={{
+          top: "56px",
+          bottom: 0,
+          width: "256px",
+          backgroundColor: "var(--card)",
+          borderRight: "1px solid var(--border)",
+        }}
+      >
           <div className="flex-1 py-3">
             {CLUSTERS.map((c) => {
               const items = c.items.filter((i) => visible(role, i.key));
@@ -325,16 +322,17 @@ export function AppShell({
           </div>
         </nav>
 
-        {/* Mobile nav overlay */}
-        {mobileNavOpen && (
-          <div
-            className="fixed inset-0 z-10 bg-black/40 lg:hidden"
-            onClick={() => setMobileNavOpen(false)}
-          />
-        )}
+      {/* Mobile nav overlay */}
+      {mobileNavOpen && (
+        <div
+          className="fixed inset-0 z-10 bg-black/40 lg:hidden"
+          onClick={() => setMobileNavOpen(false)}
+        />
+      )}
 
-        {/* ─── MAIN CONTENT ─── */}
-        <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
+      {/* ─── MAIN CONTENT — offset by topbar (56px) + sidebar (256px) ─── */}
+      <div className="flex flex-col lg:pl-[256px]" style={{ paddingTop: "56px", height: "100dvh" }}>
+        <main className="flex-1 min-h-0 flex flex-col overflow-hidden">
 
           {/* Page header */}
           <div
