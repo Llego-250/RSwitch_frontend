@@ -2,139 +2,184 @@
 @source "../src";
 @import "tw-animate-css";
 
-/* Safelist dynamic status classes (built from runtime template strings) */
-@source inline("bg-ok bg-ok-bg text-ok bg-warn bg-warn-bg text-warn bg-fail bg-fail-bg text-fail bg-info bg-info-bg text-info bg-neutral bg-neutral-bg text-neutral");
+/* Safelist dynamic status classes used via runtime template strings */
+@source inline("bg-ok bg-ok-bg text-ok bg-warn bg-warn-bg text-warn bg-fail bg-fail-bg text-fail bg-info bg-info-bg text-info bg-neutral bg-neutral-bg text-neutral bg-ai bg-ai-bg text-ai");
 
-@import "@fontsource/space-grotesk/500.css";
-@import "@fontsource/space-grotesk/600.css";
-@import "@fontsource/space-grotesk/700.css";
 @import "@fontsource/inter/400.css";
 @import "@fontsource/inter/500.css";
 @import "@fontsource/inter/600.css";
+@import "@fontsource/inter/700.css";
 @import "@fontsource/ibm-plex-mono/400.css";
 @import "@fontsource/ibm-plex-mono/500.css";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: "Inter", system-ui, sans-serif;
-  --font-display: "Space Grotesk", system-ui, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font-sans:    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono:    "IBM Plex Mono", ui-monospace, monospace;
 
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
 
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
+  /* shadcn/Radix */
+  --color-background:          var(--background);
+  --color-foreground:          var(--foreground);
+  --color-card:                var(--card);
+  --color-card-foreground:     var(--card-foreground);
+  --color-popover:             var(--popover);
+  --color-popover-foreground:  var(--popover-foreground);
+  --color-primary:             var(--primary);
+  --color-primary-foreground:  var(--primary-foreground);
+  --color-secondary:           var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
+  --color-muted:               var(--muted);
+  --color-muted-foreground:    var(--muted-foreground);
+  --color-accent:              var(--accent);
+  --color-accent-foreground:   var(--accent-foreground);
+  --color-destructive:         var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
+  --color-border:              var(--border);
+  --color-input:               var(--input);
+  --color-ring:                var(--ring);
 
-  --color-brand: var(--brand);
+  /* Semantic design tokens */
+  --color-brand:            var(--brand);
   --color-brand-foreground: var(--brand-foreground);
-  --color-signal: var(--signal);
-  --color-ink: var(--ink);
-  --color-paper: var(--paper);
-  --color-surface: var(--surface);
+  --color-topbar:           var(--topbar);
+  --color-topbar-fg:        var(--topbar-fg);
+  --color-signal:           var(--signal);
+  --color-ink:              var(--ink);
+  --color-paper:            var(--paper);
+  --color-surface:          var(--surface);
 
-  --color-ok: var(--ok);
-  --color-ok-bg: var(--ok-bg);
-  --color-info: var(--info);
-  --color-info-bg: var(--info-bg);
-  --color-warn: var(--warn);
-  --color-warn-bg: var(--warn-bg);
-  --color-fail: var(--fail);
-  --color-fail-bg: var(--fail-bg);
-  --color-neutral: var(--neutral);
+  /* Status colors */
+  --color-ok:         var(--ok);
+  --color-ok-bg:      var(--ok-bg);
+  --color-info:       var(--info);
+  --color-info-bg:    var(--info-bg);
+  --color-warn:       var(--warn);
+  --color-warn-bg:    var(--warn-bg);
+  --color-fail:       var(--fail);
+  --color-fail-bg:    var(--fail-bg);
+  --color-neutral:    var(--neutral);
   --color-neutral-bg: var(--neutral-bg);
+  --color-ai:         var(--ai);
+  --color-ai-bg:      var(--ai-bg);
 }
 
+/* ===========================
+   DESIGN SPEC COLOR SYSTEM
+   (Financial Data Interoperability Framework — v1.0)
+   =========================== */
 :root {
-  --radius: 0.625rem;
+  /* Primary palette */
+  --primary-50:  #F5F9FF;
+  --primary-100: #E8F1FA;
+  --primary-300: #6B9BCF;
+  --primary-500: #2D6A9F;
+  --primary-700: #1A3A5C;
+  --primary-900: #0A2540;
 
-  /* Brand palette */
-  --brand: oklch(0.32 0.16 275);          /* #2E3192 indigo */
-  --brand-foreground: oklch(0.99 0 0);
-  --signal: oklch(0.69 0.13 210);         /* #00A6B8 cyan */
-  --ink: oklch(0.18 0.04 260);            /* #0B1220 */
-  --muted-ink: oklch(0.49 0.02 255);      /* #5A6675 */
-  --paper: oklch(0.96 0.005 250);         /* #EEF1F4 */
-  --surface: oklch(1 0 0);                /* #FFFFFF */
+  /* Neutral palette */
+  --neutral-50:  #FAFAFA;
+  --neutral-100: #F3F4F6;
+  --neutral-200: #E5E7EB;
+  --neutral-400: #9CA3AF;
+  --neutral-500: #6B7280;
+  --neutral-700: #374151;
+  --neutral-900: #111827;
 
-  /* Semantic status */
-  --ok: oklch(0.49 0.12 150);             /* #1B7F4B */
-  --ok-bg: oklch(0.95 0.04 150);          /* #E3F3EA */
-  --info: oklch(0.5 0.14 245);            /* #1668B5 */
-  --info-bg: oklch(0.94 0.03 245);        /* #E2EEF9 */
-  --warn: oklch(0.55 0.13 75);            /* #9A6700 */
-  --warn-bg: oklch(0.95 0.05 95);         /* #FBF1D9 */
-  --fail: oklch(0.55 0.21 27);            /* #B42318 */
-  --fail-bg: oklch(0.95 0.03 30);         /* #FBE9E7 */
-  --neutral: oklch(0.49 0.02 255);        /* #5A6675 */
-  --neutral-bg: oklch(0.94 0.005 250);    /* #EDEFF2 */
+  /* Semantic status (spec §2) */
+  --ok:         #0D9488;   /* Teal 600  — healthy / success */
+  --ok-bg:      #CCFBF1;   /* Teal 100 */
+  --warn:       #D97706;   /* Amber 600 — warning / pending */
+  --warn-bg:    #FEF3C7;   /* Amber 100 */
+  --fail:       #E11D48;   /* Rose 600  — critical / error */
+  --fail-bg:    #FFE4E6;   /* Rose 100 */
+  --ai:         #7C3AED;   /* Violet 600 — AI/ML features */
+  --ai-bg:      #EDE9FE;   /* Violet 100 */
+  --info:       #2D6A9F;   /* Primary 500 — informational */
+  --info-bg:    #E8F1FA;   /* Primary 100 */
+  --neutral:    #6B7280;   /* Neutral 500 — inactive */
+  --neutral-bg: #F3F4F6;   /* Neutral 100 */
 
-  /* shadcn mappings -> brand */
-  --background: var(--paper);
-  --foreground: var(--ink);
-  --card: var(--surface);
-  --card-foreground: var(--ink);
-  --popover: var(--surface);
-  --popover-foreground: var(--ink);
-  --primary: var(--brand);
-  --primary-foreground: var(--brand-foreground);
-  --secondary: oklch(0.94 0.01 255);
-  --secondary-foreground: var(--ink);
-  --muted: oklch(0.95 0.005 250);
-  --muted-foreground: var(--muted-ink);
-  --accent: oklch(0.94 0.03 210);
-  --accent-foreground: var(--ink);
-  --destructive: var(--fail);
-  --destructive-foreground: oklch(0.99 0 0);
-  --border: oklch(0.9 0.008 255);
-  --input: oklch(0.9 0.008 255);
-  --ring: var(--signal);
+  /* Component aliases */
+  --brand:            #2D6A9F;
+  --brand-foreground: #FFFFFF;
+  --topbar:           #0A2540;
+  --topbar-fg:        #FFFFFF;
+  --signal:           #0D9488;
+  --surface:          #FFFFFF;
+  --paper:            #FAFAFA;
+  --ink:              #111827;
+  --muted-ink:        #6B7280;
+
+  /* shadcn / Radix mappings */
+  --background:              #FAFAFA;
+  --foreground:              #111827;
+  --card:                    #FFFFFF;
+  --card-foreground:         #111827;
+  --popover:                 #FFFFFF;
+  --popover-foreground:      #111827;
+  --primary:                 #2D6A9F;
+  --primary-foreground:      #FFFFFF;
+  --secondary:               #F3F4F6;
+  --secondary-foreground:    #111827;
+  --muted:                   #F3F4F6;
+  --muted-foreground:        #6B7280;
+  --accent:                  #E8F1FA;
+  --accent-foreground:       #0A2540;
+  --destructive:             #E11D48;
+  --destructive-foreground:  #FFFFFF;
+  --border:                  #E5E7EB;
+  --input:                   #E5E7EB;
+  --ring:                    #2D6A9F;
+  --radius:                  0.5rem;
 }
 
 @layer base {
   * { border-color: var(--color-border); }
+
   html, body {
     background-color: var(--color-paper);
     color: var(--color-ink);
     font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.6;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
-  h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: -0.01em; }
-  .font-mono, code, kbd { font-family: var(--font-mono); }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-sans);
+    letter-spacing: -0.01em;
+  }
+
+  .font-mono, code, kbd {
+    font-family: var(--font-mono);
+  }
+
   :focus-visible {
-    outline: 2px solid var(--signal);
+    outline: 2px solid var(--primary-500);
     outline-offset: 2px;
     border-radius: 4px;
   }
-  /* tabular numbers helper */
+
+  /* Tabular numbers for financial data */
   .tabular { font-variant-numeric: tabular-nums; }
 }
 
-/* Blueprint grid motif for auth + empty states */
+/* Auth page gradient background (spec §6 SCREEN 1) */
 @utility blueprint-grid {
-  background-color: var(--paper);
-  background-image:
-    linear-gradient(to right, oklch(0.85 0.02 250 / 0.45) 1px, transparent 1px),
-    linear-gradient(to bottom, oklch(0.85 0.02 250 / 0.45) 1px, transparent 1px);
-  background-size: 32px 32px;
+  background: linear-gradient(160deg, #0A2540 0%, #1A3A5C 100%);
 }
+
+/* Data visualization color utilities */
+@utility chart-1 { color: #2D6A9F; }
+@utility chart-2 { color: #0D9488; }
+@utility chart-3 { color: #7C3AED; }
+@utility chart-4 { color: #D97706; }
+@utility chart-5 { color: #E11D48; }
