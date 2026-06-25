@@ -90,18 +90,17 @@ export function AppShell({
 
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2.5 shrink-0 mr-1">
-          <div
-            className="h-8 w-8 rounded-lg grid place-items-center text-white font-bold text-sm shrink-0"
-            style={{ backgroundColor: "var(--primary-500)" }}
-          >
-            F
-          </div>
+          <img
+            src="/insight-navigator-logo.png"
+            alt="Finterop logo"
+            className="h-10 w-10 sm:h-12 sm:w-12 shrink-0 object-contain"
+          />
           <div className="hidden sm:block">
             <div className="text-white font-semibold text-[14px] leading-tight tracking-tight">
-              Financial Interop
+              Finterop
             </div>
             <div className="text-[10px] font-mono leading-none" style={{ color: "var(--primary-300)" }}>
-              FDIF · v1.0
+              Governed insights · secure access
             </div>
           </div>
         </Link>
