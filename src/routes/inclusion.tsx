@@ -223,7 +223,7 @@ function Inclusion() {
           <SectionCard title="Program Impact — Approval Rate Trend">
             <div style={{ height: 220 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart
+                <AreaChart
                   data={trendData}
                   margin={{ top: 8, right: 12, left: -16, bottom: 0 }}
                 >
@@ -243,7 +243,7 @@ function Inclusion() {
                     tick={{ fontSize: 11, fill: "var(--neutral-400)", fontFamily: "monospace" }}
                     axisLine={false}
                     tickLine={false}
-                    tickFormatter={(v) => `${v}%`}
+                    tickFormatter={(v: number) => `${v}%`}
                     domain={[20, 45]}
                   />
                   <Tooltip
@@ -266,15 +266,7 @@ function Inclusion() {
                     dot={false}
                     activeDot={{ r: 4, fill: "#2D6A9F", strokeWidth: 0 }}
                   />
-                  <Line
-                    type="monotone"
-                    dataKey="rate"
-                    stroke="#2D6A9F"
-                    strokeWidth={2}
-                    dot={false}
-                    activeDot={{ r: 4, fill: "#2D6A9F", strokeWidth: 0 }}
-                  />
-                </LineChart>
+                </AreaChart>
               </ResponsiveContainer>
             </div>
           </SectionCard>
