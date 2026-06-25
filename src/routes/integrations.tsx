@@ -1,180 +1,471 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { AppShell } from "@/components/AppShell";
+import {
+  AppShell,
+  PrimaryButton,
+  SecondaryButton,
+  FilterChip,
+  SectionCard,
+} from "@/components/AppShell";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useRole } from "@/context/RoleContext";
 import { canManage } from "@/lib/roles";
-import { Building2, Smartphone, CreditCard, FileSpreadsheet, Landmark, Database, Plus, Check, AlertTriangle } from "lucide-react";
+import {
+  Building2,
+  Smartphone,
+  CreditCard,
+  FileSpreadsheet,
+  Landmark,
+  Database,
+  Plus,
+  Settings2,
+  RefreshCw,
+  Search,
+  X,
+} from "lucide-react";
 
 export const Route = createFileRoute("/integrations")({
   component: Integrations,
 });
 
-const SOURCES = [
-  { id: "core-banking", name: "Core Banking", icon: Building2, status: "healthy" as const, sync: "live", desc: "Accounts, balances, transactions" },
-  { id: "mobile-money", name: "Mobile Money", icon: Smartphone, status: "running" as const, sync: "streaming", desc: "Wallets, P2P, agent network" },
-  { id: "payment-gw", name: "Payment Gateway", icon: CreditCard, status: "healthy" as const, sync: "5 min", desc: "Cards, ACH, processor feed" },
-  { id: "erp", name: "ERP / Accounting", icon: FileSpreadsheet, status: "failed" as const, sync: "18m ago", desc: "GL, AP/AR, journals" },
-  { id: "bureau", name: "Credit Bureau", icon: Landmark, status: "queued" as const, sync: "nightly", desc: "Scores, tradelines, inquiries" },
-  { id: "regulatory", name: "Regulatory Feed", icon: FileSpreadsheet, status: "healthy" as const, sync: "daily", desc: "Sanctions, PEP, watchlists" },
-  { id: "custom", name: "Custom API", icon: Database, status: "draft" as const, sync: "—", desc: "OpenAPI / JSON / webhook" },
+type SourceStatus = "healthy" | "warning" | "failed" | "queued";
+
+interface Source {
+  id: string;
+  name: string;
+  icon: React.ElementType;
+  color: string;
+  type: string;
+  status: SourceStatus;
+  sync: string;
+  records: string;
+  desc: string;
+}
+
+const SOURCES: Source[] = [
+  {
+    id: "core-banking",
+    name: "Core Banking",
+    icon: Building2,
+    color: "#2D6A9F",
+    type: "Banking",
+    status: "healthy",
+    sync: "2m ago",
+    records: "128,400",
+    desc: "Accounts, balances, transactions",
+  },
+  {
+    id: "mobile-money",
+    name: "Mobile Money",
+    icon: Smartphone,
+    color: "#0D9488",
+    type: "Mobile",
+    status: "healthy",
+    sync: "5m ago",
+    records: "84,201",
+    desc: "M-Pesa, Airtel Money transactions",
+  },
+  {
+    id: "payment-gw",
+    name: "Payment Gateway",
+    icon: CreditCard,
+    color: "#7C3AED",
+    type: "Payments",
+    status: "warning",
+    sync: "12m ago",
+    records: "22,100",
+    desc: "Stripe, card transaction feed",
+  },
+  {
+    id: "credit-bureau",
+    name: "Credit Bureau",
+    icon: FileSpreadsheet,
+    color: "#D97706",
+    type: "Credit",
+    status: "healthy",
+    sync: "1h ago",
+    records: "45,890",
+    desc: "Credit scores and history",
+  },
+  {
+    id: "erp",
+    name: "ERP / Accounting",
+    icon: Landmark,
+    color: "#0891B2",
+    type: "ERP",
+    status: "failed",
+    sync: "3h ago",
+    records: "0",
+    desc: "SAP GL, AR/AP ledgers",
+  },
+  {
+    id: "custom-api",
+    name: "Custom API",
+    icon: Database,
+    color: "#374151",
+    type: "Custom",
+    status: "queued",
+    sync: "Pending",
+    records: "—",
+    desc: "Bespoke internal data source",
+  },
 ];
+
+const SOURCE_TYPES = ["All types", "Banking", "Mobile", "Payments", "Credit", "ERP", "Custom"];
+const STATUS_OPTIONS = ["All statuses", "healthy", "warning", "failed", "queued"];
 
 export default function Integrations() {
   const { role } = useRole();
   const manage = canManage(role, "integrations");
-  const [wizard, setWizard] = useState<string | null>(null);
+
+  const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState("All types");
+  const [statusFilter, setStatusFilter] = useState("All statuses");
+
+  const hasFilters =
+    search.trim() !== "" ||
+    typeFilter !== "All types" ||
+    statusFilter !== "All statuses";
+
+  const filtered = SOURCES.filter((s) => {
+    const matchSearch =
+      search.trim() === "" ||
+      s.name.toLowerCase().includes(search.toLowerCase()) ||
+      s.desc.toLowerCase().includes(search.toLowerCase()) ||
+      s.type.toLowerCase().includes(search.toLowerCase());
+    const matchType = typeFilter === "All types" || s.type === typeFilter;
+    const matchStatus = statusFilter === "All statuses" || s.status === statusFilter;
+    return matchSearch && matchType && matchStatus;
+  });
+
+  const healthyCount = SOURCES.filter((s) => s.status === "healthy").length;
+  const warningCount = SOURCES.filter((s) => s.status === "warning").length;
+  const failedCount = SOURCES.filter((s) => s.status === "failed").length;
+  const queuedCount = SOURCES.filter((s) => s.status === "queued").length;
 
   return (
     <AppShell
-      title="Integrations"
+      title="Integration Catalog"
       breadcrumb="CONNECT › INTEGRATIONS"
+      scope="all sources"
       primaryAction={
         manage ? (
-          <button onClick={() => setWizard("core-banking")} className="h-9 px-4 rounded-md bg-brand text-brand-foreground text-sm font-medium inline-flex items-center gap-1.5">
-            <Plus className="h-4 w-4" /> Connect source
-          </button>
-        ) : null
+          <PrimaryButton icon={<Plus className="h-4 w-4" />}>
+            Add Integration
+          </PrimaryButton>
+        ) : undefined
+      }
+      toolbar={
+        <>
+          {/* Search */}
+          <div className="relative flex-1 min-w-50 max-w-[320px]">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none"
+              style={{ color: "var(--neutral-400)" }}
+            />
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search integrations…"
+              className="w-full h-8 pl-8 pr-3 rounded-lg text-[13px] border focus:outline-none transition-colors"
+              style={{
+                backgroundColor: "var(--neutral-50)",
+                borderColor: "var(--border)",
+                color: "var(--neutral-900)",
+              }}
+              onFocus={(e) =>
+                (e.currentTarget.style.borderColor = "var(--primary-500)")
+              }
+              onBlur={(e) =>
+                (e.currentTarget.style.borderColor = "var(--border)")
+              }
+            />
+          </div>
+
+          {/* Source type select */}
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            className="h-8 pl-3 pr-7 rounded-lg text-[13px] border appearance-none cursor-pointer focus:outline-none"
+            style={{
+              backgroundColor: "var(--card)",
+              borderColor: "var(--border)",
+              color: "var(--neutral-700)",
+              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
+              backgroundRepeat: "no-repeat",
+              backgroundPosition: "right 10px center",
+            }}
+          >
+            {SOURCE_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {t === "All types" ? "Source type" : t}
+              </option>
+            ))}
+          </select>
+
+          {/* Status select */}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="h-8 pl-3 pr-7 rounded-lg text-[13px] border appearance-none cursor-pointer focus:outline-none"
+            style={{
+              backgroundColor: "var(--card)",
+              borderColor: "var(--border)",
+              color: "var(--neutral-700)",
+              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
+              backgroundRepeat: "no-repeat",
+              backgroundPosition: "right 10px center",
+            }}
+          >
+            {STATUS_OPTIONS.map((s) => (
+              <option key={s} value={s}>
+                {s === "All statuses" ? "Status" : s.charAt(0).toUpperCase() + s.slice(1)}
+              </option>
+            ))}
+          </select>
+
+          {/* Clear filters */}
+          {hasFilters && (
+            <button
+              onClick={() => {
+                setSearch("");
+                setTypeFilter("All types");
+                setStatusFilter("All statuses");
+              }}
+              className="h-8 px-3 rounded-lg text-[13px] inline-flex items-center gap-1.5 transition-colors"
+              style={{ color: "var(--neutral-500)" }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.color = "var(--neutral-900)")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.color = "var(--neutral-500)")
+              }
+            >
+              <X className="h-3.5 w-3.5" />
+              Clear filters
+            </button>
+          )}
+        </>
       }
     >
-      {wizard ? (
-        <ConnectorWizard onCancel={() => setWizard(null)} sourceId={wizard} />
-      ) : (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {SOURCES.map((s) => {
-              const Icon = s.icon;
-              return (
-                <div key={s.id} className="rounded-lg border border-border bg-card p-5">
-                  <div className="flex items-start justify-between">
-                    <div className="h-10 w-10 rounded-md bg-paper grid place-items-center text-brand">
-                      <Icon className="h-5 w-5" />
+      {/* Integration source cards */}
+      {filtered.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {filtered.map((s) => {
+            const Icon = s.icon;
+            return (
+              <div
+                key={s.id}
+                className="rounded-lg p-5 flex flex-col gap-0"
+                style={{
+                  backgroundColor: "var(--card)",
+                  border: "1px solid var(--border)",
+                }}
+              >
+                {/* Top row: icon + name + status badge */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div
+                      className="h-12 w-12 rounded-full grid place-items-center shrink-0"
+                      style={{ backgroundColor: s.color + "18" }}
+                    >
+                      <Icon
+                        className="h-5 w-5"
+                        style={{ color: s.color }}
+                        strokeWidth={1.75}
+                      />
                     </div>
+                    <h3
+                      className="text-[15px] font-semibold leading-snug truncate"
+                      style={{ color: "var(--neutral-900)" }}
+                    >
+                      {s.name}
+                    </h3>
+                  </div>
+                  <div className="shrink-0 pt-0.5">
                     <StatusBadge status={s.status} />
                   </div>
-                  <h3 className="mt-3 font-display font-600 text-[15px]">{s.name}</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">{s.desc}</p>
-                  <div className="mt-4 flex items-center justify-between font-mono text-[11px] text-muted-foreground">
-                    <span>last sync · {s.sync}</span>
-                    <button
-                      onClick={() => manage && setWizard(s.id)}
-                      disabled={!manage}
-                      className="text-info disabled:text-muted-foreground/50 hover:underline disabled:no-underline"
-                      title={!manage ? "Requires Data Architect or Administrator" : ""}
-                    >
-                      {manage ? "configure →" : "view"}
-                    </button>
-                  </div>
                 </div>
-              );
-            })}
-          </div>
-          <p className="mt-4 font-mono text-[11px] text-muted-foreground">
-            FR-INT-01 · FR-INT-03 · BR-03 — secrets never displayed, credential references only.
-          </p>
-        </>
-      )}
-    </AppShell>
-  );
-}
 
-function ConnectorWizard({ onCancel, sourceId }: { onCancel: () => void; sourceId: string }) {
-  const [step, setStep] = useState(2); // step 3 = Test (index 2)
-  const steps = ["Select", "Authenticate", "Test", "Map", "Schedule"];
-  const tests = [
-    { ok: true,  label: "Endpoint reachable",   detail: "200 OK · 142ms" },
-    { ok: true,  label: "Authentication accepted", detail: "token valid" },
-    { ok: true,  label: "Sample record retrieved", detail: "1 row" },
-    { ok: false, label: "Rate limit detected",  detail: "throttle 5 req/s", warn: true },
-  ];
-  const allPass = tests.every((t) => t.ok || t.warn);
+                {/* Type badge + description */}
+                <div className="mt-3 flex items-center gap-2 flex-wrap">
+                  <span
+                    className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono font-medium uppercase tracking-wide"
+                    style={{
+                      backgroundColor: "var(--neutral-100)",
+                      color: "var(--neutral-500)",
+                    }}
+                  >
+                    {s.type}
+                  </span>
+                  <span
+                    className="text-[13px] truncate"
+                    style={{ color: "var(--neutral-500)" }}
+                  >
+                    {s.desc}
+                  </span>
+                </div>
 
-  return (
-    <div className="rounded-lg border border-border bg-card p-6 max-w-5xl">
-      <div className="flex items-center justify-between mb-1">
-        <h2 className="font-display font-600 text-lg">Connect source · {sourceId}</h2>
-        <button onClick={onCancel} className="text-sm text-muted-foreground hover:underline">Cancel</button>
-      </div>
-      <div className="font-mono text-[11px] text-muted-foreground mb-6">FR-INT-02 · SYS-02 · gated by BR-03</div>
+                {/* Stats row */}
+                <div
+                  className="mt-3 pt-3 flex items-center justify-between gap-4"
+                  style={{ borderTop: "1px solid var(--neutral-100)" }}
+                >
+                  <span
+                    className="font-mono text-[11px]"
+                    style={{ color: "var(--neutral-400)" }}
+                  >
+                    Last sync:{" "}
+                    <span
+                      className="tabular"
+                      style={{ color: "var(--neutral-700)" }}
+                    >
+                      {s.sync}
+                    </span>
+                  </span>
+                  <span
+                    className="font-mono text-[11px]"
+                    style={{ color: "var(--neutral-400)" }}
+                  >
+                    Records:{" "}
+                    <span
+                      className="tabular"
+                      style={{ color: "var(--neutral-700)" }}
+                    >
+                      {s.records}
+                    </span>
+                  </span>
+                </div>
 
-      <ol className="flex items-center gap-2 mb-6 flex-wrap">
-        {steps.map((s, i) => {
-          const done = i < step, current = i === step;
-          return (
-            <li key={s} className="flex items-center gap-2">
-              <span className={`h-6 w-6 rounded-full grid place-items-center text-[11px] font-mono ${
-                done ? "bg-ok text-white" : current ? "bg-brand text-brand-foreground" : "bg-neutral-bg text-muted-foreground"
-              }`}>{done ? <Check className="h-3 w-3" /> : i + 1}</span>
-              <span className={`text-sm ${current ? "font-medium" : "text-muted-foreground"}`}>{s}</span>
-              {i < steps.length - 1 && <span className="text-muted-foreground mx-1">─</span>}
-            </li>
-          );
-        })}
-      </ol>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 rounded-md border border-border bg-paper p-4">
-          <h3 className="text-sm font-medium mb-3">Connection test</h3>
-          <ul className="space-y-2">
-            {tests.map((t) => (
-              <li key={t.label} className="flex items-center gap-3 text-sm">
-                {t.ok ? (
-                  <span className="h-5 w-5 rounded-full bg-ok-bg text-ok grid place-items-center"><Check className="h-3 w-3" /></span>
-                ) : t.warn ? (
-                  <span className="h-5 w-5 rounded-full bg-warn-bg text-warn grid place-items-center"><AlertTriangle className="h-3 w-3" /></span>
-                ) : (
-                  <span className="h-5 w-5 rounded-full bg-fail-bg text-fail grid place-items-center">!</span>
-                )}
-                <span className="flex-1">{t.label}</span>
-                <span className="font-mono text-[11px] text-muted-foreground">{t.detail}</span>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-3 rounded-md bg-info-bg text-info text-xs font-mono px-3 py-2">
-            Secrets never displayed — credential reference only.
-          </div>
-          <button className="mt-3 h-8 px-3 rounded-md border border-border text-sm hover:bg-surface">
-            Re-run test
-          </button>
+                {/* Bottom: connection status + configure button */}
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <StatusBadge status={s.status} />
+                  <SecondaryButton
+                    icon={<Settings2 className="h-3.5 w-3.5" />}
+                    onClick={() => {}}
+                  >
+                    Configure
+                  </SecondaryButton>
+                </div>
+              </div>
+            );
+          })}
         </div>
-
-        <div className="rounded-md border border-border bg-paper p-4">
-          <h3 className="text-sm font-medium mb-3">Ingestion mode</h3>
-          <Radio label="Real-time / stream" checked />
-          <Radio label="Scheduled batch" />
-          <Radio label="On-demand" />
-          <p className="mt-3 font-mono text-[11px] text-muted-foreground">FR-INT-02</p>
-        </div>
-      </div>
-
-      <div className="mt-6 rounded-md bg-paper border border-border px-4 py-3 text-xs font-mono text-muted-foreground">
-        <span className="text-warn">⚠ BR-03 gate:</span> "Next" disabled until all required checks pass.
-      </div>
-
-      <div className="mt-4 flex justify-between">
-        <button className="h-9 px-4 rounded-md border border-border text-sm">Save draft</button>
-        <div className="flex gap-2">
-          <button onClick={() => setStep(Math.max(0, step - 1))} className="h-9 px-4 rounded-md border border-border text-sm">Back</button>
-          <button
-            disabled={!allPass}
-            onClick={() => setStep(Math.min(steps.length - 1, step + 1))}
-            className="h-9 px-4 rounded-md bg-brand text-brand-foreground text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+      ) : (
+        <div
+          className="rounded-lg p-12 text-center"
+          style={{
+            backgroundColor: "var(--card)",
+            border: "1px solid var(--border)",
+          }}
+        >
+          <p
+            className="text-[14px]"
+            style={{ color: "var(--neutral-500)" }}
           >
-            Next →
+            No integrations match your filters.
+          </p>
+          <button
+            onClick={() => {
+              setSearch("");
+              setTypeFilter("All types");
+              setStatusFilter("All statuses");
+            }}
+            className="mt-2 text-[13px] underline underline-offset-2"
+            style={{ color: "var(--primary-500)" }}
+          >
+            Clear filters
           </button>
         </div>
-      </div>
-    </div>
-  );
-}
+      )}
 
-function Radio({ label, checked }: { label: string; checked?: boolean }) {
-  return (
-    <label className="flex items-center gap-2 py-1.5 text-sm cursor-pointer">
-      <span className={`h-4 w-4 rounded-full border-2 ${checked ? "border-brand" : "border-muted-foreground/40"} grid place-items-center`}>
-        {checked && <span className="h-2 w-2 rounded-full bg-brand" />}
-      </span>
-      {label}
-    </label>
+      {/* Summary strip */}
+      <div
+        className="mt-5 rounded-lg px-5 py-3 flex flex-wrap items-center gap-x-6 gap-y-2"
+        style={{
+          backgroundColor: "var(--card)",
+          border: "1px solid var(--border)",
+        }}
+      >
+        <span
+          className="font-mono text-[11px] uppercase tracking-wide"
+          style={{ color: "var(--neutral-400)" }}
+        >
+          {SOURCES.length} sources total
+        </span>
+
+        <span className="flex items-center gap-1.5 font-mono text-[12px]">
+          <span
+            className="h-2 w-2 rounded-full"
+            style={{ backgroundColor: "var(--ok)" }}
+          />
+          <span style={{ color: "var(--neutral-700)" }}>
+            <span
+              className="font-semibold tabular"
+              style={{ color: "var(--ok)" }}
+            >
+              {healthyCount}
+            </span>{" "}
+            Healthy
+          </span>
+        </span>
+
+        <span className="flex items-center gap-1.5 font-mono text-[12px]">
+          <span
+            className="h-2 w-2 rounded-full"
+            style={{ backgroundColor: "var(--warn)" }}
+          />
+          <span style={{ color: "var(--neutral-700)" }}>
+            <span
+              className="font-semibold tabular"
+              style={{ color: "var(--warn)" }}
+            >
+              {warningCount}
+            </span>{" "}
+            Warning
+          </span>
+        </span>
+
+        <span className="flex items-center gap-1.5 font-mono text-[12px]">
+          <span
+            className="h-2 w-2 rounded-full"
+            style={{ backgroundColor: "var(--fail)" }}
+          />
+          <span style={{ color: "var(--neutral-700)" }}>
+            <span
+              className="font-semibold tabular"
+              style={{ color: "var(--fail)" }}
+            >
+              {failedCount}
+            </span>{" "}
+            Failed
+          </span>
+        </span>
+
+        <span className="flex items-center gap-1.5 font-mono text-[12px]">
+          <span
+            className="h-2 w-2 rounded-full"
+            style={{ backgroundColor: "var(--warn)" }}
+          />
+          <span style={{ color: "var(--neutral-700)" }}>
+            <span
+              className="font-semibold tabular"
+              style={{ color: "var(--warn)" }}
+            >
+              {queuedCount}
+            </span>{" "}
+            Queued
+          </span>
+        </span>
+
+        <span
+          className="ml-auto font-mono text-[11px]"
+          style={{ color: "var(--neutral-400)" }}
+        >
+          FR-INT-01 · FR-INT-03 · BR-03
+        </span>
+      </div>
+    </AppShell>
   );
 }
