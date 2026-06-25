@@ -4,7 +4,6 @@ import { AppShell } from "@/components/AppShell";
 import { StatusBadge } from "@/components/StatusBadge";
 
 export const Route = createFileRoute("/fraud")({
-  head: () => ({ meta: [{ title: "Fraud Detection · Financial Interop" }] }),
   component: Fraud,
 });
 

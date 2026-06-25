@@ -4,7 +4,6 @@ import { KpiCard } from "@/components/KpiCard";
 import { StatusBadge } from "@/components/StatusBadge";
 
 export const Route = createFileRoute("/governance")({
-  head: () => ({ meta: [{ title: "Governance · Financial Interop" }] }),
   component: Governance,
 });
 

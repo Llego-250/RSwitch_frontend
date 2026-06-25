@@ -4,7 +4,6 @@ import { KpiCard } from "@/components/KpiCard";
 import { Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/inclusion")({
-  head: () => ({ meta: [{ title: "Financial Inclusion · Financial Interop" }] }),
   component: Inclusion,
 });
 

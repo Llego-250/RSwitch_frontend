@@ -7,7 +7,6 @@ import { canManage } from "@/lib/roles";
 import { Building2, Smartphone, CreditCard, FileSpreadsheet, Landmark, Database, Plus, Check, AlertTriangle } from "lucide-react";
 
 export const Route = createFileRoute("/integrations")({
-  head: () => ({ meta: [{ title: "Integrations · Financial Interop" }] }),
   component: Integrations,
 });
 

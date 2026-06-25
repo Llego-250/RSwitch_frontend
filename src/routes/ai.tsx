@@ -5,7 +5,6 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Brain, GitBranch } from "lucide-react";
 
 export const Route = createFileRoute("/ai")({
-  head: () => ({ meta: [{ title: "AI Decision Support · Financial Interop" }] }),
   component: AIPage,
 });
 

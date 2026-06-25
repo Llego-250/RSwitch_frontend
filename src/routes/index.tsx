@@ -6,7 +6,6 @@ import { useRole } from "@/context/RoleContext";
 import { Plus } from "lucide-react";
 
 export const Route = createFileRoute("/")({
-  head: () => ({ meta: [{ title: "Dashboard · Financial Interop" }] }),
   component: Dashboard,
 });
 

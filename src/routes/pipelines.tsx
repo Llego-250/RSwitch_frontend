@@ -4,7 +4,6 @@ import { AppShell } from "@/components/AppShell";
 import { StatusBadge, type Status } from "@/components/StatusBadge";
 
 export const Route = createFileRoute("/pipelines")({
-  head: () => ({ meta: [{ title: "Pipelines · Financial Interop" }] }),
   component: Pipelines,
 });
 

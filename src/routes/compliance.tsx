@@ -5,7 +5,6 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { FileCheck2, Download } from "lucide-react";
 
 export const Route = createFileRoute("/compliance")({
-  head: () => ({ meta: [{ title: "Compliance · Financial Interop" }] }),
   component: Compliance,
 });
 

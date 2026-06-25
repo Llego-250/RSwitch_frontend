@@ -3,7 +3,6 @@ import { AppShell } from "@/components/AppShell";
 import { Bell, Globe, Palette, KeyRound, Database } from "lucide-react";
 
 export const Route = createFileRoute("/settings")({
-  head: () => ({ meta: [{ title: "Settings · Financial Interop" }] }),
   component: Settings,
 });
 

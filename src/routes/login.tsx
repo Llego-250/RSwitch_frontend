@@ -3,7 +3,6 @@ import { useState } from "react";
 import { Shield, ArrowRight, KeyRound } from "lucide-react";
 
 export const Route = createFileRoute("/login")({
-  head: () => ({ meta: [{ title: "Sign in · Financial Interop" }] }),
   component: Login,
 });
 

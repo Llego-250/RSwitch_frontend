@@ -6,7 +6,6 @@ import { useRole } from "@/context/RoleContext";
 import { Search, Shield, User2, Link2 } from "lucide-react";
 
 export const Route = createFileRoute("/customer-360")({
-  head: () => ({ meta: [{ title: "Customer 360 · Financial Interop" }] }),
   component: Customer360,
 });
 

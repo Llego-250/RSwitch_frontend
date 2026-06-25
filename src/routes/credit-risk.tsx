@@ -5,7 +5,6 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { useRole } from "@/context/RoleContext";
 
 export const Route = createFileRoute("/credit-risk")({
-  head: () => ({ meta: [{ title: "Credit Risk · Financial Interop" }] }),
   component: CreditRisk,
 });
 

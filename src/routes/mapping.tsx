@@ -3,7 +3,6 @@ import { AppShell } from "@/components/AppShell";
 import { Check, AlertTriangle, X } from "lucide-react";
 
 export const Route = createFileRoute("/mapping")({
-  head: () => ({ meta: [{ title: "Standards & Mapping · Financial Interop" }] }),
   component: Mapping,
 });
 

@@ -5,7 +5,6 @@ import { useRole } from "@/context/RoleContext";
 import { Lock, Plus, ShieldAlert } from "lucide-react";
 
 export const Route = createFileRoute("/users")({
-  head: () => ({ meta: [{ title: "Users & Security · Financial Interop" }] }),
   component: Users,
 });
 
