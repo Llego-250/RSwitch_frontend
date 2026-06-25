@@ -1,47 +1,51 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute } from "@tanstack/react-router"
+import { useState, useMemo } from "react"
 import {
   AppShell,
   PrimaryButton,
   SecondaryButton,
-  FilterChip,
   SectionCard,
-} from "@/components/AppShell";
-import { StatusBadge } from "@/components/StatusBadge";
+} from "@/components/AppShell"
+import { StatusBadge } from "@/components/StatusBadge"
 import {
-  Check,
-  AlertTriangle,
-  X,
   Plus,
-  ChevronDown,
-  ChevronRight,
-  GitBranch,
-  Pencil,
+  Edit2,
   Copy,
   Trash2,
+  ChevronDown,
+  ChevronRight,
+  Check,
+  AlertTriangle,
+  GitBranch,
   Search,
-} from "lucide-react";
+  X,
+  RotateCcw,
+} from "lucide-react"
 
 export const Route = createFileRoute("/mapping")({
-  component: MappingWorkspace,
-});
+  component: MappingPage,
+})
 
-/* ─── DATA ─── */
+/* ─── TYPES ─── */
+
+type VersionEntry = { v: string; date: string; by: string }
 
 type MappingRow = {
-  id: string;
-  name: string;
-  src: string;
-  target: string;
-  version: string;
-  status: "healthy" | "warning" | "draft";
-  updated: string;
-  fields: number;
-  mapped: number;
-  history: { version: string; date: string; author: string; note: string }[];
-};
+  id: string
+  name: string
+  src: string
+  target: string
+  version: string
+  status: "healthy" | "warning" | "draft"
+  updated: string
+  fields: number
+  mapped: number
+  versions: VersionEntry[]
+}
 
-const MAPPING_DATA: MappingRow[] = [
+/* ─── STATIC DATA ─── */
+
+const MAPPINGS: MappingRow[] = [
   {
     id: "M-001",
     name: "Core Banking → ISO 20022",
@@ -52,10 +56,10 @@ const MAPPING_DATA: MappingRow[] = [
     updated: "2025-06-20",
     fields: 42,
     mapped: 42,
-    history: [
-      { version: "v3.1", date: "2025-06-20", author: "A. Mwangi", note: "Added IBAN validation rule" },
-      { version: "v3.0", date: "2025-05-12", author: "S. Kariuki", note: "Migrated to pacs.008 schema" },
-      { version: "v2.9", date: "2025-03-01", author: "A. Mwangi", note: "Hotfix: currency decimals" },
+    versions: [
+      { v: "v3.1", date: "2025-06-20", by: "architect" },
+      { v: "v3.0", date: "2025-04-10", by: "architect" },
+      { v: "v2.9", date: "2025-01-15", by: "lead-dev" },
     ],
   },
   {
@@ -68,9 +72,9 @@ const MAPPING_DATA: MappingRow[] = [
     updated: "2025-06-18",
     fields: 28,
     mapped: 28,
-    history: [
-      { version: "v2.0", date: "2025-06-18", author: "J. Oduya", note: "Full field coverage reached" },
-      { version: "v1.5", date: "2025-04-07", author: "J. Oduya", note: "Added wallet_type enum" },
+    versions: [
+      { v: "v2.0", date: "2025-06-18", by: "dev-1" },
+      { v: "v1.9", date: "2025-03-22", by: "dev-1" },
     ],
   },
   {
@@ -83,11 +87,7 @@ const MAPPING_DATA: MappingRow[] = [
     updated: "2025-06-15",
     fields: 31,
     mapped: 29,
-    history: [
-      { version: "v1.4", date: "2025-06-15", author: "M. Njeru", note: "2 fields pending bureau confirmation" },
-      { version: "v1.3", date: "2025-05-20", author: "M. Njeru", note: "Added delinquency_score" },
-      { version: "v1.2", date: "2025-04-01", author: "S. Kariuki", note: "Initial production release" },
-    ],
+    versions: [{ v: "v1.4", date: "2025-06-15", by: "analyst" }],
   },
   {
     id: "M-004",
@@ -99,9 +99,7 @@ const MAPPING_DATA: MappingRow[] = [
     updated: "2025-06-10",
     fields: 18,
     mapped: 14,
-    history: [
-      { version: "v1.0-draft", date: "2025-06-10", author: "A. Mwangi", note: "First draft — GL codes TBD" },
-    ],
+    versions: [],
   },
   {
     id: "M-005",
@@ -113,9 +111,9 @@ const MAPPING_DATA: MappingRow[] = [
     updated: "2025-06-22",
     fields: 22,
     mapped: 22,
-    history: [
-      { version: "v2.1", date: "2025-06-22", author: "J. Oduya", note: "3DS2 auth fields added" },
-      { version: "v2.0", date: "2025-05-30", author: "J. Oduya", note: "Restructured response envelope" },
+    versions: [
+      { v: "v2.1", date: "2025-06-22", by: "dev-2" },
+      { v: "v2.0", date: "2025-04-01", by: "dev-2" },
     ],
   },
   {
@@ -128,205 +126,85 @@ const MAPPING_DATA: MappingRow[] = [
     updated: "2025-06-19",
     fields: 55,
     mapped: 55,
-    history: [
-      { version: "v4.0", date: "2025-06-19", author: "S. Kariuki", note: "Aligned with CBK Directive 2025-04" },
-      { version: "v3.8", date: "2025-03-15", author: "M. Njeru", note: "AML field extensions" },
-      { version: "v3.5", date: "2025-01-10", author: "S. Kariuki", note: "Baseline regulatory fields" },
-    ],
+    versions: [{ v: "v4.0", date: "2025-06-19", by: "compliance" }],
   },
-];
+]
 
-const TARGET_STANDARDS = ["All", "ISO 20022", "JSON", "XML", "CSV", "Custom"];
-const STATUS_OPTIONS = ["All", "Healthy", "Warning", "Draft"];
+const SOURCE_OPTIONS = [
+  "Core Banking",
+  "Mobile Money",
+  "Credit Bureau",
+  "ERP",
+  "Payment GW",
+  "Regulatory",
+  "Custom",
+]
 
-/* ─── SUB-COMPONENTS ─── */
-
-function ProgressBar({ value, max }: { value: number; max: number }) {
-  const pct = max === 0 ? 0 : Math.round((value / max) * 100);
-  const color = pct === 100 ? "var(--ok)" : pct >= 80 ? "var(--warn)" : "var(--fail)";
-  return (
-    <div className="flex items-center gap-2">
-      <div
-        className="flex-1 h-1.5 rounded-full overflow-hidden"
-        style={{ backgroundColor: "var(--neutral-200)" }}
-      >
-        <div
-          className="h-full rounded-full transition-all"
-          style={{ width: `${pct}%`, backgroundColor: color }}
-        />
-      </div>
-      <span
-        className="font-mono text-[11px] tabular w-[30px] text-right shrink-0"
-        style={{ color: "var(--neutral-500)" }}
-      >
-        {pct}%
-      </span>
-    </div>
-  );
-}
-
-function SummaryRow({ data }: { data: MappingRow[] }) {
-  const total = data.length;
-  const fullyMapped = data.filter((r) => r.mapped === r.fields).length;
-  const withWarnings = data.filter((r) => r.status === "warning").length;
-  const draft = data.filter((r) => r.status === "draft").length;
-
-  const pills: { label: string; value: number; color: string; bg: string }[] = [
-    { label: "Total mappings", value: total, color: "var(--neutral-700)", bg: "var(--neutral-100)" },
-    { label: "Fully mapped", value: fullyMapped, color: "var(--ok)", bg: "var(--ok-bg)" },
-    { label: "With warnings", value: withWarnings, color: "var(--warn)", bg: "var(--warn-bg)" },
-    { label: "Draft", value: draft, color: "var(--neutral-500)", bg: "var(--neutral-100)" },
-  ];
-
-  return (
-    <div
-      className="flex flex-wrap gap-3 px-5 py-3"
-      style={{ borderTop: "1px solid var(--border)", backgroundColor: "var(--neutral-50)" }}
-    >
-      {pills.map((p) => (
-        <div
-          key={p.label}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-md"
-          style={{ backgroundColor: p.bg }}
-        >
-          <span
-            className="font-mono text-[15px] font-semibold tabular leading-none"
-            style={{ color: p.color }}
-          >
-            {p.value}
-          </span>
-          <span className="text-[12px]" style={{ color: "var(--neutral-600)" }}>
-            {p.label}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function HistorySubRow({ row }: { row: MappingRow }) {
-  return (
-    <tr>
-      <td colSpan={7} style={{ padding: 0, backgroundColor: "var(--primary-50)" }}>
-        <div className="px-12 py-3">
-          <div
-            className="text-[11px] font-mono uppercase tracking-wider mb-2"
-            style={{ color: "var(--neutral-500)" }}
-          >
-            Version History — {row.name}
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr>
-                  {["Version", "Published", "Author", "Change note"].map((h) => (
-                    <th
-                      key={h}
-                      className="text-left px-3 py-2 text-[11px] font-medium uppercase tracking-wide"
-                      style={{
-                        color: "var(--neutral-500)",
-                        backgroundColor: "var(--primary-100)",
-                        borderBottom: "1px solid var(--border)",
-                      }}
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {row.history.map((h, i) => (
-                  <tr
-                    key={h.version}
-                    style={{
-                      borderBottom: i < row.history.length - 1 ? "1px solid var(--border)" : "none",
-                      backgroundColor: i === 0 ? "var(--primary-50)" : "var(--card)",
-                    }}
-                  >
-                    <td className="px-3 py-2 font-mono text-[12px]" style={{ color: "var(--primary-700)" }}>
-                      {h.version}
-                      {i === 0 && (
-                        <span
-                          className="ml-2 text-[10px] font-medium uppercase tracking-wide px-1.5 py-0.5 rounded"
-                          style={{ backgroundColor: "var(--primary-100)", color: "var(--primary-500)" }}
-                        >
-                          current
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 font-mono text-[12px]" style={{ color: "var(--neutral-500)" }}>
-                      {h.date}
-                    </td>
-                    <td className="px-3 py-2 text-[12px]" style={{ color: "var(--neutral-700)" }}>
-                      {h.author}
-                    </td>
-                    <td className="px-3 py-2 text-[12px]" style={{ color: "var(--neutral-700)" }}>
-                      {h.note}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </td>
-    </tr>
-  );
-}
+const TARGET_OPTIONS = ["JSON", "ISO 20022", "XML", "CSV", "Custom"]
 
 /* ─── MAIN COMPONENT ─── */
 
-function MappingWorkspace() {
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
-  const [search, setSearch] = useState("");
-  const [targetFilter, setTargetFilter] = useState("All");
-  const [statusFilter, setStatusFilter] = useState("All");
+function MappingPage() {
+  /* filter state */
+  const [search, setSearch] = useState("")
+  const [statusFilter, setStatusFilter] = useState("All")
+  const [standardFilter, setStandardFilter] = useState("All")
 
-  function toggleRow(id: string) {
-    setExpandedRows((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  }
+  /* expand state — only one row open at a time */
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
-  const filtered = MAPPING_DATA.filter((r) => {
-    const matchesSearch =
-      search.trim() === "" ||
-      r.name.toLowerCase().includes(search.toLowerCase()) ||
-      r.src.toLowerCase().includes(search.toLowerCase()) ||
-      r.target.toLowerCase().includes(search.toLowerCase());
-    const matchesTarget =
-      targetFilter === "All" || r.target === targetFilter;
-    const matchesStatus =
-      statusFilter === "All" ||
-      r.status === statusFilter.toLowerCase();
-    return matchesSearch && matchesTarget && matchesStatus;
-  });
+  /* modal state */
+  const [showNewModal, setShowNewModal] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [deleteId, setDeleteId] = useState<string | null>(null)
 
-  const COLS = [
-    { label: "", width: "40px" },
-    { label: "Mapping Name", width: "" },
-    { label: "Source Type", width: "140px" },
-    { label: "Target Standard", width: "140px" },
-    { label: "Version", width: "110px" },
-    { label: "Status", width: "110px" },
-    { label: "Coverage", width: "130px" },
-    { label: "Last Updated", width: "120px" },
-    { label: "Actions", width: "100px" },
-  ];
+  /* new mapping form */
+  const [newMapping, setNewMapping] = useState({
+    name: "",
+    src: "Core Banking",
+    target: "JSON",
+    version: "v1.0",
+  })
+
+  /* derived data */
+  const filtered = useMemo(() => {
+    return MAPPINGS.filter((r) => {
+      const q = search.toLowerCase()
+      const matchSearch =
+        q === "" ||
+        r.name.toLowerCase().includes(q) ||
+        r.src.toLowerCase().includes(q) ||
+        r.target.toLowerCase().includes(q) ||
+        r.id.toLowerCase().includes(q)
+      const matchStatus =
+        statusFilter === "All" ||
+        r.status === statusFilter.toLowerCase()
+      const matchStandard =
+        standardFilter === "All" || r.target === standardFilter
+      return matchSearch && matchStatus && matchStandard
+    })
+  }, [search, statusFilter, standardFilter])
+
+  const total = filtered.length
+  const fullyMapped = filtered.filter((r) => r.mapped === r.fields).length
+  const warnings = filtered.filter((r) => r.status === "warning").length
+  const drafts = filtered.filter((r) => r.status === "draft").length
+
+  const editingRow = editingId ? MAPPINGS.find((r) => r.id === editingId) : null
+  const deleteRow = deleteId ? MAPPINGS.find((r) => r.id === deleteId) : null
 
   return (
     <AppShell
       title="Standards & Mapping"
       breadcrumb="CONNECT › MAPPING"
-      scope="all sources"
       primaryAction={
-        <PrimaryButton icon={<Plus className="h-4 w-4" />}>
+        <PrimaryButton
+          icon={<Plus className="h-4 w-4" />}
+          onClick={() => {
+            setNewMapping({ name: "", src: "Core Banking", target: "JSON", version: "v1.0" })
+            setShowNewModal(true)
+          }}
+        >
           New Mapping
         </PrimaryButton>
       }
@@ -353,11 +231,11 @@ function MappingWorkspace() {
             />
           </div>
 
-          {/* Standard type select */}
+          {/* Standard select */}
           <div className="relative">
             <select
-              value={targetFilter}
-              onChange={(e) => setTargetFilter(e.target.value)}
+              value={standardFilter}
+              onChange={(e) => setStandardFilter(e.target.value)}
               className="h-8 pl-3 pr-8 rounded-md text-[13px] appearance-none focus:outline-none cursor-pointer"
               style={{
                 border: "1px solid var(--border)",
@@ -365,7 +243,7 @@ function MappingWorkspace() {
                 color: "var(--neutral-700)",
               }}
             >
-              {TARGET_STANDARDS.map((s) => (
+              {["All", "ISO 20022", "JSON", "XML", "CSV"].map((s) => (
                 <option key={s} value={s}>
                   {s === "All" ? "Standard: All" : s}
                 </option>
@@ -389,7 +267,7 @@ function MappingWorkspace() {
                 color: "var(--neutral-700)",
               }}
             >
-              {STATUS_OPTIONS.map((s) => (
+              {["All", "Healthy", "Warning", "Draft"].map((s) => (
                 <option key={s} value={s}>
                   {s === "All" ? "Status: All" : s}
                 </option>
@@ -401,443 +279,1065 @@ function MappingWorkspace() {
             />
           </div>
 
-          <span className="ml-auto font-mono text-[11px]" style={{ color: "var(--neutral-500)" }}>
-            {filtered.length} of {MAPPING_DATA.length} mappings
+          <span
+            className="ml-auto font-mono text-[11px]"
+            style={{ color: "var(--neutral-500)" }}
+          >
+            {filtered.length} of {MAPPINGS.length} shown
           </span>
         </>
       }
     >
-      {/* ─── TWO-COLUMN LAYOUT: table 70% + sidebar 30% ─── */}
-      <div className="flex gap-5 items-start">
+      <div className="flex flex-col gap-5">
 
-        {/* ─── LEFT: Field Mappings table ─── */}
-        <div className="flex-1 min-w-0">
-          <SectionCard
-            title={
-              <span className="flex items-center gap-2">
-                <GitBranch className="h-4 w-4" style={{ color: "var(--primary-500)" }} />
-                Field Mappings
-              </span>
-            }
-            action={
-              <SecondaryButton icon={<Plus className="h-3.5 w-3.5" />}>
-                Import
-              </SecondaryButton>
-            }
-            noPad
-          >
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm" style={{ minWidth: "780px" }}>
-                <thead
-                  style={{
-                    backgroundColor: "var(--neutral-100)",
-                    borderBottom: "1px solid var(--border)",
-                  }}
-                >
+        {/* ─── FIELD MAPPINGS TABLE ─── */}
+        <SectionCard
+          title={
+            <span className="flex items-center gap-2">
+              <GitBranch className="h-4 w-4" style={{ color: "var(--primary-500)" }} />
+              Field Mappings
+            </span>
+          }
+          noPad
+        >
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm" style={{ minWidth: "820px" }}>
+              <thead
+                style={{
+                  backgroundColor: "var(--neutral-100)",
+                  borderBottom: "1px solid var(--border)",
+                }}
+              >
+                <tr>
+                  <th style={{ width: "40px" }} />
+                  <th
+                    className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide"
+                    style={{ color: "var(--neutral-500)" }}
+                  >
+                    Name
+                  </th>
+                  <th
+                    className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide"
+                    style={{ color: "var(--neutral-500)", width: "130px" }}
+                  >
+                    Source
+                  </th>
+                  <th
+                    className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide"
+                    style={{ color: "var(--neutral-500)", width: "120px" }}
+                  >
+                    Target
+                  </th>
+                  <th
+                    className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide"
+                    style={{ color: "var(--neutral-500)", width: "100px" }}
+                  >
+                    Version
+                  </th>
+                  <th
+                    className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide"
+                    style={{ color: "var(--neutral-500)", width: "100px" }}
+                  >
+                    Status
+                  </th>
+                  <th
+                    className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide"
+                    style={{ color: "var(--neutral-500)", width: "110px" }}
+                  >
+                    Mapped Fields
+                  </th>
+                  <th
+                    className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide"
+                    style={{ color: "var(--neutral-500)", width: "110px" }}
+                  >
+                    Updated
+                  </th>
+                  <th
+                    className="text-right px-4 py-3 text-[11px] font-medium uppercase tracking-wide"
+                    style={{ color: "var(--neutral-500)", width: "96px" }}
+                  >
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
                   <tr>
-                    {/* expand toggle col */}
-                    <th style={{ width: "40px" }} />
-                    <th
-                      className="text-left px-4 py-3 text-[12px] font-medium uppercase tracking-wide"
-                      style={{ color: "var(--neutral-500)" }}
+                    <td
+                      colSpan={9}
+                      className="px-4 py-10 text-center text-sm"
+                      style={{ color: "var(--neutral-400)" }}
                     >
-                      Mapping Name
-                    </th>
-                    <th
-                      className="text-left px-4 py-3 text-[12px] font-medium uppercase tracking-wide"
-                      style={{ color: "var(--neutral-500)", width: "130px" }}
-                    >
-                      Source Type
-                    </th>
-                    <th
-                      className="text-left px-4 py-3 text-[12px] font-medium uppercase tracking-wide"
-                      style={{ color: "var(--neutral-500)", width: "130px" }}
-                    >
-                      Target Standard
-                    </th>
-                    <th
-                      className="text-left px-4 py-3 text-[12px] font-medium uppercase tracking-wide"
-                      style={{ color: "var(--neutral-500)", width: "100px" }}
-                    >
-                      Version
-                    </th>
-                    <th
-                      className="text-left px-4 py-3 text-[12px] font-medium uppercase tracking-wide"
-                      style={{ color: "var(--neutral-500)", width: "100px" }}
-                    >
-                      Status
-                    </th>
-                    <th
-                      className="text-left px-4 py-3 text-[12px] font-medium uppercase tracking-wide"
-                      style={{ color: "var(--neutral-500)", width: "120px" }}
-                    >
-                      Coverage
-                    </th>
-                    <th
-                      className="text-left px-4 py-3 text-[12px] font-medium uppercase tracking-wide"
-                      style={{ color: "var(--neutral-500)", width: "110px" }}
-                    >
-                      Last Updated
-                    </th>
-                    <th
-                      className="text-right px-4 py-3 text-[12px] font-medium uppercase tracking-wide"
-                      style={{ color: "var(--neutral-500)", width: "90px" }}
-                    >
-                      Actions
-                    </th>
+                      No mappings match the current filters.
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {filtered.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={9}
-                        className="px-4 py-8 text-center text-sm"
-                        style={{ color: "var(--neutral-500)" }}
-                      >
-                        No mappings match the current filters.
-                      </td>
-                    </tr>
-                  ) : (
-                    filtered.map((row, i) => {
-                      const expanded = expandedRows.has(row.id);
-                      const coveragePct =
-                        row.fields === 0
-                          ? 0
-                          : Math.round((row.mapped / row.fields) * 100);
-                      return (
-                        <>
-                          <tr
-                            key={row.id}
-                            style={{
-                              borderBottom: expanded ? "none" : "1px solid var(--border)",
-                              backgroundColor:
-                                expanded
-                                  ? "var(--primary-50)"
-                                  : i % 2 === 0
-                                  ? "transparent"
-                                  : "var(--neutral-50)",
-                            }}
+                ) : (
+                  filtered.map((row) => {
+                    const isExpanded = expandedId === row.id
+                    const allMapped = row.mapped === row.fields
+                    const mappedColor = allMapped ? "var(--ok)" : "var(--warn)"
+                    const mappedBg = allMapped ? "var(--ok-bg)" : "var(--warn-bg)"
+
+                    return (
+                      <>
+                        <tr
+                          key={row.id}
+                          className="hover:bg-(--neutral-50) cursor-pointer"
+                          style={{
+                            borderBottom: isExpanded
+                              ? "none"
+                              : "1px solid var(--border)",
+                            backgroundColor: isExpanded
+                              ? "var(--primary-50)"
+                              : undefined,
+                          }}
+                        >
+                          {/* Expand chevron */}
+                          <td className="pl-3 py-3 w-10">
+                            <button
+                              onClick={() =>
+                                setExpandedId(isExpanded ? null : row.id)
+                              }
+                              aria-label={
+                                isExpanded ? "Collapse row" : "Expand row"
+                              }
+                              className="h-6 w-6 rounded flex items-center justify-center transition-colors"
+                              style={{ color: "var(--neutral-400)" }}
+                              onMouseEnter={(e) => {
+                                ;(
+                                  e.currentTarget as HTMLElement
+                                ).style.backgroundColor = "var(--neutral-200)"
+                                ;(
+                                  e.currentTarget as HTMLElement
+                                ).style.color = "var(--primary-500)"
+                              }}
+                              onMouseLeave={(e) => {
+                                ;(
+                                  e.currentTarget as HTMLElement
+                                ).style.backgroundColor = "transparent"
+                                ;(
+                                  e.currentTarget as HTMLElement
+                                ).style.color = "var(--neutral-400)"
+                              }}
+                            >
+                              {isExpanded ? (
+                                <ChevronDown className="h-3.5 w-3.5" />
+                              ) : (
+                                <ChevronRight className="h-3.5 w-3.5" />
+                              )}
+                            </button>
+                          </td>
+
+                          {/* Name */}
+                          <td className="px-4 py-3">
+                            <div
+                              className="font-medium text-[13px]"
+                              style={{ color: "var(--neutral-900)" }}
+                            >
+                              {row.name}
+                            </div>
+                            <div
+                              className="font-mono text-[11px] mt-0.5"
+                              style={{ color: "var(--neutral-400)" }}
+                            >
+                              {row.id}
+                            </div>
+                          </td>
+
+                          {/* Source */}
+                          <td className="px-4 py-3">
+                            <span
+                              className="font-mono text-[11px] px-2 py-1 rounded inline-block"
+                              style={{
+                                backgroundColor: "var(--neutral-100)",
+                                color: "var(--neutral-700)",
+                              }}
+                            >
+                              {row.src}
+                            </span>
+                          </td>
+
+                          {/* Target */}
+                          <td className="px-4 py-3">
+                            <span
+                              className="font-mono text-[11px] px-2 py-1 rounded inline-block"
+                              style={{
+                                backgroundColor: "var(--primary-100)",
+                                color: "var(--primary-700)",
+                              }}
+                            >
+                              {row.target}
+                            </span>
+                          </td>
+
+                          {/* Version */}
+                          <td
+                            className="px-4 py-3 font-mono text-[12px]"
+                            style={{ color: "var(--neutral-500)" }}
                           >
-                            {/* Expand chevron */}
-                            <td className="pl-4 pr-0 py-3 w-[40px]">
+                            {row.version}
+                          </td>
+
+                          {/* Status */}
+                          <td className="px-4 py-3">
+                            <StatusBadge status={row.status} />
+                          </td>
+
+                          {/* Mapped fields */}
+                          <td className="px-4 py-3">
+                            <span
+                              className="inline-flex items-center gap-1 font-mono text-[12px] font-semibold px-2 py-0.5 rounded"
+                              style={{
+                                color: mappedColor,
+                                backgroundColor: mappedBg,
+                                fontVariantNumeric: "tabular-nums",
+                              }}
+                            >
+                              {allMapped && (
+                                <Check
+                                  className="h-3 w-3 shrink-0"
+                                  style={{ color: mappedColor }}
+                                />
+                              )}
+                              {row.mapped}/{row.fields}
+                            </span>
+                          </td>
+
+                          {/* Updated */}
+                          <td
+                            className="px-4 py-3 font-mono text-[12px]"
+                            style={{ color: "var(--neutral-500)" }}
+                          >
+                            {row.updated}
+                          </td>
+
+                          {/* Actions */}
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-1 justify-end">
                               <button
-                                onClick={() => toggleRow(row.id)}
-                                aria-label={expanded ? "Collapse row" : "Expand row"}
-                                className="h-6 w-6 rounded flex items-center justify-center transition-colors"
+                                title="Edit"
+                                aria-label="Edit mapping"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setEditingId(row.id)
+                                }}
+                                className="h-7 w-7 rounded flex items-center justify-center transition-colors"
                                 style={{ color: "var(--neutral-400)" }}
                                 onMouseEnter={(e) => {
-                                  (e.currentTarget as HTMLElement).style.backgroundColor =
-                                    "var(--neutral-200)";
-                                  (e.currentTarget as HTMLElement).style.color =
-                                    "var(--primary-500)";
+                                  ;(
+                                    e.currentTarget as HTMLElement
+                                  ).style.backgroundColor =
+                                    "var(--primary-100)"
+                                  ;(
+                                    e.currentTarget as HTMLElement
+                                  ).style.color = "var(--primary-500)"
                                 }}
                                 onMouseLeave={(e) => {
-                                  (e.currentTarget as HTMLElement).style.backgroundColor =
-                                    "transparent";
-                                  (e.currentTarget as HTMLElement).style.color =
-                                    "var(--neutral-400)";
+                                  ;(
+                                    e.currentTarget as HTMLElement
+                                  ).style.backgroundColor = "transparent"
+                                  ;(
+                                    e.currentTarget as HTMLElement
+                                  ).style.color = "var(--neutral-400)"
                                 }}
                               >
-                                {expanded ? (
-                                  <ChevronDown className="h-3.5 w-3.5" />
-                                ) : (
-                                  <ChevronRight className="h-3.5 w-3.5" />
-                                )}
+                                <Edit2 className="h-3.5 w-3.5" />
                               </button>
-                            </td>
 
-                            {/* Name */}
-                            <td className="px-4 py-3">
-                              <div
-                                className="font-medium text-[13px]"
-                                style={{ color: "var(--neutral-900)" }}
-                              >
-                                {row.name}
-                              </div>
-                              <div
-                                className="font-mono text-[11px] mt-0.5"
+                              <button
+                                title="Duplicate"
+                                aria-label="Duplicate mapping"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  alert(`Duplicated: ${row.name}`)
+                                }}
+                                className="h-7 w-7 rounded flex items-center justify-center transition-colors"
                                 style={{ color: "var(--neutral-400)" }}
-                              >
-                                {row.id} · {row.mapped}/{row.fields} fields
-                              </div>
-                            </td>
-
-                            {/* Source */}
-                            <td className="px-4 py-3">
-                              <span
-                                className="inline-block font-mono text-[11px] px-2 py-1 rounded"
-                                style={{
-                                  backgroundColor: "var(--neutral-100)",
-                                  color: "var(--neutral-700)",
+                                onMouseEnter={(e) => {
+                                  ;(
+                                    e.currentTarget as HTMLElement
+                                  ).style.backgroundColor =
+                                    "var(--neutral-100)"
+                                  ;(
+                                    e.currentTarget as HTMLElement
+                                  ).style.color = "var(--neutral-700)"
+                                }}
+                                onMouseLeave={(e) => {
+                                  ;(
+                                    e.currentTarget as HTMLElement
+                                  ).style.backgroundColor = "transparent"
+                                  ;(
+                                    e.currentTarget as HTMLElement
+                                  ).style.color = "var(--neutral-400)"
                                 }}
                               >
-                                {row.src}
-                              </span>
-                            </td>
+                                <Copy className="h-3.5 w-3.5" />
+                              </button>
 
-                            {/* Target */}
-                            <td className="px-4 py-3">
-                              <span
-                                className="inline-block font-mono text-[11px] px-2 py-1 rounded"
-                                style={{
-                                  backgroundColor: "var(--info-bg)",
-                                  color: "var(--primary-700)",
+                              <button
+                                title="Delete"
+                                aria-label="Delete mapping"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setDeleteId(row.id)
+                                }}
+                                className="h-7 w-7 rounded flex items-center justify-center transition-colors"
+                                style={{ color: "var(--neutral-400)" }}
+                                onMouseEnter={(e) => {
+                                  ;(
+                                    e.currentTarget as HTMLElement
+                                  ).style.backgroundColor = "var(--fail-bg)"
+                                  ;(
+                                    e.currentTarget as HTMLElement
+                                  ).style.color = "var(--fail)"
+                                }}
+                                onMouseLeave={(e) => {
+                                  ;(
+                                    e.currentTarget as HTMLElement
+                                  ).style.backgroundColor = "transparent"
+                                  ;(
+                                    e.currentTarget as HTMLElement
+                                  ).style.color = "var(--neutral-400)"
                                 }}
                               >
-                                {row.target}
-                              </span>
-                            </td>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
 
-                            {/* Version */}
+                        {/* ─── EXPANDED VERSION HISTORY ─── */}
+                        {isExpanded && (
+                          <tr
+                            key={`${row.id}-expanded`}
+                            style={{ borderBottom: "1px solid var(--border)" }}
+                          >
                             <td
-                              className="px-4 py-3 font-mono text-[12px]"
-                              style={{ color: "var(--neutral-500)" }}
+                              colSpan={9}
+                              style={{
+                                padding: 0,
+                                backgroundColor: "var(--primary-50)",
+                              }}
                             >
-                              {row.version}
-                            </td>
-
-                            {/* Status */}
-                            <td className="px-4 py-3">
-                              <StatusBadge status={row.status} />
-                            </td>
-
-                            {/* Coverage bar */}
-                            <td className="px-4 py-3" style={{ minWidth: "120px" }}>
-                              <ProgressBar value={row.mapped} max={row.fields} />
-                            </td>
-
-                            {/* Updated */}
-                            <td
-                              className="px-4 py-3 font-mono text-[12px]"
-                              style={{ color: "var(--neutral-500)" }}
-                            >
-                              {row.updated}
-                            </td>
-
-                            {/* Actions */}
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-1 justify-end">
-                                <button
-                                  aria-label="Edit mapping"
-                                  title="Edit"
-                                  className="h-7 w-7 rounded flex items-center justify-center transition-colors"
-                                  style={{ color: "var(--neutral-400)" }}
-                                  onMouseEnter={(e) => {
-                                    (e.currentTarget as HTMLElement).style.backgroundColor =
-                                      "var(--primary-100)";
-                                    (e.currentTarget as HTMLElement).style.color =
-                                      "var(--primary-500)";
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    (e.currentTarget as HTMLElement).style.backgroundColor =
-                                      "transparent";
-                                    (e.currentTarget as HTMLElement).style.color =
-                                      "var(--neutral-400)";
-                                  }}
+                              <div className="px-12 py-4">
+                                <div
+                                  className="text-[11px] font-mono uppercase tracking-wider mb-3"
+                                  style={{ color: "var(--primary-500)" }}
                                 >
-                                  <Pencil className="h-3.5 w-3.5" />
-                                </button>
-                                <button
-                                  aria-label="Duplicate mapping"
-                                  title="Duplicate"
-                                  className="h-7 w-7 rounded flex items-center justify-center transition-colors"
-                                  style={{ color: "var(--neutral-400)" }}
-                                  onMouseEnter={(e) => {
-                                    (e.currentTarget as HTMLElement).style.backgroundColor =
-                                      "var(--neutral-100)";
-                                    (e.currentTarget as HTMLElement).style.color =
-                                      "var(--neutral-700)";
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    (e.currentTarget as HTMLElement).style.backgroundColor =
-                                      "transparent";
-                                    (e.currentTarget as HTMLElement).style.color =
-                                      "var(--neutral-400)";
-                                  }}
-                                >
-                                  <Copy className="h-3.5 w-3.5" />
-                                </button>
-                                <button
-                                  aria-label="Delete mapping"
-                                  title="Delete"
-                                  className="h-7 w-7 rounded flex items-center justify-center transition-colors"
-                                  style={{ color: "var(--neutral-400)" }}
-                                  onMouseEnter={(e) => {
-                                    (e.currentTarget as HTMLElement).style.backgroundColor =
-                                      "var(--fail-bg)";
-                                    (e.currentTarget as HTMLElement).style.color =
-                                      "var(--fail)";
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    (e.currentTarget as HTMLElement).style.backgroundColor =
-                                      "transparent";
-                                    (e.currentTarget as HTMLElement).style.color =
-                                      "var(--neutral-400)";
-                                  }}
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
+                                  Version History — {row.name}
+                                </div>
+                                {row.versions.length === 0 ? (
+                                  <p
+                                    className="text-[12px] italic"
+                                    style={{ color: "var(--neutral-400)" }}
+                                  >
+                                    No published versions yet.
+                                  </p>
+                                ) : (
+                                  <div className="overflow-x-auto">
+                                    <table
+                                      className="w-full text-sm"
+                                      style={{ minWidth: "520px" }}
+                                    >
+                                      <thead>
+                                        <tr>
+                                          {[
+                                            "Version",
+                                            "Date",
+                                            "Author",
+                                            "Actions",
+                                          ].map((h) => (
+                                            <th
+                                              key={h}
+                                              className="text-left px-3 py-2 text-[11px] font-medium uppercase tracking-wide"
+                                              style={{
+                                                color: "var(--neutral-500)",
+                                                backgroundColor:
+                                                  "var(--primary-100)",
+                                                borderBottom:
+                                                  "1px solid var(--border)",
+                                              }}
+                                            >
+                                              {h}
+                                            </th>
+                                          ))}
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {row.versions.map((ver, vi) => (
+                                          <tr
+                                            key={ver.v}
+                                            style={{
+                                              borderBottom:
+                                                vi < row.versions.length - 1
+                                                  ? "1px solid var(--border)"
+                                                  : "none",
+                                              backgroundColor:
+                                                vi === 0
+                                                  ? "var(--primary-50)"
+                                                  : "var(--card)",
+                                            }}
+                                          >
+                                            <td className="px-3 py-2">
+                                              <span
+                                                className="font-mono text-[12px]"
+                                                style={{
+                                                  color:
+                                                    "var(--primary-700)",
+                                                }}
+                                              >
+                                                {ver.v}
+                                              </span>
+                                              {vi === 0 && (
+                                                <span
+                                                  className="ml-2 text-[10px] font-medium uppercase tracking-wide px-1.5 py-0.5 rounded"
+                                                  style={{
+                                                    backgroundColor:
+                                                      "var(--primary-100)",
+                                                    color:
+                                                      "var(--primary-500)",
+                                                  }}
+                                                >
+                                                  current
+                                                </span>
+                                              )}
+                                            </td>
+                                            <td
+                                              className="px-3 py-2 font-mono text-[12px]"
+                                              style={{
+                                                color: "var(--neutral-500)",
+                                              }}
+                                            >
+                                              {ver.date}
+                                            </td>
+                                            <td
+                                              className="px-3 py-2 text-[12px]"
+                                              style={{
+                                                color: "var(--neutral-700)",
+                                              }}
+                                            >
+                                              {ver.by}
+                                            </td>
+                                            <td className="px-3 py-2">
+                                              <button
+                                                onClick={() =>
+                                                  alert(
+                                                    `Restored to ${ver.v}`
+                                                  )
+                                                }
+                                                className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded transition-colors"
+                                                style={{
+                                                  color:
+                                                    "var(--primary-500)",
+                                                  backgroundColor:
+                                                    "var(--primary-100)",
+                                                  border:
+                                                    "1px solid var(--primary-300)",
+                                                }}
+                                                onMouseEnter={(e) => {
+                                                  ;(
+                                                    e.currentTarget as HTMLElement
+                                                  ).style.backgroundColor =
+                                                    "var(--primary-500)"
+                                                  ;(
+                                                    e.currentTarget as HTMLElement
+                                                  ).style.color = "#fff"
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                  ;(
+                                                    e.currentTarget as HTMLElement
+                                                  ).style.backgroundColor =
+                                                    "var(--primary-100)"
+                                                  ;(
+                                                    e.currentTarget as HTMLElement
+                                                  ).style.color =
+                                                    "var(--primary-500)"
+                                                }}
+                                              >
+                                                <RotateCcw className="h-3 w-3" />
+                                                Restore
+                                              </button>
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
                               </div>
                             </td>
                           </tr>
+                        )}
+                      </>
+                    )
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
 
-                          {/* Expandable history sub-row */}
-                          {expanded && <HistorySubRow key={`${row.id}-history`} row={row} />}
-                        </>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
+          {/* ─── SUMMARY FOOTER ─── */}
+          <div
+            className="px-5 py-3 flex flex-wrap items-center gap-4 font-mono text-[12px]"
+            style={{
+              borderTop: "1px solid var(--border)",
+              backgroundColor: "var(--neutral-50)",
+              color: "var(--neutral-500)",
+            }}
+          >
+            <span>
+              <strong
+                style={{
+                  color: "var(--neutral-900)",
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
+                {total}
+              </strong>{" "}
+              mappings
+            </span>
+            <span
+              className="flex items-center gap-1"
+              style={{ color: "var(--ok)" }}
+            >
+              <Check className="h-3 w-3" />
+              <strong style={{ fontVariantNumeric: "tabular-nums" }}>
+                {fullyMapped}
+              </strong>{" "}
+              fully mapped
+            </span>
+            {warnings > 0 && (
+              <span
+                className="flex items-center gap-1"
+                style={{ color: "var(--warn)" }}
+              >
+                <AlertTriangle className="h-3 w-3" />
+                <strong style={{ fontVariantNumeric: "tabular-nums" }}>
+                  {warnings}
+                </strong>{" "}
+                with warnings
+              </span>
+            )}
+            {drafts > 0 && (
+              <span style={{ color: "var(--neutral-400)" }}>
+                <strong style={{ fontVariantNumeric: "tabular-nums" }}>
+                  {drafts}
+                </strong>{" "}
+                draft
+              </span>
+            )}
+          </div>
+        </SectionCard>
+
+        {/* ─── STANDARDS COMPLIANCE PANEL ─── */}
+        <SectionCard title="Standards Compliance">
+          <div className="flex flex-col gap-3">
+            {/* ISO 20022 */}
+            <div
+              className="flex items-center justify-between px-4 py-3 rounded-md"
+              style={{ backgroundColor: "var(--ok-bg)" }}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className="h-7 w-7 rounded-full flex items-center justify-center shrink-0"
+                  style={{ backgroundColor: "var(--ok)", color: "#fff" }}
+                >
+                  <Check className="h-3.5 w-3.5" />
+                </div>
+                <div>
+                  <div
+                    className="font-semibold text-[13px]"
+                    style={{ color: "var(--neutral-900)" }}
+                  >
+                    ISO 20022
+                  </div>
+                  <div
+                    className="text-[12px]"
+                    style={{ color: "var(--ok)" }}
+                  >
+                    Compliant
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() =>
+                  alert("Compliance details for ISO 20022")
+                }
+                className="text-[12px] font-medium transition-colors"
+                style={{ color: "var(--primary-500)" }}
+                onMouseEnter={(e) =>
+                  ((e.currentTarget as HTMLElement).style.color =
+                    "var(--primary-700)")
+                }
+                onMouseLeave={(e) =>
+                  ((e.currentTarget as HTMLElement).style.color =
+                    "var(--primary-500)")
+                }
+              >
+                Details
+              </button>
             </div>
 
-            {/* Summary footer row */}
-            <SummaryRow data={filtered} />
-          </SectionCard>
-        </div>
-
-        {/* ─── RIGHT SIDEBAR: Standards Compliance ─── */}
-        <aside style={{ width: "280px", flexShrink: 0 }}>
-          <SectionCard title="Standards Compliance">
-            <div className="space-y-4">
-              {/* Pillar 1 */}
-              <div
-                className="flex items-start gap-3 p-3 rounded-md"
-                style={{ backgroundColor: "var(--ok-bg)" }}
-              >
+            {/* FAPI 2.0 */}
+            <div
+              className="flex items-center justify-between px-4 py-3 rounded-md"
+              style={{ backgroundColor: "var(--ok-bg)" }}
+            >
+              <div className="flex items-center gap-3">
                 <div
-                  className="h-7 w-7 rounded-full flex items-center justify-center shrink-0 mt-0.5"
+                  className="h-7 w-7 rounded-full flex items-center justify-center shrink-0"
                   style={{ backgroundColor: "var(--ok)", color: "#fff" }}
                 >
                   <Check className="h-3.5 w-3.5" />
                 </div>
                 <div>
-                  <div className="font-semibold text-[13px]" style={{ color: "var(--neutral-900)" }}>
-                    ISO 20022 Payment Messaging
-                  </div>
-                  <div className="text-[12px] mt-0.5" style={{ color: "var(--ok)" }}>
-                    Compliant
+                  <div
+                    className="font-semibold text-[13px]"
+                    style={{ color: "var(--neutral-900)" }}
+                  >
+                    FAPI 2.0
                   </div>
                   <div
-                    className="font-mono text-[11px] mt-1"
-                    style={{ color: "var(--neutral-500)" }}
+                    className="text-[12px]"
+                    style={{ color: "var(--ok)" }}
                   >
-                    pacs.008, pain.001, camt.053
+                    Compliant
                   </div>
                 </div>
               </div>
-
-              {/* Pillar 2 */}
-              <div
-                className="flex items-start gap-3 p-3 rounded-md"
-                style={{ backgroundColor: "var(--ok-bg)" }}
+              <button
+                onClick={() =>
+                  alert("Compliance details for FAPI 2.0")
+                }
+                className="text-[12px] font-medium transition-colors"
+                style={{ color: "var(--primary-500)" }}
+                onMouseEnter={(e) =>
+                  ((e.currentTarget as HTMLElement).style.color =
+                    "var(--primary-700)")
+                }
+                onMouseLeave={(e) =>
+                  ((e.currentTarget as HTMLElement).style.color =
+                    "var(--primary-500)")
+                }
               >
-                <div
-                  className="h-7 w-7 rounded-full flex items-center justify-center shrink-0 mt-0.5"
-                  style={{ backgroundColor: "var(--ok)", color: "#fff" }}
-                >
-                  <Check className="h-3.5 w-3.5" />
-                </div>
-                <div>
-                  <div className="font-semibold text-[13px]" style={{ color: "var(--neutral-900)" }}>
-                    FAPI 2.0 Security Profile
-                  </div>
-                  <div className="text-[12px] mt-0.5" style={{ color: "var(--ok)" }}>
-                    Compliant
-                  </div>
-                  <div
-                    className="font-mono text-[11px] mt-1"
-                    style={{ color: "var(--neutral-500)" }}
-                  >
-                    PAR + DPoP · last audited 2025-06-01
-                  </div>
-                </div>
-              </div>
+                Details
+              </button>
+            </div>
 
-              {/* Pillar 3 — warning */}
-              <div
-                className="flex items-start gap-3 p-3 rounded-md"
-                style={{ backgroundColor: "var(--warn-bg)" }}
-              >
+            {/* Open Banking API */}
+            <div
+              className="flex items-center justify-between px-4 py-3 rounded-md"
+              style={{ backgroundColor: "var(--warn-bg)" }}
+            >
+              <div className="flex items-center gap-3">
                 <div
-                  className="h-7 w-7 rounded-full flex items-center justify-center shrink-0 mt-0.5"
+                  className="h-7 w-7 rounded-full flex items-center justify-center shrink-0"
                   style={{ backgroundColor: "var(--warn)", color: "#fff" }}
                 >
                   <AlertTriangle className="h-3.5 w-3.5" />
                 </div>
                 <div>
-                  <div className="font-semibold text-[13px]" style={{ color: "var(--neutral-900)" }}>
+                  <div
+                    className="font-semibold text-[13px]"
+                    style={{ color: "var(--neutral-900)" }}
+                  >
                     Open Banking API
                   </div>
-                  <div className="text-[12px] mt-0.5" style={{ color: "var(--warn)" }}>
-                    1 warning
-                  </div>
                   <div
-                    className="font-mono text-[11px] mt-1"
-                    style={{ color: "var(--neutral-600)" }}
+                    className="text-[12px]"
+                    style={{ color: "var(--warn)" }}
                   >
-                    Credit Bureau schema v1.4 not fully mapped — 2 fields pending
+                    1 issue
                   </div>
+                </div>
+              </div>
+              <button
+                onClick={() =>
+                  alert("Compliance details for Open Banking API")
+                }
+                className="text-[12px] font-medium transition-colors"
+                style={{ color: "var(--primary-500)" }}
+                onMouseEnter={(e) =>
+                  ((e.currentTarget as HTMLElement).style.color =
+                    "var(--primary-700)")
+                }
+                onMouseLeave={(e) =>
+                  ((e.currentTarget as HTMLElement).style.color =
+                    "var(--primary-500)")
+                }
+              >
+                Details
+              </button>
+            </div>
+          </div>
+        </SectionCard>
+      </div>
+
+      {/* ═══════════════════════════════════
+          NEW MAPPING MODAL
+      ═══════════════════════════════════ */}
+      {showNewModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={() => setShowNewModal(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <h2
+                className="text-lg font-semibold"
+                style={{ color: "var(--neutral-900)" }}
+              >
+                New Mapping
+              </h2>
+              <button
+                onClick={() => setShowNewModal(false)}
+                className="rounded-md p-1 transition-colors"
+                style={{ color: "var(--neutral-400)" }}
+                onMouseEnter={(e) =>
+                  ((e.currentTarget as HTMLElement).style.color =
+                    "var(--neutral-700)")
+                }
+                onMouseLeave={(e) =>
+                  ((e.currentTarget as HTMLElement).style.color =
+                    "var(--neutral-400)")
+                }
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-4">
+              {/* Name */}
+              <div>
+                <label
+                  className="block text-[12px] font-medium mb-1.5 uppercase tracking-wide"
+                  style={{ color: "var(--neutral-500)" }}
+                >
+                  Mapping Name
+                </label>
+                <input
+                  type="text"
+                  value={newMapping.name}
+                  onChange={(e) =>
+                    setNewMapping((p) => ({ ...p, name: e.target.value }))
+                  }
+                  placeholder="e.g. Savings Core → ISO 20022"
+                  className="w-full h-9 px-3 rounded-md text-[13px] focus:outline-none focus:ring-2"
+                  style={{
+                    border: "1px solid var(--border)",
+                    color: "var(--neutral-900)",
+                  }}
+                />
+              </div>
+
+              {/* Source */}
+              <div>
+                <label
+                  className="block text-[12px] font-medium mb-1.5 uppercase tracking-wide"
+                  style={{ color: "var(--neutral-500)" }}
+                >
+                  Source System
+                </label>
+                <div className="relative">
+                  <select
+                    value={newMapping.src}
+                    onChange={(e) =>
+                      setNewMapping((p) => ({ ...p, src: e.target.value }))
+                    }
+                    className="w-full h-9 pl-3 pr-8 rounded-md text-[13px] appearance-none focus:outline-none focus:ring-2 cursor-pointer"
+                    style={{
+                      border: "1px solid var(--border)",
+                      color: "var(--neutral-900)",
+                    }}
+                  >
+                    {SOURCE_OPTIONS.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none"
+                    style={{ color: "var(--neutral-400)" }}
+                  />
                 </div>
               </div>
 
-              {/* Divider + quick stats */}
-              <div
-                className="pt-3 mt-1"
-                style={{ borderTop: "1px solid var(--border)" }}
+              {/* Target Standard */}
+              <div>
+                <label
+                  className="block text-[12px] font-medium mb-1.5 uppercase tracking-wide"
+                  style={{ color: "var(--neutral-500)" }}
+                >
+                  Target Standard
+                </label>
+                <div className="relative">
+                  <select
+                    value={newMapping.target}
+                    onChange={(e) =>
+                      setNewMapping((p) => ({ ...p, target: e.target.value }))
+                    }
+                    className="w-full h-9 pl-3 pr-8 rounded-md text-[13px] appearance-none focus:outline-none focus:ring-2 cursor-pointer"
+                    style={{
+                      border: "1px solid var(--border)",
+                      color: "var(--neutral-900)",
+                    }}
+                  >
+                    {TARGET_OPTIONS.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none"
+                    style={{ color: "var(--neutral-400)" }}
+                  />
+                </div>
+              </div>
+
+              {/* Version */}
+              <div>
+                <label
+                  className="block text-[12px] font-medium mb-1.5 uppercase tracking-wide"
+                  style={{ color: "var(--neutral-500)" }}
+                >
+                  Initial Version
+                </label>
+                <input
+                  type="text"
+                  value={newMapping.version}
+                  onChange={(e) =>
+                    setNewMapping((p) => ({ ...p, version: e.target.value }))
+                  }
+                  placeholder="v1.0"
+                  className="w-full h-9 px-3 rounded-md font-mono text-[13px] focus:outline-none focus:ring-2"
+                  style={{
+                    border: "1px solid var(--border)",
+                    color: "var(--neutral-900)",
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 justify-end mt-6">
+              <SecondaryButton onClick={() => setShowNewModal(false)}>
+                Cancel
+              </SecondaryButton>
+              <PrimaryButton
+                onClick={() => {
+                  setShowNewModal(false)
+                  alert(
+                    `Mapping created: ${newMapping.name || "(unnamed)"} · ${newMapping.src} → ${newMapping.target} · ${newMapping.version}`
+                  )
+                }}
               >
+                Create Mapping
+              </PrimaryButton>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════
+          EDIT MODAL
+      ═══════════════════════════════════ */}
+      {editingId && editingRow && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={() => setEditingId(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h2
+                  className="text-lg font-semibold"
+                  style={{ color: "var(--neutral-900)" }}
+                >
+                  Edit Mapping
+                </h2>
                 <div
-                  className="text-[11px] font-mono uppercase tracking-wider mb-3"
+                  className="font-mono text-[11px] mt-0.5"
                   style={{ color: "var(--neutral-400)" }}
                 >
-                  Mapping Coverage
+                  {editingRow.id}
                 </div>
-                <div className="space-y-2.5">
-                  {MAPPING_DATA.filter((r) => r.status !== "draft").map((r) => {
-                    const pct = Math.round((r.mapped / r.fields) * 100);
-                    return (
-                      <div key={r.id}>
-                        <div className="flex items-center justify-between mb-1">
-                          <span
-                            className="text-[12px] truncate"
-                            style={{ color: "var(--neutral-700)", maxWidth: "160px" }}
-                          >
-                            {r.src}
-                          </span>
-                          <span
-                            className="font-mono text-[11px] tabular shrink-0"
-                            style={{
-                              color:
-                                pct === 100
-                                  ? "var(--ok)"
-                                  : "var(--warn)",
-                            }}
-                          >
-                            {r.mapped}/{r.fields}
-                          </span>
-                        </div>
-                        <div
-                          className="h-1 rounded-full overflow-hidden"
-                          style={{ backgroundColor: "var(--neutral-200)" }}
-                        >
-                          <div
-                            className="h-full rounded-full"
-                            style={{
-                              width: `${pct}%`,
-                              backgroundColor: pct === 100 ? "var(--ok)" : "var(--warn)",
-                            }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
+              </div>
+              <button
+                onClick={() => setEditingId(null)}
+                className="rounded-md p-1 transition-colors"
+                style={{ color: "var(--neutral-400)" }}
+                onMouseEnter={(e) =>
+                  ((e.currentTarget as HTMLElement).style.color =
+                    "var(--neutral-700)")
+                }
+                onMouseLeave={(e) =>
+                  ((e.currentTarget as HTMLElement).style.color =
+                    "var(--neutral-400)")
+                }
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-4">
+              <div>
+                <label
+                  className="block text-[12px] font-medium mb-1.5 uppercase tracking-wide"
+                  style={{ color: "var(--neutral-500)" }}
+                >
+                  Mapping Name
+                </label>
+                <input
+                  type="text"
+                  defaultValue={editingRow.name}
+                  className="w-full h-9 px-3 rounded-md text-[13px] focus:outline-none"
+                  style={{
+                    border: "1px solid var(--border)",
+                    color: "var(--neutral-900)",
+                  }}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label
+                    className="block text-[12px] font-medium mb-1.5 uppercase tracking-wide"
+                    style={{ color: "var(--neutral-500)" }}
+                  >
+                    Source
+                  </label>
+                  <input
+                    type="text"
+                    defaultValue={editingRow.src}
+                    className="w-full h-9 px-3 rounded-md text-[13px] focus:outline-none"
+                    style={{
+                      border: "1px solid var(--border)",
+                      color: "var(--neutral-900)",
+                    }}
+                  />
+                </div>
+                <div>
+                  <label
+                    className="block text-[12px] font-medium mb-1.5 uppercase tracking-wide"
+                    style={{ color: "var(--neutral-500)" }}
+                  >
+                    Version
+                  </label>
+                  <input
+                    type="text"
+                    defaultValue={editingRow.version}
+                    className="w-full h-9 px-3 font-mono rounded-md text-[13px] focus:outline-none"
+                    style={{
+                      border: "1px solid var(--border)",
+                      color: "var(--neutral-900)",
+                    }}
+                  />
                 </div>
               </div>
             </div>
-          </SectionCard>
-        </aside>
-      </div>
+
+            <div className="flex gap-2 justify-end mt-6">
+              <SecondaryButton onClick={() => setEditingId(null)}>
+                Cancel
+              </SecondaryButton>
+              <PrimaryButton
+                onClick={() => {
+                  setEditingId(null)
+                  alert(`Changes saved for ${editingRow.name}`)
+                }}
+              >
+                Save Changes
+              </PrimaryButton>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════
+          DELETE CONFIRM MODAL
+      ═══════════════════════════════════ */}
+      {deleteId && deleteRow && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={() => setDeleteId(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2
+                className="text-lg font-semibold"
+                style={{ color: "var(--neutral-900)" }}
+              >
+                Delete mapping?
+              </h2>
+              <button
+                onClick={() => setDeleteId(null)}
+                className="rounded-md p-1 transition-colors"
+                style={{ color: "var(--neutral-400)" }}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div
+              className="flex items-start gap-3 p-4 rounded-lg mb-5"
+              style={{ backgroundColor: "var(--fail-bg)" }}
+            >
+              <AlertTriangle
+                className="h-5 w-5 shrink-0 mt-0.5"
+                style={{ color: "var(--fail)" }}
+              />
+              <div>
+                <p
+                  className="font-semibold text-[13px]"
+                  style={{ color: "var(--neutral-900)" }}
+                >
+                  {deleteRow.name}
+                </p>
+                <p
+                  className="text-[12px] mt-1"
+                  style={{ color: "var(--neutral-600)" }}
+                >
+                  This cannot be undone. All {deleteRow.versions.length} version
+                  {deleteRow.versions.length !== 1 ? "s" : ""} will be
+                  permanently removed.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-2 justify-end">
+              <SecondaryButton onClick={() => setDeleteId(null)}>
+                Cancel
+              </SecondaryButton>
+              <button
+                onClick={() => {
+                  setDeleteId(null)
+                  alert(`Deleted: ${deleteRow.name}`)
+                }}
+                className="h-9 px-4 rounded-lg text-sm font-semibold text-white inline-flex items-center gap-1.5 transition-opacity"
+                style={{ backgroundColor: "var(--fail)" }}
+                onMouseEnter={(e) =>
+                  ((e.currentTarget as HTMLElement).style.opacity = "0.85")
+                }
+                onMouseLeave={(e) =>
+                  ((e.currentTarget as HTMLElement).style.opacity = "1")
+                }
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppShell>
-  );
+  )
 }

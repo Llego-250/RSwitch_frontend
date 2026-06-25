@@ -1,119 +1,92 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { AppShell, PrimaryButton, FilterChip, SectionCard } from "@/components/AppShell";
-import { KpiCard } from "@/components/KpiCard";
-import { StatusBadge } from "@/components/StatusBadge";
-import { useRole } from "@/context/RoleContext";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
+import { AppShell, PrimaryButton, FilterChip, SectionCard } from "@/components/AppShell"
+import { KpiCard } from "@/components/KpiCard"
+import { StatusBadge } from "@/components/StatusBadge"
+import { useRole } from "@/context/RoleContext"
+import { useState, useMemo } from "react"
 import {
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import { Plus, Download, Eye } from "lucide-react";
+  BarChart, Bar, LineChart, Line,
+  ResponsiveContainer, Tooltip, XAxis, YAxis,
+} from "recharts"
+import { Plus, RefreshCw, Download, X } from "lucide-react"
 
 export const Route = createFileRoute("/")({
   component: Dashboard,
-});
+})
+
+/* ─── Static data ─── */
 
 const riskData = [
-  { day: "Day 1",  v: 22 },
-  { day: "Day 15", v: 28 },
-  { day: "Day 30", v: 35 },
-  { day: "Day 45", v: 31 },
-  { day: "Day 60", v: 42 },
-  { day: "Day 75", v: 38 },
-  { day: "Day 90", v: 47 },
-];
+  { d: "Day 1",  v: 22 },
+  { d: "Day 15", v: 28 },
+  { d: "Day 30", v: 35 },
+  { d: "Day 45", v: 31 },
+  { d: "Day 60", v: 42 },
+  { d: "Day 75", v: 38 },
+  { d: "Day 90", v: 47 },
+]
 
 const freshnessData = [
-  { name: "Core Banking",     v: 98 },
-  { name: "Mobile Money",     v: 94 },
-  { name: "Credit Bureau",    v: 87 },
-  { name: "ERP/Accounting",   v: 72 },
-  { name: "Payment Gateway",  v: 65 },
-];
+  { n: "Core Banking",  v: 98 },
+  { n: "Mobile Money",  v: 94 },
+  { n: "Credit Bureau", v: 87 },
+  { n: "ERP",           v: 72 },
+  { n: "Payment GW",    v: 65 },
+]
 
-const ALERTS = [
-  {
-    id: "A-1041",
-    title: "Velocity pattern: 14 txns in 3 min",
-    desc: "Card cluster C-8812 · same POS terminal · amounts $190–$210",
-    severity: "failed" as const,
-    source: "fraud-ml",
-    time: "2m ago",
-  },
-  {
-    id: "A-1040",
-    title: "Geo-anomaly: card used in 2 countries",
-    desc: "Customer ID 448822 · Lagos and Nairobi within 40 min",
-    severity: "failed" as const,
-    source: "fraud-ml",
-    time: "11m ago",
-  },
-  {
-    id: "A-1039",
-    title: "Structuring pattern detected",
-    desc: "9 deposits just below KYC threshold · 3 accounts linked",
-    severity: "warning" as const,
-    source: "fraud-ml",
-    time: "34m ago",
-  },
-  {
-    id: "A-1038",
-    title: "Device fingerprint mismatch",
-    desc: "New device on trusted account · first login from this IP",
-    severity: "warning" as const,
-    source: "fraud-ml",
-    time: "58m ago",
-  },
-  {
-    id: "A-1037",
-    title: "AML rule 7B triggered",
-    desc: "Cumulative transfers exceed monthly threshold",
-    severity: "warning" as const,
-    source: "compliance-engine",
-    time: "1h ago",
-  },
-];
+type AlertSev = "failed" | "warning" | "draft" | "completed"
 
-const SEVERITY_COLOR: Record<string, string> = {
-  failed:  "var(--fail)",
-  warning: "var(--warn)",
-  draft:   "var(--neutral-400)",
+const ALERT_ITEMS: {
+  id: string
+  sev: AlertSev
+  title: string
+  to: string
+}[] = [
+  { id: "a1", sev: "failed",  title: "ERP nightly pipeline failed",   to: "/pipelines" },
+  { id: "a2", sev: "warning", title: "3 high-severity fraud alerts",   to: "/fraud" },
+  { id: "a3", sev: "draft",   title: "Mapping v4 ready to publish",    to: "/mapping" },
+  { id: "a4", sev: "warning", title: "FSA-22 report due in 2 days",   to: "/reports" },
+]
+
+const SEV_BORDER: Record<AlertSev, string> = {
+  failed:    "var(--fail)",
+  warning:   "var(--warn)",
+  draft:     "var(--neutral-400)",
   completed: "var(--ok)",
-};
+}
+
+const ACTIVITY_LOG = [
+  { t: "12:04", a: "Pipeline completed",  u: "system" },
+  { t: "11:58", a: "Fraud alert raised",  u: "fraud-ml" },
+  { t: "11:30", a: "Mapping v4 saved",    u: "architect" },
+  { t: "10:15", a: "User login",          u: "admin" },
+  { t: "09:30", a: "Report generated",    u: "analyst" },
+]
 
 const REPORTS = [
-  {
-    id: "RPT-0091",
-    name: "Q2 2025 Regulatory Capital Report",
-    type: "Quarterly",
-    generated: "Jun 30, 2025",
-    status: "completed" as const,
-  },
-  {
-    id: "RPT-0090",
-    name: "May 2025 Credit Portfolio Summary",
-    type: "Monthly",
-    generated: "Jun 1, 2025",
-    status: "completed" as const,
-  },
-  {
-    id: "RPT-0089",
-    name: "FSA-22 Compliance Submission",
-    type: "Regulatory",
-    generated: "Jun 28, 2025",
-    status: "warning" as const,
-  },
-];
+  { id: "R1", name: "Q2 Portfolio Risk",      type: "Risk",        gen: "Jun 25 09:14", status: "completed" as const },
+  { id: "R2", name: "FSA Quarterly Return",   type: "Compliance",  gen: "Jun 24 14:32", status: "completed" as const },
+  { id: "R3", name: "Fraud Monthly Report",   type: "Operations",  gen: "Jun 23 11:00", status: "completed" as const },
+]
+
+/* ─── Component ─── */
 
 function Dashboard() {
-  const { role, roleLabel, scope } = useRole();
-  const masked = role === "regulator" || role === "analyst";
+  const { roleLabel, scope } = useRole()
+  const navigate = useNavigate()
+
+  const [selectedPeriod, setSelectedPeriod] = useState("Q2 2025")
+  const [autoRefresh, setAutoRefresh]       = useState(false)
+  const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set())
+
+  const visibleAlerts = useMemo(
+    () => ALERT_ITEMS.filter((a) => !dismissedAlerts.has(a.id)),
+    [dismissedAlerts],
+  )
+
+  function dismiss(id: string) {
+    setDismissedAlerts((prev) => new Set([...prev, id]))
+  }
 
   return (
     <AppShell
@@ -121,50 +94,60 @@ function Dashboard() {
       breadcrumb="HOME"
       scope={scope}
       primaryAction={
-        <PrimaryButton icon={<Plus className="h-4 w-4" />}>
+        <PrimaryButton
+          icon={<Plus className="h-4 w-4" />}
+          onClick={() => alert("Create report form would open")}
+        >
           New Report
         </PrimaryButton>
       }
       toolbar={
         <>
-          <FilterChip label="scope" value="My portfolio" />
-          <FilterChip label="period" value="MTD" />
-          <FilterChip label="institution" value="All" />
-          <span
-            className="ml-auto font-mono text-[11px] flex items-center gap-1.5"
-            style={{ color: "var(--neutral-500)" }}
-          >
+          <FilterChip
+            label="Period"
+            value={selectedPeriod}
+            onClick={() =>
+              setSelectedPeriod((p) => (p === "Q2 2025" ? "Q1 2025" : "Q2 2025"))
+            }
+          />
+          <FilterChip
+            label="Scope"
+            value="All Institutions"
+            onClick={() => alert("Scope filter")}
+          />
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              onClick={() => setAutoRefresh((v) => !v)}
+              style={{ color: autoRefresh ? "var(--ok)" : "var(--neutral-400)" }}
+              aria-label={autoRefresh ? "Pause auto-refresh" : "Start auto-refresh"}
+            >
+              <RefreshCw className="h-4 w-4" />
+            </button>
             <span
-              className="h-1.5 w-1.5 rounded-full"
-              style={{ backgroundColor: "var(--ok)" }}
-            />
-            data live · refreshed{" "}
-            {new Date().toLocaleTimeString("en", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </span>
+              className="font-mono text-[11px]"
+              style={{ color: "var(--neutral-400)" }}
+            >
+              {autoRefresh ? "Live" : "Paused"}
+            </span>
+          </div>
         </>
       }
     >
       {/* ROW 1 — KPI cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           label="Portfolio at Risk"
           value="4.82%"
           delta={{ dir: "up", text: "+0.3pp", tone: "bad" }}
           source="core-banking"
           freshness="live"
-          updated="12:04"
-          masked={masked}
         />
         <KpiCard
           label="Active Integrations"
           value="11/12"
-          delta={{ dir: "down", text: "−1", tone: "good" }}
+          delta={{ dir: "down", text: "-1", tone: "bad" }}
           source="orchestrator"
           freshness="live"
-          updated="12:04"
         />
         <KpiCard
           label="Open Fraud Alerts"
@@ -172,32 +155,32 @@ function Dashboard() {
           delta={{ dir: "up", text: "+1", tone: "bad" }}
           source="fraud-ml"
           freshness="live"
-          updated="12:04"
         />
         <KpiCard
           label="Compliance Items"
-          value="2 pending"
+          value="2"
+          context="2 reports due"
           source="regulatory"
-          freshness="live"
-          updated="12:04"
+          freshness="stale"
         />
       </div>
 
       {/* ROW 2 — Risk trend + Attention queue */}
-      <div className="mt-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* Left 8 cols */}
-        <div className="lg:col-span-8">
+      <div className="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Left col-span-2: Risk Trend */}
+        <div className="lg:col-span-2">
           <SectionCard title="Risk Trend — 90 days">
-            <ResponsiveContainer width="100%" height={200}>
+            <ResponsiveContainer width="100%" height={192}>
               <LineChart data={riskData} margin={{ top: 4, right: 8, left: -24, bottom: 0 }}>
                 <XAxis
-                  dataKey="day"
-                  tick={{ fontSize: 11, fontFamily: "IBM Plex Mono, monospace", fill: "var(--neutral-400)" }}
+                  dataKey="d"
+                  tick={{ fontSize: 11, fontFamily: "monospace", fill: "var(--neutral-400)" }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <YAxis
-                  tick={{ fontSize: 11, fontFamily: "IBM Plex Mono, monospace", fill: "var(--neutral-400)" }}
+                  domain={[0, 60]}
+                  tick={{ fontSize: 11, fontFamily: "monospace", fill: "var(--neutral-400)" }}
                   axisLine={false}
                   tickLine={false}
                 />
@@ -207,7 +190,7 @@ function Dashboard() {
                     border: "1px solid var(--border)",
                     borderRadius: "6px",
                     fontSize: "12px",
-                    fontFamily: "IBM Plex Mono, monospace",
+                    fontFamily: "monospace",
                     color: "var(--neutral-700)",
                   }}
                   cursor={{ stroke: "var(--neutral-200)", strokeWidth: 1 }}
@@ -226,67 +209,95 @@ function Dashboard() {
               className="mt-2 font-mono text-[11px]"
               style={{ color: "var(--neutral-400)" }}
             >
-              source: core-banking · v2.3 model
+              core-banking · v2.3 model
             </div>
           </SectionCard>
         </div>
 
-        {/* Right 4 cols — Attention queue */}
-        <div className="lg:col-span-4">
-          <SectionCard title="Attention Queue">
-            <ul className="space-y-2">
-              <AttentionItem
-                status="failed"
-                to="/pipelines"
-                title="ERP nightly pipeline failed"
-                meta="412 records · 18m ago"
-              />
-              <AttentionItem
-                status="warning"
+        {/* Right col-span-1: Attention Queue */}
+        <div className="lg:col-span-1">
+          <SectionCard
+            title="Attention Queue"
+            action={
+              <Link
                 to="/fraud"
-                title="3 high-severity fraud alerts"
-                meta="velocity · geo · device"
-              />
-              <AttentionItem
-                status="draft"
-                to="/mapping"
-                title="Mapping v4 ready to publish"
-                meta="1 required field unmapped"
-              />
-              <AttentionItem
-                status="warning"
-                to="/reports"
-                title="FSA-22 report due in 2 days"
-                meta="quarterly · awaiting approver"
-              />
-            </ul>
+                className="text-xs"
+                style={{ color: "var(--primary-500)" }}
+              >
+                View all
+              </Link>
+            }
+          >
+            <div className="flex flex-col gap-1.5">
+              {visibleAlerts.length === 0 && (
+                <p
+                  className="text-sm py-4 text-center"
+                  style={{ color: "var(--neutral-400)" }}
+                >
+                  All items dismissed
+                </p>
+              )}
+              {visibleAlerts.map((alert) => (
+                <div
+                  key={alert.id}
+                  className="flex items-center gap-2 rounded-md px-3 py-2"
+                  style={{
+                    borderLeft: `3px solid ${SEV_BORDER[alert.sev]}`,
+                    backgroundColor: "var(--neutral-50)",
+                  }}
+                >
+                  <div className="shrink-0">
+                    <StatusBadge status={alert.sev} />
+                  </div>
+                  <span
+                    className="flex-1 text-[13px] font-medium truncate"
+                    style={{ color: "var(--neutral-900)" }}
+                  >
+                    {alert.title}
+                  </span>
+                  <Link
+                    to={alert.to}
+                    className="shrink-0 text-[12px] font-mono"
+                    style={{ color: "var(--primary-500)" }}
+                  >
+                    View →
+                  </Link>
+                  <button
+                    onClick={() => dismiss(alert.id)}
+                    aria-label={`Dismiss alert: ${alert.title}`}
+                    className="shrink-0 rounded transition-colors"
+                    style={{ color: "var(--neutral-400)" }}
+                    onMouseEnter={(e) =>
+                      ((e.currentTarget as HTMLElement).style.color = "var(--neutral-700)")
+                    }
+                    onMouseLeave={(e) =>
+                      ((e.currentTarget as HTMLElement).style.color = "var(--neutral-400)")
+                    }
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
           </SectionCard>
         </div>
       </div>
 
-      {/* ROW 3 — Data freshness + Alert summary */}
+      {/* ROW 3 — Data freshness + Recent Activity */}
       <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Left — Data freshness bar chart */}
+        {/* Left: Data freshness bar chart */}
         <SectionCard title="Data Freshness by Source">
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart
-              data={freshnessData}
-              layout="vertical"
-              margin={{ top: 4, right: 16, left: 8, bottom: 4 }}
-            >
+          <ResponsiveContainer width="100%" height={208}>
+            <BarChart data={freshnessData} margin={{ top: 4, right: 8, left: -24, bottom: 0 }}>
               <XAxis
-                type="number"
-                domain={[0, 100]}
-                tick={{ fontSize: 11, fontFamily: "IBM Plex Mono, monospace", fill: "var(--neutral-400)" }}
+                dataKey="n"
+                tick={{ fontSize: 11, fontFamily: "monospace", fill: "var(--neutral-400)" }}
                 axisLine={false}
                 tickLine={false}
-                tickFormatter={(v) => `${v}%`}
               />
               <YAxis
-                type="category"
-                dataKey="name"
-                width={110}
-                tick={{ fontSize: 11, fontFamily: "IBM Plex Mono, monospace", fill: "var(--neutral-700)" }}
+                domain={[0, 100]}
+                tick={{ fontSize: 11, fontFamily: "monospace", fill: "var(--neutral-400)" }}
                 axisLine={false}
                 tickLine={false}
               />
@@ -296,77 +307,56 @@ function Dashboard() {
                   border: "1px solid var(--border)",
                   borderRadius: "6px",
                   fontSize: "12px",
-                  fontFamily: "IBM Plex Mono, monospace",
+                  fontFamily: "monospace",
                   color: "var(--neutral-700)",
                 }}
                 cursor={{ fill: "var(--neutral-100)" }}
                 formatter={(v: number) => [`${v}%`, "Freshness"]}
               />
-              <Bar dataKey="v" fill="#2D6A9F" radius={[0, 3, 3, 0]} barSize={16} />
+              <Bar dataKey="v" fill="#2D6A9F" radius={[3, 3, 0, 0]} barSize={28} />
             </BarChart>
           </ResponsiveContainer>
         </SectionCard>
 
-        {/* Right — Alert summary */}
-        <SectionCard
-          title="Alert Summary"
-          action={
-            <Link
-              to="/fraud"
-              className="font-mono text-[12px] font-medium transition-colors"
-              style={{ color: "var(--primary-500)" }}
-            >
-              View all
-            </Link>
-          }
-        >
-          <ul className="space-y-2.5">
-            {ALERTS.map((alert) => (
-              <li
-                key={alert.id}
+        {/* Right: Recent Activity */}
+        <SectionCard title="Recent Activity">
+          <div className="flex flex-col gap-0">
+            {ACTIVITY_LOG.map((entry, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-3 py-2.5"
                 style={{
-                  borderLeft: `4px solid ${SEVERITY_COLOR[alert.severity] ?? "var(--neutral-400)"}`,
-                  paddingLeft: "12px",
-                  paddingTop: "6px",
-                  paddingBottom: "6px",
+                  borderBottom:
+                    i < ACTIVITY_LOG.length - 1
+                      ? "1px solid var(--border)"
+                      : "none",
                 }}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <StatusBadge status={alert.severity} />
-                    <span
-                      className="font-mono text-[11px]"
-                      style={{ color: "var(--neutral-400)" }}
-                    >
-                      {alert.source}
-                    </span>
-                  </div>
-                  <span
-                    className="font-mono text-[11px] shrink-0"
-                    style={{ color: "var(--neutral-400)" }}
-                  >
-                    {alert.time}
-                  </span>
-                </div>
-                <div
-                  className="mt-1 text-[13px] font-semibold leading-tight"
+                <span
+                  className="font-mono text-[11px] shrink-0 tabular-nums"
+                  style={{ color: "var(--neutral-400)", minWidth: "2.75rem" }}
+                >
+                  {entry.t}
+                </span>
+                <span
+                  className="font-mono text-[12px] flex-1"
                   style={{ color: "var(--neutral-900)" }}
                 >
-                  {alert.title}
-                </div>
-                <div
-                  className="text-[12px] font-mono mt-0.5"
+                  {entry.a}
+                </span>
+                <span
+                  className="font-mono text-[11px] shrink-0"
                   style={{ color: "var(--neutral-500)" }}
                 >
-                  {alert.desc}
-                </div>
-              </li>
+                  {entry.u}
+                </span>
+              </div>
             ))}
-          </ul>
+          </div>
         </SectionCard>
       </div>
 
-      {/* ROW 4 — Recent reports table */}
+      {/* ROW 4 — Recent Reports table */}
       <div className="mt-4">
         <SectionCard title="Recent Reports" noPad>
           <div className="overflow-x-auto">
@@ -378,28 +368,24 @@ function Dashboard() {
                 }}
               >
                 <tr>
-                  {["Report Name", "Type", "Generated", "Status", "Actions"].map(
-                    (col) => (
-                      <th
-                        key={col}
-                        className="text-left px-4 py-3 text-[12px] font-medium uppercase tracking-wide"
-                        style={{ color: "var(--neutral-500)" }}
-                      >
-                        {col}
-                      </th>
-                    )
-                  )}
+                  {["Name", "Type", "Generated", "Status", "Actions"].map((col) => (
+                    <th
+                      key={col}
+                      className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide"
+                      style={{ color: "var(--neutral-500)" }}
+                    >
+                      {col}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
                 {REPORTS.map((r, i) => (
                   <tr
                     key={r.id}
-                    style={{
-                      borderBottom: "1px solid var(--border)",
-                      backgroundColor:
-                        i % 2 === 0 ? "transparent" : "var(--neutral-50)",
-                    }}
+                    className="hover:bg-[var(--neutral-50)] cursor-pointer"
+                    style={{ borderBottom: "1px solid var(--border)" }}
+                    onClick={() => navigate({ to: "/reports" })}
                   >
                     <td className="px-4 py-3">
                       <div
@@ -422,10 +408,13 @@ function Dashboard() {
                       {r.type}
                     </td>
                     <td
-                      className="px-4 py-3 font-mono text-[12px] tabular"
-                      style={{ color: "var(--neutral-700)" }}
+                      className="px-4 py-3 font-mono text-[12px]"
+                      style={{
+                        color: "var(--neutral-700)",
+                        fontVariantNumeric: "tabular-nums",
+                      }}
                     >
-                      {r.generated}
+                      {r.gen}
                     </td>
                     <td className="px-4 py-3">
                       <StatusBadge status={r.status} />
@@ -435,6 +424,10 @@ function Dashboard() {
                         <button
                           className="inline-flex items-center gap-1 font-mono text-[12px] font-medium transition-colors"
                           style={{ color: "var(--primary-500)" }}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            alert(`Downloading ${r.name}`)
+                          }}
                           onMouseEnter={(e) =>
                             ((e.currentTarget as HTMLElement).style.color =
                               "var(--primary-700)")
@@ -451,6 +444,7 @@ function Dashboard() {
                           to="/reports"
                           className="inline-flex items-center gap-1 font-mono text-[12px] font-medium transition-colors"
                           style={{ color: "var(--neutral-500)" }}
+                          onClick={(e) => e.stopPropagation()}
                           onMouseEnter={(e) =>
                             ((e.currentTarget as HTMLElement).style.color =
                               "var(--neutral-900)")
@@ -460,7 +454,6 @@ function Dashboard() {
                               "var(--neutral-500)")
                           }
                         >
-                          <Eye className="h-3.5 w-3.5" />
                           View
                         </Link>
                       </div>
@@ -473,52 +466,5 @@ function Dashboard() {
         </SectionCard>
       </div>
     </AppShell>
-  );
-}
-
-function AttentionItem({
-  status,
-  to,
-  title,
-  meta,
-}: {
-  status: "failed" | "warning" | "draft" | "completed";
-  to: string;
-  title: string;
-  meta: string;
-}) {
-  return (
-    <li>
-      <Link
-        to={to}
-        className="flex items-start gap-3 rounded-md p-2 transition-colors"
-        style={{ color: "inherit" }}
-        onMouseEnter={(e) =>
-          ((e.currentTarget as HTMLElement).style.backgroundColor =
-            "var(--neutral-50)")
-        }
-        onMouseLeave={(e) =>
-          ((e.currentTarget as HTMLElement).style.backgroundColor = "transparent")
-        }
-      >
-        <div className="pt-0.5 shrink-0">
-          <StatusBadge status={status} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div
-            className="text-[13px] font-medium leading-tight truncate"
-            style={{ color: "var(--neutral-900)" }}
-          >
-            {title}
-          </div>
-          <div
-            className="font-mono text-[11px] mt-0.5 truncate"
-            style={{ color: "var(--neutral-500)" }}
-          >
-            {meta}
-          </div>
-        </div>
-      </Link>
-    </li>
-  );
+  )
 }
