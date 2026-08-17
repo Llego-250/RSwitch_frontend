@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell, PrimaryButton, SecondaryButton, SectionCard } from "@/components/AppShell";
 import { StatusBadge } from "@/components/StatusBadge";
+import { useRole } from "@/context/RoleContext";
+import { canManage } from "@/lib/roles";
 import { useState } from "react";
 import {
   User,
@@ -14,833 +16,307 @@ import {
   EyeOff,
   Check,
   ChevronRight,
+  Download,
+  Building,
+  Lock,
+  Plus,
+  Trash2,
 } from "lucide-react";
 
 export const Route = createFileRoute("/settings")({
   component: Settings,
 });
 
-type Section = "profile" | "security" | "notifications" | "apikeys" | "preferences";
+type Section = "org" | "apikeys" | "security" | "compliance" | "riskScore";
 
 const NAV_ITEMS: { id: Section; label: string; icon: typeof User }[] = [
-  { id: "profile",       label: "Profile",       icon: User    },
-  { id: "security",      label: "Security",       icon: Shield  },
-  { id: "notifications", label: "Notifications",  icon: Bell    },
-  { id: "apikeys",       label: "API Keys",       icon: Key     },
-  { id: "preferences",   label: "Preferences",    icon: Sliders },
+  { id: "org",         label: "Organization & Branding", icon: Building },
+  { id: "apikeys",     label: "API Keys & Integrations", icon: Key },
+  { id: "security",    label: "Security Policies & MFA", icon: Shield },
+  { id: "compliance",  label: "Deadline Lead Times",     icon: Bell },
+  { id: "riskScore",   label: "Participant Risk Weights", icon: Sliders },
 ];
 
-/* ─── shared form control styles ─── */
-const INPUT_STYLE: React.CSSProperties = {
-  width: "100%",
-  height: "36px",
-  paddingLeft: "12px",
-  paddingRight: "12px",
-  borderRadius: "6px",
-  border: "1px solid var(--neutral-200)",
-  backgroundColor: "var(--paper)",
-  color: "var(--neutral-900)",
-  fontSize: "13px",
-  outline: "none",
+type ApiKeyItem = {
+  id: string;
+  name: string;
+  keyMasked: string;
+  owner: string;
+  created: string;
+  status: "active" | "inactive";
 };
 
-const LABEL_STYLE: React.CSSProperties = {
-  display: "block",
-  fontSize: "12px",
-  fontWeight: 500,
-  color: "var(--neutral-500)",
-  marginBottom: "6px",
-  textTransform: "uppercase",
-  letterSpacing: "0.05em",
-};
-
-function FormField({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <label style={LABEL_STYLE}>{label}</label>
-      {children}
-    </div>
-  );
-}
-
-/* ─── PROFILE ─── */
-function ProfileSection() {
-  const [saved, setSaved] = useState(false);
-
-  function handleSave() {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2200);
-  }
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-      <SectionCard title="Personal Information">
-        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-          {/* Avatar */}
-          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-            <div
-              style={{
-                width: "96px",
-                height: "96px",
-                borderRadius: "50%",
-                backgroundColor: "var(--primary-500)",
-                display: "grid",
-                placeItems: "center",
-                color: "#fff",
-                fontSize: "32px",
-                fontWeight: 700,
-                flexShrink: 0,
-              }}
-            >
-              JU
-            </div>
-            <div>
-              <p style={{ fontSize: "13px", color: "var(--neutral-700)", marginBottom: "6px" }}>
-                Profile photo
-              </p>
-              <button
-                style={{
-                  fontSize: "13px",
-                  color: "var(--primary-500)",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: 0,
-                }}
-              >
-                Change photo
-              </button>
-              <p style={{ fontSize: "11px", color: "var(--neutral-400)", marginTop: "4px", fontFamily: "var(--font-mono)" }}>
-                PNG or JPG · max 2 MB
-              </p>
-            </div>
-          </div>
-
-          {/* Fields grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-            <FormField label="Full Name">
-              <input style={INPUT_STYLE} defaultValue="Jemimah Uwase" />
-            </FormField>
-
-            <FormField label="Email">
-              <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                <input
-                  style={{ ...INPUT_STYLE, paddingRight: "80px", color: "var(--neutral-500)" }}
-                  defaultValue="jemimah.uwase@amalitechtraining.org"
-                  readOnly
-                />
-                <span style={{ position: "absolute", right: "8px" }}>
-                  <StatusBadge status="active">Verified</StatusBadge>
-                </span>
-              </div>
-            </FormField>
-
-            <FormField label="Phone">
-              <input style={INPUT_STYLE} defaultValue="+250 788 000 000" />
-            </FormField>
-
-            <FormField label="Organization">
-              <input style={INPUT_STYLE} defaultValue="Amalitechtraining" />
-            </FormField>
-
-            <FormField label="Timezone">
-              <select style={{ ...INPUT_STYLE, appearance: "none" }}>
-                <option>Africa/Kigali (UTC+2)</option>
-                <option>Europe/London (UTC+0)</option>
-                <option>America/New_York (UTC-5)</option>
-              </select>
-            </FormField>
-
-            <FormField label="Language">
-              <select style={{ ...INPUT_STYLE, appearance: "none" }}>
-                <option>English (US)</option>
-                <option>English (UK)</option>
-                <option>French</option>
-                <option>Kinyarwanda</option>
-              </select>
-            </FormField>
-          </div>
-
-          <div style={{ display: "flex", justifyContent: "flex-end" }}>
-            <PrimaryButton
-              icon={saved ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />}
-              onClick={handleSave}
-            >
-              {saved ? "Saved" : "Save Changes"}
-            </PrimaryButton>
-          </div>
-        </div>
-      </SectionCard>
-    </div>
-  );
-}
-
-/* ─── SECURITY ─── */
-function SecuritySection() {
-  const [showCurrent, setShowCurrent] = useState(false);
-  const [showNew, setShowNew] = useState(false);
-
-  const sessions = [
-    { device: "MacBook Pro 16″", location: "Kigali, RW", lastActive: "2 min ago", current: true },
-    { device: "Chrome / Windows 11", location: "Kigali, RW", lastActive: "3 hr ago", current: false },
-    { device: "iPhone 15 Pro", location: "Nairobi, KE", lastActive: "2 days ago", current: false },
-  ];
-
-  const loginHistory = [
-    { date: "2026-06-25 09:14", ip: "196.217.3.1",  device: "MacBook Pro 16″",      status: "healthy" as const },
-    { date: "2026-06-24 17:02", ip: "196.217.3.1",  device: "Chrome / Windows 11",  status: "healthy" as const },
-    { date: "2026-06-23 08:55", ip: "41.90.65.200", device: "iPhone 15 Pro",         status: "healthy" as const },
-    { date: "2026-06-21 14:30", ip: "196.217.3.1",  device: "MacBook Pro 16″",       status: "healthy" as const },
-    { date: "2026-06-20 10:11", ip: "185.234.0.44", device: "Unknown browser",       status: "warning" as const },
-  ];
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-      {/* MFA */}
-      <SectionCard title="Multi-Factor Authentication">
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <div
-              style={{
-                width: "40px", height: "40px", borderRadius: "8px",
-                backgroundColor: "var(--ok-bg)", display: "grid", placeItems: "center",
-              }}
-            >
-              <Shield className="h-5 w-5" style={{ color: "var(--ok)" }} />
-            </div>
-            <div>
-              <div style={{ fontSize: "14px", fontWeight: 600, color: "var(--neutral-900)" }}>
-                TOTP Authenticator
-              </div>
-              <div style={{ fontSize: "12px", color: "var(--neutral-500)", fontFamily: "var(--font-mono)" }}>
-                Authenticator app · last used today
-              </div>
-            </div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <StatusBadge status="active">Enabled</StatusBadge>
-            <SecondaryButton icon={<RefreshCw className="h-3.5 w-3.5" />}>
-              Reconfigure
-            </SecondaryButton>
-          </div>
-        </div>
-      </SectionCard>
-
-      {/* Change password */}
-      <SectionCard title="Change Password">
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px", alignItems: "end" }}>
-          <FormField label="Current Password">
-            <div style={{ position: "relative" }}>
-              <input
-                type={showCurrent ? "text" : "password"}
-                style={{ ...INPUT_STYLE, paddingRight: "36px" }}
-                placeholder="••••••••"
-              />
-              <button
-                onClick={() => setShowCurrent(v => !v)}
-                style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--neutral-400)" }}
-              >
-                {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-          </FormField>
-          <FormField label="New Password">
-            <div style={{ position: "relative" }}>
-              <input
-                type={showNew ? "text" : "password"}
-                style={{ ...INPUT_STYLE, paddingRight: "36px" }}
-                placeholder="••••••••"
-              />
-              <button
-                onClick={() => setShowNew(v => !v)}
-                style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--neutral-400)" }}
-              >
-                {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-          </FormField>
-          <FormField label="Confirm Password">
-            <input type="password" style={INPUT_STYLE} placeholder="••••••••" />
-          </FormField>
-        </div>
-        <div style={{ marginTop: "16px", display: "flex", justifyContent: "flex-end" }}>
-          <PrimaryButton icon={<Save className="h-4 w-4" />}>Update Password</PrimaryButton>
-        </div>
-      </SectionCard>
-
-      {/* Active sessions */}
-      <SectionCard title="Active Sessions" noPad>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead style={{ backgroundColor: "var(--neutral-100)", borderBottom: "1px solid var(--border)" }}>
-              <tr>
-                {["Device", "Location", "Last Active", "Status", ""].map(col => (
-                  <th key={col} className="text-left px-4 py-3 text-[12px] font-medium uppercase tracking-wide"
-                    style={{ color: "var(--neutral-500)" }}>
-                    {col}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {sessions.map((s, i) => (
-                <tr key={i} style={{ borderBottom: "1px solid var(--border)", backgroundColor: i % 2 === 0 ? "transparent" : "var(--neutral-50)" }}>
-                  <td className="px-4 py-3" style={{ color: "var(--neutral-900)", fontWeight: 500 }}>
-                    {s.device}
-                  </td>
-                  <td className="px-4 py-3 font-mono text-[13px]" style={{ color: "var(--neutral-500)" }}>
-                    {s.location}
-                  </td>
-                  <td className="px-4 py-3 font-mono text-[13px]" style={{ color: "var(--neutral-500)" }}>
-                    {s.lastActive}
-                  </td>
-                  <td className="px-4 py-3">
-                    {s.current
-                      ? <StatusBadge status="active">Current</StatusBadge>
-                      : <StatusBadge status="queued">Other</StatusBadge>
-                    }
-                  </td>
-                  <td className="px-4 py-3">
-                    {!s.current && (
-                      <button
-                        style={{ fontSize: "12px", color: "var(--fail)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-mono)" }}
-                      >
-                        Revoke
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </SectionCard>
-
-      {/* Login history */}
-      <SectionCard title="Login History" noPad>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead style={{ backgroundColor: "var(--neutral-100)", borderBottom: "1px solid var(--border)" }}>
-              <tr>
-                {["Date", "IP Address", "Device", "Result"].map(col => (
-                  <th key={col} className="text-left px-4 py-3 text-[12px] font-medium uppercase tracking-wide"
-                    style={{ color: "var(--neutral-500)" }}>
-                    {col}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {loginHistory.map((h, i) => (
-                <tr key={i} style={{ borderBottom: "1px solid var(--border)", backgroundColor: i % 2 === 0 ? "transparent" : "var(--neutral-50)" }}>
-                  <td className="px-4 py-3 font-mono text-[13px]" style={{ color: "var(--neutral-700)" }}>{h.date}</td>
-                  <td className="px-4 py-3 font-mono text-[13px]" style={{ color: "var(--neutral-500)" }}>{h.ip}</td>
-                  <td className="px-4 py-3 text-[13px]" style={{ color: "var(--neutral-700)" }}>{h.device}</td>
-                  <td className="px-4 py-3">
-                    <StatusBadge status={h.status}>
-                      {h.status === "healthy" ? "Success" : "Suspicious"}
-                    </StatusBadge>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </SectionCard>
-    </div>
-  );
-}
-
-/* ─── NOTIFICATIONS ─── */
-type ToggleState = Record<string, Record<string, boolean>>;
-
-function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void }) {
-  return (
-    <button
-      role="switch"
-      aria-checked={checked}
-      onClick={onChange}
-      style={{
-        width: "36px",
-        height: "20px",
-        borderRadius: "10px",
-        border: "none",
-        cursor: "pointer",
-        position: "relative",
-        flexShrink: 0,
-        transition: "background-color 0.15s",
-        backgroundColor: checked ? "var(--primary-500)" : "var(--neutral-200)",
-      }}
-    >
-      <span
-        style={{
-          position: "absolute",
-          top: "2px",
-          left: checked ? "18px" : "2px",
-          width: "16px",
-          height: "16px",
-          borderRadius: "50%",
-          backgroundColor: "#fff",
-          transition: "left 0.15s",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
-        }}
-      />
-    </button>
-  );
-}
-
-const NOTIFICATION_TOPICS = [
-  "Fraud Alerts",
-  "Data Quality Issues",
-  "System Health",
-  "Compliance Deadlines",
-  "Pipeline Failures",
+const INITIAL_API_KEYS: ApiKeyItem[] = [
+  { id: "KEY-101", name: "Core Banking Automated Pull Key", keyMasked: "sk_live_bk_98••••••••••••34a", owner: "Technical Lead", created: "2026-01-12", status: "active" },
+  { id: "KEY-102", name: "Mobile Money Ingestion Token", keyMasked: "sk_live_momo_41••••••••••98f", owner: "Integration Dev", created: "2026-03-04", status: "active" },
 ];
 
-const CHANNELS = ["Email", "In-App", "SMS"] as const;
-
-function NotificationsSection() {
-  const initState = (): ToggleState => {
-    const s: ToggleState = {};
-    for (const topic of NOTIFICATION_TOPICS) {
-      s[topic] = { Email: true, "In-App": true, SMS: topic === "Fraud Alerts" };
-    }
-    return s;
-  };
-
-  const [toggles, setToggles] = useState<ToggleState>(initState);
-  const [digest, setDigest] = useState<"realtime" | "daily" | "weekly">("realtime");
-
-  function flip(topic: string, channel: string) {
-    setToggles(prev => ({
-      ...prev,
-      [topic]: { ...prev[topic], [channel]: !prev[topic][channel] },
-    }));
-  }
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-      <SectionCard title="Alert Channels" noPad>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead style={{ backgroundColor: "var(--neutral-100)", borderBottom: "1px solid var(--border)" }}>
-              <tr>
-                <th className="text-left px-4 py-3 text-[12px] font-medium uppercase tracking-wide"
-                  style={{ color: "var(--neutral-500)", width: "40%" }}>
-                  Alert Type
-                </th>
-                {CHANNELS.map(ch => (
-                  <th key={ch} className="px-4 py-3 text-[12px] font-medium uppercase tracking-wide text-center"
-                    style={{ color: "var(--neutral-500)" }}>
-                    {ch}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {NOTIFICATION_TOPICS.map((topic, i) => (
-                <tr key={topic} style={{ borderBottom: "1px solid var(--border)", backgroundColor: i % 2 === 0 ? "transparent" : "var(--neutral-50)" }}>
-                  <td className="px-4 py-3" style={{ color: "var(--neutral-900)", fontSize: "13px" }}>
-                    {topic}
-                  </td>
-                  {CHANNELS.map(ch => (
-                    <td key={ch} className="px-4 py-3 text-center">
-                      <div style={{ display: "flex", justifyContent: "center" }}>
-                        <Toggle checked={toggles[topic][ch]} onChange={() => flip(topic, ch)} />
-                      </div>
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </SectionCard>
-
-      <SectionCard title="Digest Frequency">
-        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-          {(["realtime", "daily", "weekly"] as const).map(d => (
-            <button
-              key={d}
-              onClick={() => setDigest(d)}
-              style={{
-                height: "36px",
-                padding: "0 16px",
-                borderRadius: "6px",
-                fontSize: "13px",
-                fontWeight: 500,
-                cursor: "pointer",
-                border: "1px solid",
-                borderColor: digest === d ? "var(--primary-500)" : "var(--neutral-200)",
-                backgroundColor: digest === d ? "var(--primary-50)" : "var(--card)",
-                color: digest === d ? "var(--primary-500)" : "var(--neutral-700)",
-                transition: "all 0.12s",
-              }}
-            >
-              {d === "realtime" ? "Real-time" : d === "daily" ? "Daily digest" : "Weekly digest"}
-            </button>
-          ))}
-        </div>
-        <p style={{ marginTop: "10px", fontSize: "12px", color: "var(--neutral-400)", fontFamily: "var(--font-mono)" }}>
-          {digest === "realtime" && "Alerts delivered immediately as events occur."}
-          {digest === "daily" && "A summary sent at 07:00 your local time each day."}
-          {digest === "weekly" && "A weekly summary sent Monday at 07:00 your local time."}
-        </p>
-      </SectionCard>
-    </div>
-  );
-}
-
-/* ─── API KEYS ─── */
-function ApiKeysSection() {
-  const keys = [
-    {
-      name: "Production Pipeline",
-      scopes: ["pipelines:read", "data:write"],
-      created: "2026-01-15",
-      lastUsed: "2026-06-25",
-      masked: "sk_prod_••••••••••••••••3f7a",
-    },
-    {
-      name: "Analytics Read-Only",
-      scopes: ["reports:read", "fraud:read"],
-      created: "2026-03-08",
-      lastUsed: "2026-06-22",
-      masked: "sk_ro_••••••••••••••••b2c9",
-    },
-  ];
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-      <SectionCard
-        title="API Keys"
-        action={
-          <PrimaryButton icon={<Key className="h-4 w-4" />}>
-            Generate New Key
-          </PrimaryButton>
-        }
-        noPad
-      >
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead style={{ backgroundColor: "var(--neutral-100)", borderBottom: "1px solid var(--border)" }}>
-              <tr>
-                {["Key Name", "Scopes", "Created", "Last Used", "Key", ""].map(col => (
-                  <th key={col} className="text-left px-4 py-3 text-[12px] font-medium uppercase tracking-wide"
-                    style={{ color: "var(--neutral-500)" }}>
-                    {col}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {keys.map((k, i) => (
-                <tr key={k.name} style={{ borderBottom: "1px solid var(--border)", backgroundColor: i % 2 === 0 ? "transparent" : "var(--neutral-50)" }}>
-                  <td className="px-4 py-3" style={{ fontWeight: 500, color: "var(--neutral-900)" }}>
-                    {k.name}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
-                      {k.scopes.map(s => (
-                        <span key={s} style={{
-                          fontSize: "11px", fontFamily: "var(--font-mono)",
-                          padding: "2px 6px", borderRadius: "4px",
-                          backgroundColor: "var(--info-bg)", color: "var(--info)",
-                        }}>
-                          {s}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 font-mono text-[13px]" style={{ color: "var(--neutral-500)" }}>
-                    {k.created}
-                  </td>
-                  <td className="px-4 py-3 font-mono text-[13px]" style={{ color: "var(--neutral-500)" }}>
-                    {k.lastUsed}
-                  </td>
-                  <td className="px-4 py-3">
-                    <code style={{
-                      fontFamily: "var(--font-mono)", fontSize: "12px",
-                      color: "var(--neutral-700)", backgroundColor: "var(--neutral-100)",
-                      padding: "3px 8px", borderRadius: "4px", letterSpacing: "0.02em",
-                    }}>
-                      {k.masked}
-                    </code>
-                  </td>
-                  <td className="px-4 py-3">
-                    <button style={{ fontSize: "12px", color: "var(--fail)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-mono)" }}>
-                      Revoke
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </SectionCard>
-
-      <div style={{
-        padding: "14px 16px",
-        borderRadius: "6px",
-        backgroundColor: "var(--warn-bg)",
-        border: "1px solid var(--warn)",
-        fontSize: "13px",
-        color: "var(--warn)",
-        display: "flex",
-        alignItems: "flex-start",
-        gap: "8px",
-      }}>
-        <Shield className="h-4 w-4 shrink-0 mt-0.5" />
-        <span>
-          Keys grant programmatic access. Store them in a secrets manager — never commit them to source control. Rotate keys every 90 days.
-        </span>
-      </div>
-    </div>
-  );
-}
-
-/* ─── PREFERENCES ─── */
-function PreferencesSection() {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
-  const [density, setDensity] = useState<"comfortable" | "compact" | "dense">("comfortable");
-  const [numFormat, setNumFormat] = useState<"en" | "eu">("en");
-  const [tz, setTz] = useState("Africa/Kigali");
-  const [saved, setSaved] = useState(false);
-
-  function handleSave() {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2200);
-  }
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-      <SectionCard title="Display">
-        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-          {/* Theme */}
-          <div>
-            <label style={LABEL_STYLE}>Theme</label>
-            <div style={{ display: "flex", gap: "10px" }}>
-              {(["light", "dark"] as const).map(t => (
-                <button
-                  key={t}
-                  onClick={() => setTheme(t)}
-                  style={{
-                    height: "36px",
-                    padding: "0 20px",
-                    borderRadius: "6px",
-                    fontSize: "13px",
-                    fontWeight: 500,
-                    cursor: "pointer",
-                    border: "1px solid",
-                    borderColor: theme === t ? "var(--primary-500)" : "var(--neutral-200)",
-                    backgroundColor: theme === t ? "var(--primary-50)" : "var(--card)",
-                    color: theme === t ? "var(--primary-500)" : "var(--neutral-700)",
-                    textTransform: "capitalize",
-                    transition: "all 0.12s",
-                  }}
-                >
-                  {t === "light" ? "Light" : "Dark"}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Density */}
-          <div>
-            <label style={LABEL_STYLE}>Density</label>
-            <div style={{ display: "flex", gap: "10px" }}>
-              {(["comfortable", "compact", "dense"] as const).map(d => (
-                <button
-                  key={d}
-                  onClick={() => setDensity(d)}
-                  style={{
-                    height: "36px",
-                    padding: "0 16px",
-                    borderRadius: "6px",
-                    fontSize: "13px",
-                    fontWeight: 500,
-                    cursor: "pointer",
-                    border: "1px solid",
-                    borderColor: density === d ? "var(--primary-500)" : "var(--neutral-200)",
-                    backgroundColor: density === d ? "var(--primary-50)" : "var(--card)",
-                    color: density === d ? "var(--primary-500)" : "var(--neutral-700)",
-                    textTransform: "capitalize",
-                    transition: "all 0.12s",
-                  }}
-                >
-                  {d.charAt(0).toUpperCase() + d.slice(1)}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </SectionCard>
-
-      <SectionCard title="Regional">
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-          {/* Number format */}
-          <div>
-            <label style={LABEL_STYLE}>Number Format</label>
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              {(["en", "eu"] as const).map(f => (
-                <label key={f} style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}>
-                  <input
-                    type="radio"
-                    name="numformat"
-                    checked={numFormat === f}
-                    onChange={() => setNumFormat(f)}
-                    style={{ accentColor: "var(--primary-500)" }}
-                  />
-                  <span style={{ fontSize: "13px", color: "var(--neutral-900)", fontFamily: "var(--font-mono)" }}>
-                    {f === "en" ? "1,234.56" : "1.234,56"}
-                  </span>
-                  <span style={{ fontSize: "12px", color: "var(--neutral-400)" }}>
-                    {f === "en" ? "US / UK" : "EU region"}
-                  </span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Timezone override */}
-          <FormField label="Timezone Override">
-            <select
-              style={{ ...INPUT_STYLE, appearance: "none" }}
-              value={tz}
-              onChange={e => setTz(e.target.value)}
-            >
-              <option value="Africa/Kigali">Africa/Kigali (UTC+2)</option>
-              <option value="Europe/London">Europe/London (UTC+0)</option>
-              <option value="America/New_York">America/New_York (UTC-5)</option>
-              <option value="Asia/Singapore">Asia/Singapore (UTC+8)</option>
-            </select>
-          </FormField>
-        </div>
-      </SectionCard>
-
-      <div style={{ display: "flex", justifyContent: "flex-end" }}>
-        <PrimaryButton
-          icon={saved ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />}
-          onClick={handleSave}
-        >
-          {saved ? "Saved" : "Save Preferences"}
-        </PrimaryButton>
-      </div>
-    </div>
-  );
-}
-
-/* ─── ROOT COMPONENT ─── */
 function Settings() {
-  const [activeSection, setActiveSection] = useState<Section>("profile");
+  const { role } = useRole();
+  const canManageSettings = canManage(role, "settings");
 
-  const activeLabel = NAV_ITEMS.find(n => n.id === activeSection)?.label ?? "";
+  const [activeSection, setActiveSection] = useState<Section>("org");
+  const [saved, setSaved]                   = useState(false);
+
+  // Org Settings (§5.14 REQ-SET-001)
+  const [orgName, setOrgName]           = useState("RSwitch Ltd (Rwanda National Switch)");
+  const [timezone, setTimezone]         = useState("Central Africa Time (CAT / Kigali GMT+2)");
+  const [dateFormat, setDateFormat]     = useState("YYYY-MM-DD (ISO 8601)");
+
+  // API Keys (§5.14 REQ-SET-002)
+  const [apiKeys, setApiKeys]           = useState<ApiKeyItem[]>(INITIAL_API_KEYS);
+  const [newKeyName, setNewKeyName]     = useState("");
+
+  // Security Policies (§5.14 REQ-SET-003)
+  const [mfaEnforced, setMfaEnforced]   = useState(true);
+  const [sessionTimeout, setSessionTimeout] = useState("30");
+
+  // Lead Times (§5.14 REQ-SET-004)
+  const [remind14, setRemind14]         = useState(true);
+  const [remind7, setRemind7]           = useState(true);
+  const [remind1, setRemind1]           = useState(true);
+
+  // Risk Scoring Weights (§5.6 REQ-P360-011)
+  const [wIntegration, setWIntegration] = useState("30");
+  const [wCompliance, setWCompliance]   = useState("30");
+  const [wIncident, setWIncident]     = useState("20");
+  const [wOverdue, setWOverdue]         = useState("20");
+
+  function triggerSave() {
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  function handleCreateKey() {
+    if (!newKeyName) return;
+    const created: ApiKeyItem = {
+      id: `KEY-10${apiKeys.length + 1}`,
+      name: newKeyName,
+      keyMasked: `sk_live_${Date.now()}••••••••a7`,
+      owner: `${role.toUpperCase()} User`,
+      created: new Date().toISOString().split("T")[0],
+      status: "active",
+    };
+    setApiKeys([...apiKeys, created]);
+    setNewKeyName("");
+  }
+
+  function handleRevokeKey(id: string) {
+    setApiKeys((prev) =>
+      prev.map((k) => (k.id === id ? { ...k, status: "inactive" } : k))
+    );
+  }
+
+  function handleExportAuditCSV() {
+    alert("Exporting full system audit log as CSV format (§5.14 REQ-SET-005)…");
+  }
 
   return (
     <AppShell
-      title="Settings"
+      title="System Settings & Security Configuration (§5.14)"
       breadcrumb="ADMIN › SETTINGS"
-      scope="tenant: acme-bank"
+      scope="System Level"
+      primaryAction={
+        <div className="flex items-center gap-2">
+          <SecondaryButton icon={<Download className="h-4 w-4" />} onClick={handleExportAuditCSV}>
+            Export Audit Log CSV (REQ-SET-005)
+          </SecondaryButton>
+          {canManageSettings && (
+            <PrimaryButton icon={<Save className="h-4 w-4" />} onClick={triggerSave}>
+              {saved ? "Saved Successfully!" : "Save Changes"}
+            </PrimaryButton>
+          )}
+        </div>
+      }
     >
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "220px 1fr",
-          gap: "24px",
-          alignItems: "start",
-        }}
-      >
-        {/* ─── Left sidebar nav ─── */}
-        <div
-          style={{
-            backgroundColor: "var(--card)",
-            border: "1px solid var(--border)",
-            borderRadius: "8px",
-            padding: "6px",
-            position: "sticky",
-            top: "16px",
-          }}
-        >
-          <div
-            style={{
-              padding: "10px 12px 8px",
-              fontSize: "11px",
-              fontFamily: "var(--font-mono)",
-              textTransform: "uppercase",
-              letterSpacing: "0.07em",
-              color: "var(--neutral-400)",
-            }}
-          >
-            Settings
-          </div>
-          {NAV_ITEMS.map(item => {
-            const active = activeSection === item.id;
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        {/* Left 4 cols: Settings Nav */}
+        <div className="lg:col-span-4 space-y-2">
+          <h2 className="font-bold text-xs uppercase tracking-wider text-slate-400 mb-2">Configuration Sections</h2>
+          {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
+            const active = activeSection === item.id;
             return (
               <button
                 key={item.id}
                 onClick={() => setActiveSection(item.id)}
-                style={{
-                  width: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "9px",
-                  padding: active ? "9px 11px" : "9px 14px",
-                  borderRadius: active ? "0 5px 5px 0" : "5px",
-                  borderLeft: active ? "3px solid var(--primary-500)" : "3px solid transparent",
-                  backgroundColor: active ? "var(--primary-50)" : "transparent",
-                  color: active ? "var(--primary-500)" : "var(--neutral-700)",
-                  fontWeight: active ? 600 : 400,
-                  fontSize: "13.5px",
-                  cursor: "pointer",
-                  textAlign: "left",
-                  border: active ? "none" : "none",
-                  borderLeftWidth: "3px",
-                  borderLeftStyle: "solid",
-                  borderLeftColor: active ? "var(--primary-500)" : "transparent",
-                  marginBottom: "2px",
-                  transition: "background-color 0.1s, color 0.1s",
-                }}
-                onMouseEnter={e => {
-                  if (!active) {
-                    (e.currentTarget as HTMLElement).style.backgroundColor = "var(--primary-100)";
-                    (e.currentTarget as HTMLElement).style.color = "var(--primary-700)";
-                  }
-                }}
-                onMouseLeave={e => {
-                  if (!active) {
-                    (e.currentTarget as HTMLElement).style.backgroundColor = "transparent";
-                    (e.currentTarget as HTMLElement).style.color = "var(--neutral-700)";
-                  }
-                }}
+                className={`w-full p-3.5 rounded-2xl border text-xs font-semibold flex items-center justify-between transition-all cursor-pointer ${
+                  active
+                    ? "bg-[#56B4D3] text-[#092E3D] border-[#56B4D3] shadow-xs"
+                    : "bg-white/80 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+                }`}
               >
-                <Icon style={{ width: "16px", height: "16px", flexShrink: 0 }} />
-                <span style={{ flex: 1 }}>{item.label}</span>
-                {active && <ChevronRight style={{ width: "14px", height: "14px", opacity: 0.5 }} />}
+                <div className="flex items-center gap-2.5">
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span>{item.label}</span>
+                </div>
+                <ChevronRight className="h-4 w-4 opacity-60" />
               </button>
             );
           })}
         </div>
 
-        {/* ─── Right content area ─── */}
-        <div>
-          <div style={{ marginBottom: "20px" }}>
-            <h2 style={{ fontSize: "17px", fontWeight: 700, color: "var(--neutral-900)", letterSpacing: "-0.01em" }}>
-              {activeLabel}
-            </h2>
-          </div>
+        {/* Right 8 cols: Active Section Settings Form */}
+        <div className="lg:col-span-8 space-y-5">
+          {activeSection === "org" && (
+            <SectionCard title="Organization & Platform Branding (§5.14 REQ-SET-001)">
+              <div className="space-y-4 text-xs">
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Organization Full Name</label>
+                  <input
+                    type="text"
+                    value={orgName}
+                    onChange={(e) => setOrgName(e.target.value)}
+                    className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-medium focus:outline-none"
+                  />
+                </div>
 
-          {activeSection === "profile"       && <ProfileSection />}
-          {activeSection === "security"      && <SecuritySection />}
-          {activeSection === "notifications" && <NotificationsSection />}
-          {activeSection === "apikeys"       && <ApiKeysSection />}
-          {activeSection === "preferences"   && <PreferencesSection />}
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Default Timezone</label>
+                  <input
+                    type="text"
+                    value={timezone}
+                    onChange={(e) => setTimezone(e.target.value)}
+                    className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Default Date Format</label>
+                  <input
+                    type="text"
+                    value={dateFormat}
+                    onChange={(e) => setDateFormat(e.target.value)}
+                    className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono focus:outline-none"
+                  />
+                </div>
+              </div>
+            </SectionCard>
+          )}
+
+          {activeSection === "apikeys" && (
+            <SectionCard title="External Integration API Keys (§5.14 REQ-SET-002)">
+              <div className="space-y-4 text-xs">
+                {canManageSettings && (
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newKeyName}
+                      onChange={(e) => setNewKeyName(e.target.value)}
+                      placeholder="e.g. Core Banking API Connector Key"
+                      className="flex-1 h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
+                    />
+                    <PrimaryButton icon={<Plus className="h-3.5 w-3.5" />} onClick={handleCreateKey}>
+                      Create API Key
+                    </PrimaryButton>
+                  </div>
+                )}
+
+                <div className="space-y-2 font-mono">
+                  {apiKeys.map((k) => (
+                    <div key={k.id} className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex items-center justify-between">
+                      <div>
+                        <span className="font-bold text-slate-900 dark:text-white font-sans block">{k.name}</span>
+                        <span className="text-[11px] text-[#56B4D3]">{k.keyMasked}</span>
+                        <span className="text-[10px] text-slate-400 block mt-0.5">Created: {k.created} by {k.owner}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <StatusBadge status={k.status === "active" ? "healthy" : "failed"} />
+                        {k.status === "active" && canManageSettings && (
+                          <button
+                            onClick={() => handleRevokeKey(k.id)}
+                            className="text-red-500 hover:underline font-sans font-semibold text-[11px] cursor-pointer"
+                          >
+                            Revoke
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </SectionCard>
+          )}
+
+          {activeSection === "security" && (
+            <SectionCard title="Security Policies & MFA Enforcement (§5.14 REQ-SET-003)">
+              <div className="space-y-4 text-xs">
+                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800">
+                  <div>
+                    <span className="font-bold text-slate-900 dark:text-white block">Enforce Multi-Factor Authentication (MFA TOTP)</span>
+                    <span className="text-[11px] text-slate-500">Require all users to enter 6-digit authenticator TOTP code on login (§5.1 REQ-AUTH-002)</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={mfaEnforced}
+                    onChange={(e) => setMfaEnforced(e.target.checked)}
+                    className="accent-[#56B4D3] h-5 w-5 cursor-pointer"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Session Inactivity Timeout (Minutes)</label>
+                  <input
+                    type="text"
+                    value={sessionTimeout}
+                    onChange={(e) => setSessionTimeout(e.target.value)}
+                    className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono focus:outline-none"
+                  />
+                  <span className="text-[11px] text-slate-400 mt-1 block">Default: 30 minutes of inactivity before re-authentication (REQ-AUTH-005).</span>
+                </div>
+              </div>
+            </SectionCard>
+          )}
+
+          {activeSection === "compliance" && (
+            <SectionCard title="Compliance Deadline Reminder Lead Times (§5.14 REQ-SET-004)">
+              <div className="space-y-3 text-xs">
+                <p className="text-slate-500">Configure automated email and in-app reminder trigger lead times before compliance due dates:</p>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer font-mono">
+                    <input type="checkbox" checked={remind14} onChange={(e) => setRemind14(e.target.checked)} className="accent-[#56B4D3] h-4 w-4" />
+                    <span>Send reminder 14 days before due date</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer font-mono">
+                    <input type="checkbox" checked={remind7} onChange={(e) => setRemind7(e.target.checked)} className="accent-[#56B4D3] h-4 w-4" />
+                    <span>Send reminder 7 days before due date</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer font-mono">
+                    <input type="checkbox" checked={remind1} onChange={(e) => setRemind1(e.target.checked)} className="accent-[#56B4D3] h-4 w-4" />
+                    <span>Send urgent reminder 1 day before due date</span>
+                  </label>
+                </div>
+              </div>
+            </SectionCard>
+          )}
+
+          {activeSection === "riskScore" && (
+            <SectionCard title="Participant Risk Score Weights Configuration (§5.6 REQ-P360-011)">
+              <div className="space-y-3 text-xs">
+                <p className="text-slate-500">
+                  Configure indicator category weights for the Participant 360 Risk Assessment composite score (MUST total 100%):
+                </p>
+                <div className="grid grid-cols-2 gap-3 font-mono">
+                  <div>
+                    <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1">Integration Reliability Weight (%)</label>
+                    <input type="text" value={wIntegration} onChange={(e) => setWIntegration(e.target.value)} className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white" />
+                  </div>
+                  <div>
+                    <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1">Compliance Adherence Weight (%)</label>
+                    <input type="text" value={wCompliance} onChange={(e) => setWCompliance(e.target.value)} className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white" />
+                  </div>
+                  <div>
+                    <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1">Incident Frequency Weight (%)</label>
+                    <input type="text" value={wIncident} onChange={(e) => setWIncident(e.target.value)} className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white" />
+                  </div>
+                  <div>
+                    <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1">Overdue Submission Rate Weight (%)</label>
+                    <input type="text" value={wOverdue} onChange={(e) => setWOverdue(e.target.value)} className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white" />
+                  </div>
+                </div>
+              </div>
+            </SectionCard>
+          )}
         </div>
       </div>
     </AppShell>
