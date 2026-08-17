@@ -325,34 +325,10 @@ export function AppShell({
               {children}
             </div>
 
-            {/* Footer status strip */}
-            <footer className={`h-8 px-6 border-t ${isDark ? 'border-slate-800 bg-slate-900/40 text-slate-400' : 'border-[#E3EAEE] bg-white/40 text-[#718596]'} flex items-center justify-between text-xs font-mono shrink-0`}>
-              <div className="flex items-center gap-4">
-                <span>env: <span className="font-semibold">staging</span></span>
-                <span className="flex items-center gap-1.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#10B981]" />
-                  live operations
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <RefreshCw className="h-3 w-3" />
-                <span>refreshed {new Date().toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit" })}</span>
-              </div>
-            </footer>
-
           </div>
         </div>
 
       </div>
-
-      {/* ─── FLOATING WHATSAPP / CHAT SUPPORT BUTTON ─── */}
-      <button
-        onClick={() => alert("Support chat / Quick assistance launched")}
-        aria-label="Quick support chat"
-        className="fixed bottom-7 right-7 z-40 h-13 w-13 rounded-full bg-[#10B981] hover:bg-[#059669] text-white shadow-[0_8px_25px_rgba(16,185,129,0.4)] flex items-center justify-center cursor-pointer transition-all hover:scale-105 active:scale-95 border-2 border-white/80"
-      >
-        <MessageSquare className="h-6 w-6" />
-      </button>
 
     </div>
   );
