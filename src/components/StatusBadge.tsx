@@ -1,4 +1,4 @@
-import { CheckCircle2, Loader2, Clock, AlertTriangle, XCircle, Circle, Check } from "lucide-react";
+import { CheckCircle2, Loader2, Clock, AlertTriangle, XCircle, Circle, Check, Pause } from "lucide-react";
 import type { ReactNode } from "react";
 
 export type Status =
@@ -9,7 +9,8 @@ export type Status =
   | "failed"
   | "draft"
   | "completed"
-  | "active";
+  | "active"
+  | "paused";
 
 type Variant = {
   fg: string;
@@ -27,6 +28,7 @@ const MAP: Record<Status, Variant> = {
   warning:   { fg: "#D97706", bg: "#FEF3C7", icon: <AlertTriangle className="h-3 w-3" />, label: "Warning"  },
   failed:    { fg: "#E11D48", bg: "#FFE4E6", icon: <XCircle      className="h-3 w-3" />, label: "Failed"    },
   draft:     { fg: "#6B7280", bg: "#F3F4F6", icon: <Circle       className="h-3 w-3" />, label: "Draft"     },
+  paused:    { fg: "#6B7280", bg: "#F3F4F6", icon: <Pause        className="h-3 w-3" />, label: "Paused"    },
 };
 
 export function StatusBadge({ status, children }: { status: Status; children?: ReactNode }) {
