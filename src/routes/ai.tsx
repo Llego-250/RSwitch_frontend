@@ -1,7 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AppShell, PrimaryButton, FilterChip, SectionCard } from "@/components/AppShell";
+import { useState, useMemo } from "react";
+import {
+  AppShell,
+  PrimaryButton,
+  SecondaryButton,
+  FilterChip,
+  SectionCard,
+} from "@/components/AppShell";
 import { KpiCard } from "@/components/KpiCard";
 import { StatusBadge } from "@/components/StatusBadge";
+import { useRole } from "@/context/RoleContext";
+import { canManage } from "@/lib/roles";
 import {
   LineChart,
   Line,
@@ -10,570 +19,480 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { useState } from "react";
 import {
-  Plus,
   Brain,
   Activity,
   TrendingUp,
   AlertTriangle,
   Eye,
-  Play,
-  Pause,
-  Settings,
+  CheckCircle2,
+  Sliders,
+  X,
+  FileText,
+  Clock,
+  ArrowRight,
+  ShieldAlert,
+  Lock,
 } from "lucide-react";
 
 export const Route = createFileRoute("/ai")({
   component: AIPage,
 });
 
-const perfData = [
-  { month: "Jan", accuracy: 93.1, precision: 91.4 },
-  { month: "Feb", accuracy: 93.8, precision: 92.0 },
-  { month: "Mar", accuracy: 94.2, precision: 92.5 },
-  { month: "Apr", accuracy: 93.9, precision: 92.1 },
-  { month: "May", accuracy: 94.5, precision: 93.0 },
-  { month: "Jun", accuracy: 94.7, precision: 93.4 },
+type AlertStatus = "Generated" | "Acknowledged" | "Under Investigation" | "Resolved" | "Escalated" | "Closed";
+
+type BaselineMethod = "Predefined Thresholds (Release 1)" | "Rolling 6-Month Baseline (Release 2)" | "Peer-Group Baseline (Release 3)";
+
+type AIAlert = {
+  id: string;
+  institution: string;
+  indicator: string;
+  baselineVal: string;
+  observedVal: string;
+  deviation: string;
+  recommendedArea: string;
+  status: AlertStatus;
+  baselineMethod: BaselineMethod;
+  createdDate: string;
+  daysInState: number;
+  notes: { date: string; user: string; text: string }[];
+  resolutionSummary?: string;
+};
+
+const INITIAL_AI_ALERTS: AIAlert[] = [
+  {
+    id: "ALT-901",
+    institution: "MTN Mobile Money",
+    indicator: "Sudden Spike in Submission Error Rate",
+    baselineVal: "0.2%",
+    observedVal: "4.4%",
+    deviation: "+2100%",
+    recommendedArea: "API Payload Serializer & MSISDN Hashing Module",
+    status: "Acknowledged",
+    baselineMethod: "Rolling 6-Month Baseline (Release 2)",
+    createdDate: "2026-07-22",
+    daysInState: 4, // > 3 days -> triggers auto-escalation check (§5.9 REQ-AI-006b)
+    notes: [
+      { date: "2026-07-22 10:15", user: "Compliance User", text: "Acknowledged anomaly alert. Assigned to technical integration team for payload audit." },
+    ],
+  },
+  {
+    id: "ALT-902",
+    institution: "Inkomoko MFI",
+    indicator: "Unexplained PAR_30d Metric Deviation",
+    baselineVal: "3.1%",
+    observedVal: "-5.2%",
+    deviation: "Negative PAR (Schema violation)",
+    recommendedArea: "Manual CSV Upload Row #42 Data Formatting",
+    status: "Generated",
+    baselineMethod: "Predefined Thresholds (Release 1)",
+    createdDate: "2026-07-24",
+    daysInState: 0,
+    notes: [],
+  },
+  {
+    id: "ALT-903",
+    institution: "Zigama CSS SACCO",
+    indicator: "Submission Latency Delay",
+    baselineVal: "45 mins",
+    observedVal: "4h 12m",
+    deviation: "+460%",
+    recommendedArea: "SACCO Monthly Financial Return Transmission Schedule",
+    status: "Under Investigation",
+    baselineMethod: "Rolling 6-Month Baseline (Release 2)",
+    createdDate: "2026-07-21",
+    daysInState: 2,
+    notes: [
+      { date: "2026-07-21 11:00", user: "Compliance User", text: "Logged awareness note. Investigating network routing latency." },
+      { date: "2026-07-22 09:30", user: "Technical Lead", text: "Contacted SACCO IT team regarding network gateway upgrade." },
+    ],
+  },
+  {
+    id: "ALT-904",
+    institution: "Bank of Kigali",
+    indicator: "SWIFT Message Field Translation Warning",
+    baselineVal: "0 warnings",
+    observedVal: "3 warnings",
+    deviation: "Unmapped optional fields",
+    recommendedArea: "ISO 20022 Field Mapping Rule #8",
+    status: "Closed",
+    baselineMethod: "Rolling 6-Month Baseline (Release 2)",
+    createdDate: "2026-07-15",
+    daysInState: 0,
+    notes: [
+      { date: "2026-07-15 14:00", user: "Compliance User", text: "Acknowledged minor mapping warning." },
+      { date: "2026-07-16 10:00", user: "Technical Lead", text: "Field mapping updated to v3.1." },
+    ],
+    resolutionSummary: "Field mapping definition updated in Standards & Mapping v3.1 to include optional swift remittance tags. Verified clean ingestion.",
+  },
 ];
 
-const typeDistribution = [
-  { type: "Credit Scoring",      count: 2, color: "#2D6A9F" },
-  { type: "Fraud Detection",     count: 2, color: "#E11D48" },
-  { type: "Churn Prediction",    count: 1, color: "#0D9488" },
-  { type: "Financial Inclusion", count: 1, color: "#7C3AED" },
-];
-const totalModels = typeDistribution.reduce((s, d) => s + d.count, 0);
-
-const MODELS = [
-  {
-    id: "MDL-001",
-    name: "Credit Risk Scorer v3",
-    version: "3.2.1",
-    type: "Credit Scoring",
-    status: "healthy" as const,
-    accuracy: "94.8%",
-    drift: "None",
-    lastPred: "12:04",
-  },
-  {
-    id: "MDL-002",
-    name: "Fraud Velocity Detector",
-    version: "8.1.0",
-    type: "Fraud Detection",
-    status: "healthy" as const,
-    accuracy: "96.2%",
-    drift: "None",
-    lastPred: "12:09",
-  },
-  {
-    id: "MDL-003",
-    name: "Inclusion Eligibility",
-    version: "1.4.2",
-    type: "Financial Inclusion",
-    status: "healthy" as const,
-    accuracy: "89.4%",
-    drift: "Minor",
-    lastPred: "11:30",
-  },
-  {
-    id: "MDL-004",
-    name: "Churn Predictor v2",
-    version: "2.0.1",
-    type: "Churn Prediction",
-    status: "warning" as const,
-    accuracy: "87.1%",
-    drift: "Detected",
-    lastPred: "10:15",
-  },
-  {
-    id: "MDL-005",
-    name: "Geo-Anomaly Detector",
-    version: "4.0.0",
-    type: "Fraud Detection",
-    status: "healthy" as const,
-    accuracy: "91.5%",
-    drift: "None",
-    lastPred: "12:08",
-  },
-  {
-    id: "MDL-006",
-    name: "SME Credit Scorer",
-    version: "1.1.0",
-    type: "Credit Scoring",
-    status: "running" as const,
-    accuracy: "—",
-    drift: "—",
-    lastPred: "Deploying",
-  },
+const TREND_DATA = [
+  { month: "May", errorRate: 0.8, latency: 120, alerts: 2 },
+  { month: "Jun", errorRate: 0.6, latency: 110, alerts: 1 },
+  { month: "Jul", errorRate: 2.4, latency: 240, alerts: 4 },
 ];
 
-function DriftCell({ drift }: { drift: string }) {
-  if (drift === "Detected") {
-    return (
-      <span
-        className="inline-flex items-center gap-1.5 font-mono text-[11px] font-medium whitespace-nowrap"
-        style={{
-          color: "#E11D48",
-          backgroundColor: "#FFE4E6",
-          borderRadius: "4px",
-          padding: "3px 8px",
-          lineHeight: "1.4",
-        }}
-      >
-        <AlertTriangle className="h-3 w-3" />
-        Detected
-      </span>
-    );
-  }
-  if (drift === "Minor") {
-    return (
-      <span
-        className="inline-flex items-center gap-1.5 font-mono text-[11px] font-medium whitespace-nowrap"
-        style={{
-          color: "#D97706",
-          backgroundColor: "#FEF3C7",
-          borderRadius: "4px",
-          padding: "3px 8px",
-          lineHeight: "1.4",
-        }}
-      >
-        <Activity className="h-3 w-3" />
-        Minor
-      </span>
-    );
-  }
-  return (
-    <span
-      className="font-mono text-[13px]"
-      style={{ color: "var(--neutral-400)" }}
-    >
-      {drift}
-    </span>
-  );
-}
-
-function ActionButton({
-  title,
-  onClick,
-  children,
-}: {
-  title: string;
-  onClick?: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      title={title}
-      onClick={onClick}
-      className="h-7 w-7 inline-flex items-center justify-center rounded-md transition-colors"
-      style={{ color: "var(--neutral-400)" }}
-      onMouseEnter={(e) => {
-        (e.currentTarget as HTMLElement).style.backgroundColor =
-          "var(--primary-100)";
-        (e.currentTarget as HTMLElement).style.color = "var(--primary-500)";
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.backgroundColor = "transparent";
-        (e.currentTarget as HTMLElement).style.color = "var(--neutral-400)";
-      }}
-    >
-      {children}
-    </button>
-  );
-}
+const PRIORITY_PARTICIPANTS = [
+  { rank: 1, name: "MTN Mobile Money", type: "E-money Issuer", score: "88.4 / 100", reason: "Error Rate Spike (+2100%)", status: "High Priority" },
+  { rank: 2, name: "Inkomoko MFI", type: "MFI", score: "74.2 / 100", reason: "PAR Negative Value Error", status: "Medium Priority" },
+  { rank: 3, name: "Zigama CSS SACCO", type: "SACCO", score: "62.0 / 100", reason: "Latency Delay (+460%)", status: "Medium Priority" },
+  { rank: 4, name: "Bank of Kigali", type: "Commercial Bank", score: "12.0 / 100", reason: "Clean Operational Profile", status: "Low Priority" },
+];
 
 function AIPage() {
-  const [runningModels, setRunningModels] = useState<Set<string>>(
-    new Set(["MDL-001", "MDL-002", "MDL-003", "MDL-005"])
-  );
+  const { role } = useRole();
+  const canManageAI = canManage(role, "ai"); // Business manages, Compliance/Tech view (§5.9)
 
-  function toggleRunning(id: string) {
-    setRunningModels((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
+  const [alerts, setAlerts]               = useState<AIAlert[]>(INITIAL_AI_ALERTS);
+  const [selectedAlert, setSelectedAlert] = useState<AIAlert | null>(null);
+  const [actionNote, setActionNote]       = useState("");
+  const [resolutionText, setResolutionText] = useState("");
+  const [actionError, setActionError]     = useState<string | null>(null);
+  const [showConfigModal, setShowConfigModal] = useState(false);
+
+  // Threshold Config (§5.9 REQ-AI-012)
+  const [devThreshold, setDevThreshold]   = useState("200%");
+  const [autoEscalateDays, setAutoEscalateDays] = useState("3");
+
+  // State Transition Handlers enforcing REQ-AI-006a, REQ-AI-006b, REQ-AI-006c
+  function handleTransition(newStatus: AlertStatus) {
+    if (!selectedAlert) return;
+    setActionError(null);
+
+    // Strict Enforcement 006a: Cannot jump Generated -> Under Investigation without Acknowledged
+    if (selectedAlert.status === "Generated" && newStatus === "Under Investigation") {
+      setActionError("Rule REQ-AI-006a Violation: Alert CANNOT move directly from Generated to Under Investigation. It MUST pass through Acknowledged first with an awareness note.");
+      return;
+    }
+
+    // Strict Enforcement 006c: Closure requires written summary (min 20 characters)
+    if (newStatus === "Closed") {
+      if (!resolutionText.trim() || resolutionText.trim().length < 20) {
+        setActionError("Rule REQ-AI-006c Violation: Moving an alert to Closed status REQUIRES a written resolution summary of at least 20 characters.");
+        return;
       }
-      return next;
-    });
+    }
+
+    // Require awareness note for transitions
+    if (!actionNote.trim() && newStatus !== "Closed") {
+      setActionError("A mandatory note from the acting user is required for status transitions (§5.9 REQ-AI-006).");
+      return;
+    }
+
+    const updatedAlert: AIAlert = {
+      ...selectedAlert,
+      status: newStatus,
+      resolutionSummary: newStatus === "Closed" ? resolutionText.trim() : selectedAlert.resolutionSummary,
+      notes: actionNote.trim()
+        ? [
+            ...selectedAlert.notes,
+            {
+              date: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              user: `${role.toUpperCase()} User`,
+              text: actionNote.trim(),
+            },
+          ]
+        : selectedAlert.notes,
+    };
+
+    setAlerts((prev) => prev.map((a) => (a.id === selectedAlert.id ? updatedAlert : a)));
+    setSelectedAlert(updatedAlert);
+    setActionNote("");
+    setResolutionText("");
   }
 
   return (
     <AppShell
-      title="AI Decision Support"
-      breadcrumb="DECIDE › AI"
-      scope="model-registry"
+      title="AI Decision Support & Anomaly Detection (§5.9)"
+      breadcrumb="DECIDE › AI DECISION SUPPORT"
+      scope="Advisory Operational Intelligence"
       primaryAction={
-        <PrimaryButton icon={<Plus className="h-4 w-4" />}>
-          Register Model
+        <PrimaryButton icon={<Sliders className="h-4 w-4" />} onClick={() => setShowConfigModal(true)}>
+          Configure Sensitivity & Baselines
         </PrimaryButton>
       }
       toolbar={
-        <>
-          <FilterChip label="Model Type" value="All Types" />
-          <FilterChip label="Status" value="All" />
-          <FilterChip label="Period" value="Last 30 days" />
-        </>
+        <div className="flex items-center gap-3 text-xs">
+          <span className="font-mono text-slate-500">Filter Baseline:</span>
+          <FilterChip label="Engine" value="Model-Agnostic Analytical Engine (§5.9 REQ-AI-010)" />
+          <div className="ml-auto inline-flex items-center gap-1.5 font-mono text-[11px] text-amber-600 bg-amber-50 dark:bg-amber-950/50 px-3 py-1 rounded-full border border-amber-200 dark:border-amber-900">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            <span>REQ-AI-002: AI Outputs are Advisory & Explainable (No Automated Decisions)</span>
+          </div>
+        </div>
       }
     >
-      {/* ROW 1 — KPI Cards */}
+      {/* KPI Summary */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
-        <KpiCard
-          label="Active Models"
-          value="6"
-          delta={{ dir: "up", text: "+1", tone: "good" }}
-          source="registry"
-          freshness="live"
-          updated="12:10"
-        />
-        <KpiCard
-          label="Avg Model Accuracy"
-          value="94.7%"
-          delta={{ dir: "up", text: "+0.8pp", tone: "good" }}
-          source="eval-svc"
-          freshness="live"
-          updated="12:10"
-        />
-        <KpiCard
-          label="Predictions (24h)"
-          value="48,204"
-          source="inference"
-          freshness="live"
-          updated="12:10"
-        />
-        <KpiCard
-          label="Models with Drift"
-          value="1"
-          delta={{ dir: "up", text: "+1", tone: "bad" }}
-          source="drift-monitor"
-          freshness="live"
-          updated="11:58"
-        />
+        <KpiCard label="Active AI Anomaly Alerts" value={alerts.filter(a => a.status !== "Closed").length.toString()} delta={{ dir: "up", text: "+1", tone: "bad" }} source="ai-engine" freshness="live" />
+        <KpiCard label="Unacknowledged (Generated)" value={alerts.filter(a => a.status === "Generated").length.toString()} source="ai-engine" freshness="live" />
+        <KpiCard label="Auto-Escalated (>3d Ack)" value={alerts.filter(a => a.status === "Escalated" || (a.status === "Acknowledged" && a.daysInState >= 3)).length.toString()} delta={{ dir: "up", text: "+1", tone: "bad" }} source="ai-escalation" freshness="live" />
+        <KpiCard label="Baseline Model Active" value="Release 2 (6m)" context="Rolling Historical" source="settings" freshness="live" />
       </div>
 
-      {/* ROW 2 — Chart + Distribution */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 mb-5">
-        {/* Left: Performance Trend */}
-        <div className="xl:col-span-8">
-          <SectionCard
-            title={
-              <span className="flex items-center gap-2">
-                <TrendingUp
-                  className="h-4 w-4"
-                  style={{ color: "var(--primary-500)" }}
-                />
-                Model Performance Trend
-              </span>
-            }
-          >
-            <div style={{ height: 220 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={perfData}
-                  margin={{ top: 4, right: 16, left: 0, bottom: 4 }}
-                >
-                  <XAxis
-                    dataKey="month"
-                    tick={{
-                      fontSize: 11,
-                      fontFamily: "monospace",
-                      fill: "var(--neutral-400)",
-                    }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    domain={[90, 98]}
-                    tick={{
-                      fontSize: 11,
-                      fontFamily: "monospace",
-                      fill: "var(--neutral-400)",
-                    }}
-                    axisLine={false}
-                    tickLine={false}
-                    tickFormatter={(v) => `${v}%`}
-                    width={42}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "var(--card)",
-                      border: "1px solid var(--border)",
-                      borderRadius: "6px",
-                      fontSize: "12px",
-                      fontFamily: "monospace",
-                    }}
-                    formatter={(value: number, name: string) => [
-                      `${value}%`,
-                      name === "accuracy" ? "Accuracy" : "Precision",
-                    ]}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="accuracy"
-                    stroke="#2D6A9F"
-                    strokeWidth={2}
-                    dot={{ fill: "#2D6A9F", r: 3, strokeWidth: 0 }}
-                    activeDot={{ r: 4 }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="precision"
-                    stroke="#0D9488"
-                    strokeWidth={2}
-                    dot={{ fill: "#0D9488", r: 3, strokeWidth: 0 }}
-                    activeDot={{ r: 4 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+      {/* Main Grid: Priority List + Anomaly Alerts */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 mb-6">
+        {/* Left 5 cols: Participant Priority Ranking (§5.9 REQ-AI-005) */}
+        <div className="lg:col-span-5 space-y-4">
+          <SectionCard title="AI Participant Priority Ranking (REQ-AI-005)" noPad>
+            <div className="p-3 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 font-mono">
+              Ranked by composite operational risk signal strength
             </div>
-            {/* Legend */}
-            <div className="flex items-center gap-5 mt-3 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
-              <span className="inline-flex items-center gap-1.5 text-[12px]" style={{ color: "var(--neutral-600)" }}>
-                <span
-                  className="h-2.5 w-4 rounded-sm inline-block"
-                  style={{ backgroundColor: "#2D6A9F" }}
-                />
-                Accuracy
-              </span>
-              <span className="inline-flex items-center gap-1.5 text-[12px]" style={{ color: "var(--neutral-600)" }}>
-                <span
-                  className="h-2.5 w-4 rounded-sm inline-block"
-                  style={{ backgroundColor: "#0D9488" }}
-                />
-                Precision
-              </span>
+            <div className="divide-y divide-slate-100 dark:divide-slate-800">
+              {PRIORITY_PARTICIPANTS.map((p) => (
+                <div key={p.rank} className="p-3.5 flex items-center justify-between text-xs hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                  <div className="flex items-center gap-3">
+                    <span className={`h-7 w-7 rounded-xl flex items-center justify-center font-mono font-bold text-xs ${
+                      p.rank === 1 ? "bg-red-500 text-white" : p.rank === 2 ? "bg-amber-500 text-white" : "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200"
+                    }`}>
+                      #{p.rank}
+                    </span>
+                    <div>
+                      <h4 className="font-bold text-slate-900 dark:text-white">{p.name}</h4>
+                      <p className="text-[11px] text-slate-500">{p.type} · {p.reason}</p>
+                    </div>
+                  </div>
+                  <div className="text-right font-mono">
+                    <span className="font-bold text-slate-800 dark:text-slate-200 block">{p.score}</span>
+                    <span className={`text-[10px] font-bold ${p.rank === 1 ? "text-red-500" : "text-amber-500"}`}>{p.status}</span>
+                  </div>
+                </div>
+              ))}
             </div>
+          </SectionCard>
+
+          {/* Operational Trend Summary */}
+          <SectionCard title="3-Month Compliance & Error Trend Summary (§5.9 REQ-AI-007)">
+            <ResponsiveContainer width="100%" height={160}>
+              <LineChart data={TREND_DATA}>
+                <XAxis dataKey="month" tick={{ fontSize: 10, fontFamily: "monospace" }} />
+                <YAxis tick={{ fontSize: 10, fontFamily: "monospace" }} />
+                <Tooltip contentStyle={{ fontSize: "11px", fontFamily: "monospace" }} />
+                <Line type="monotone" dataKey="errorRate" stroke="#E11D48" strokeWidth={2} name="Error Rate (%)" />
+              </LineChart>
+            </ResponsiveContainer>
           </SectionCard>
         </div>
 
-        {/* Right: Model Type Distribution */}
-        <div className="xl:col-span-4">
-          <SectionCard
-            title={
-              <span className="flex items-center gap-2">
-                <Brain
-                  className="h-4 w-4"
-                  style={{ color: "var(--ai)" }}
-                />
-                Model Type Distribution
-              </span>
-            }
-          >
-            <div className="flex flex-col gap-4">
-              {typeDistribution.map((d) => {
-                const pct = Math.round((d.count / totalModels) * 100);
+        {/* Right 7 cols: AI Alerts Feed & Strict Lifecycle (§5.9 REQ-AI-004, REQ-AI-006) */}
+        <div className="lg:col-span-7 space-y-4">
+          <SectionCard title="AI-Generated Anomaly Feed & Lifecycle Manager (§5.9 REQ-AI-006)" noPad>
+            <div className="divide-y divide-slate-100 dark:divide-slate-800">
+              {alerts.map((alt) => {
+                const isSelected = selectedAlert?.id === alt.id;
+                const isAutoEscalated = alt.status === "Acknowledged" && alt.daysInState >= 3;
                 return (
-                  <div key={d.type}>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span
-                        className="flex items-center gap-2 text-[13px] font-medium"
-                        style={{ color: "var(--neutral-700)" }}
-                      >
-                        <span
-                          className="h-2 w-2 rounded-full shrink-0"
-                          style={{ backgroundColor: d.color }}
-                        />
-                        {d.type}
-                      </span>
-                      <span
-                        className="font-mono text-[12px] font-semibold"
-                        style={{ color: "var(--neutral-900)" }}
-                      >
-                        {d.count}
+                  <div
+                    key={alt.id}
+                    onClick={() => {
+                      setSelectedAlert(alt);
+                      setActionError(null);
+                      setActionNote("");
+                      setResolutionText(alt.resolutionSummary ?? "");
+                    }}
+                    className={`p-4 transition-all cursor-pointer ${
+                      isSelected
+                        ? "bg-[#56B4D3]/15 border-l-4 border-l-[#56B4D3]"
+                        : "hover:bg-slate-50 dark:hover:bg-slate-800/40"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-mono text-[10px] font-bold text-[#56B4D3]">{alt.id}</span>
+                          <span className="font-bold text-xs text-slate-900 dark:text-white">{alt.institution}</span>
+                          {isAutoEscalated && (
+                            <span className="px-2 py-0.5 rounded text-[10px] bg-red-100 text-red-700 font-extrabold flex items-center gap-1">
+                              <AlertTriangle className="h-3 w-3" /> Auto-Escalated (&gt;3d)
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="font-bold text-xs text-slate-800 dark:text-slate-200">{alt.indicator}</h3>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
+                        alt.status === "Closed" ? "bg-slate-200 text-slate-700" : alt.status === "Acknowledged" ? "bg-blue-100 text-blue-700" : alt.status === "Under Investigation" ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700 font-extrabold"
+                      }`}>
+                        {alt.status}
                       </span>
                     </div>
-                    <div
-                      className="h-1.5 rounded-full overflow-hidden"
-                      style={{ backgroundColor: "var(--neutral-100)" }}
-                    >
-                      <div
-                        className="h-full rounded-full"
-                        style={{
-                          width: `${pct}%`,
-                          backgroundColor: d.color,
-                          opacity: 0.85,
-                        }}
-                      />
+
+                    <div className="grid grid-cols-3 gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 font-mono text-[11px] mb-2">
+                      <div><span className="text-slate-400 block text-[10px]">Baseline</span><span className="font-bold">{alt.baselineVal}</span></div>
+                      <div><span className="text-slate-400 block text-[10px]">Observed</span><span className="font-bold text-red-500">{alt.observedVal}</span></div>
+                      <div><span className="text-slate-400 block text-[10px]">Deviation</span><span className="font-bold text-amber-500">{alt.deviation}</span></div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
+                      <span>Baseline: {alt.baselineMethod}</span>
+                      <span>Created: {alt.createdDate}</span>
                     </div>
                   </div>
                 );
               })}
-              <div
-                className="pt-3 mt-1 font-mono text-[11px]"
-                style={{
-                  borderTop: "1px solid var(--border)",
-                  color: "var(--neutral-400)",
-                }}
-              >
-                {totalModels} models total · 4 types
-              </div>
             </div>
           </SectionCard>
         </div>
       </div>
 
-      {/* ROW 3 — Model Registry Table */}
-      <SectionCard
-        title={
-          <span className="flex items-center gap-2">
-            <Activity
-              className="h-4 w-4"
-              style={{ color: "var(--primary-500)" }}
-            />
-            Model Registry
-          </span>
-        }
-        noPad
-      >
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead
-              style={{
-                backgroundColor: "var(--neutral-100)",
-                borderBottom: "1px solid var(--border)",
-              }}
-            >
-              <tr>
-                <th
-                  className="text-left px-4 py-3 text-[12px] font-medium uppercase tracking-wide"
-                  style={{ color: "var(--neutral-500)" }}
-                >
-                  Model Name
-                </th>
-                <th
-                  className="text-left px-4 py-3 text-[12px] font-medium uppercase tracking-wide"
-                  style={{ color: "var(--neutral-500)" }}
-                >
-                  Version
-                </th>
-                <th
-                  className="text-left px-4 py-3 text-[12px] font-medium uppercase tracking-wide"
-                  style={{ color: "var(--neutral-500)" }}
-                >
-                  Type
-                </th>
-                <th
-                  className="text-left px-4 py-3 text-[12px] font-medium uppercase tracking-wide"
-                  style={{ color: "var(--neutral-500)" }}
-                >
-                  Status
-                </th>
-                <th
-                  className="text-right px-4 py-3 text-[12px] font-medium uppercase tracking-wide"
-                  style={{ color: "var(--neutral-500)" }}
-                >
-                  Accuracy
-                </th>
-                <th
-                  className="text-left px-4 py-3 text-[12px] font-medium uppercase tracking-wide"
-                  style={{ color: "var(--neutral-500)" }}
-                >
-                  Drift
-                </th>
-                <th
-                  className="text-left px-4 py-3 text-[12px] font-medium uppercase tracking-wide"
-                  style={{ color: "var(--neutral-500)" }}
-                >
-                  Last Prediction
-                </th>
-                <th
-                  className="text-right px-4 py-3 text-[12px] font-medium uppercase tracking-wide"
-                  style={{ color: "var(--neutral-500)" }}
-                >
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {MODELS.map((m, i) => (
-                <tr
-                  key={m.id}
-                  style={{
-                    borderBottom: "1px solid var(--border)",
-                    backgroundColor:
-                      i % 2 === 0 ? "transparent" : "var(--neutral-50)",
-                  }}
-                >
-                  <td className="px-4 py-3">
-                    <div
-                      className="font-medium text-[13px]"
-                      style={{ color: "var(--neutral-900)" }}
+      {/* Alert Details & Strict Lifecycle Drawer (§5.9 REQ-AI-006a, 006b, 006c) */}
+      {selectedAlert && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+              <div>
+                <h2 className="font-bold text-base text-slate-900 dark:text-white">AI Alert Details & Lifecycle Progression</h2>
+                <p className="text-xs text-[#56B4D3] font-semibold">{selectedAlert.id} · {selectedAlert.institution}</p>
+              </div>
+              <button onClick={() => setSelectedAlert(null)} className="text-slate-400 hover:text-slate-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 space-y-2 font-mono">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-900 dark:text-white">{selectedAlert.indicator}</span>
+                  <span className="font-bold text-amber-500">Current Status: {selectedAlert.status}</span>
+                </div>
+                <div>Recommended Area: <span className="text-[#56B4D3] font-semibold">{selectedAlert.recommendedArea}</span></div>
+                <div>Baseline Methodology: <span className="text-slate-600 dark:text-slate-300">{selectedAlert.baselineMethod}</span></div>
+              </div>
+
+              {/* State Machine Transition Controls */}
+              {selectedAlert.status !== "Closed" ? (
+                <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3 bg-slate-50/50 dark:bg-slate-800/40">
+                  <h4 className="font-bold text-xs text-slate-900 dark:text-white">Advance Lifecycle State (§5.9 REQ-AI-006)</h4>
+                  <div className="flex items-center gap-2 flex-wrap font-mono">
+                    <button
+                      onClick={() => handleTransition("Acknowledged")}
+                      disabled={selectedAlert.status !== "Generated"}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-40 cursor-pointer"
                     >
-                      {m.name}
-                    </div>
-                    <div
-                      className="font-mono text-[11px] mt-0.5"
-                      style={{ color: "var(--neutral-400)" }}
+                      1. Acknowledge Alert
+                    </button>
+                    <ArrowRight className="h-4 w-4 text-slate-400" />
+                    <button
+                      onClick={() => handleTransition("Under Investigation")}
+                      disabled={selectedAlert.status === "Generated" || selectedAlert.status === "Under Investigation"}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-40 cursor-pointer"
                     >
-                      {m.id}
+                      2. Under Investigation
+                    </button>
+                    <ArrowRight className="h-4 w-4 text-slate-400" />
+                    <button
+                      onClick={() => handleTransition("Closed")}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer"
+                    >
+                      3. Formally Close Alert
+                    </button>
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Mandatory Awareness Note for Transition</label>
+                    <input
+                      type="text"
+                      value={actionNote}
+                      onChange={(e) => setActionNote(e.target.value)}
+                      placeholder="Enter logged awareness note required for state transition…"
+                      className="w-full h-9 px-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
+                    />
+                  </div>
+
+                  {/* Written Resolution Summary Input for Closure (REQ-AI-006c) */}
+                  <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Written Resolution Summary (Mandatory Min 20 Chars for Closure — REQ-AI-006c)
+                    </label>
+                    <textarea
+                      value={resolutionText}
+                      onChange={(e) => setResolutionText(e.target.value)}
+                      placeholder="Document detailed investigation outcome and resolution before closing alert…"
+                      rows={3}
+                      className="w-full p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/80 space-y-2">
+                  <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200 font-bold">
+                    <Lock className="h-4 w-4 text-slate-500" />
+                    <span>Closed Alert (Read-Only — Cannot Be Reopened per REQ-AI-006c)</span>
+                  </div>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 font-mono">
+                    Resolution Summary: {selectedAlert.resolutionSummary}
+                  </p>
+                </div>
+              )}
+
+              {actionError && (
+                <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/60 border border-red-200 text-red-600 font-semibold text-xs">
+                  {actionError}
+                </div>
+              )}
+
+              {/* History Notes Log */}
+              <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                <h4 className="font-bold text-xs text-slate-800 dark:text-slate-200">Alert Audit History Log</h4>
+                {selectedAlert.notes.map((n, idx) => (
+                  <div key={idx} className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800 text-[11px] font-mono space-y-0.5">
+                    <div className="flex items-center justify-between text-slate-400">
+                      <span>{n.user}</span>
+                      <span>{n.date}</span>
                     </div>
-                  </td>
-                  <td className="px-4 py-3 font-mono text-[13px]" style={{ color: "var(--neutral-500)" }}>
-                    {m.version}
-                  </td>
-                  <td className="px-4 py-3 text-[13px]" style={{ color: "var(--neutral-700)" }}>
-                    {m.type}
-                  </td>
-                  <td className="px-4 py-3">
-                    <StatusBadge status={m.status} />
-                  </td>
-                  <td
-                    className="px-4 py-3 text-right font-mono text-[13px] font-semibold"
-                    style={{
-                      color:
-                        m.accuracy === "—"
-                          ? "var(--neutral-400)"
-                          : "var(--neutral-900)",
-                      fontVariantNumeric: "tabular-nums",
-                    }}
-                  >
-                    {m.accuracy}
-                  </td>
-                  <td className="px-4 py-3">
-                    <DriftCell drift={m.drift} />
-                  </td>
-                  <td
-                    className="px-4 py-3 font-mono text-[13px]"
-                    style={{
-                      color:
-                        m.lastPred === "Deploying"
-                          ? "var(--primary-500)"
-                          : "var(--neutral-500)",
-                    }}
-                  >
-                    {m.lastPred}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-0.5">
-                      <ActionButton title="View model details">
-                        <Eye className="h-3.5 w-3.5" />
-                      </ActionButton>
-                      <ActionButton
-                        title={
-                          runningModels.has(m.id)
-                            ? "Pause model"
-                            : "Resume model"
-                        }
-                        onClick={() => toggleRunning(m.id)}
-                      >
-                        {runningModels.has(m.id) ? (
-                          <Pause className="h-3.5 w-3.5" />
-                        ) : (
-                          <Play className="h-3.5 w-3.5" />
-                        )}
-                      </ActionButton>
-                      <ActionButton title="Model settings">
-                        <Settings className="h-3.5 w-3.5" />
-                      </ActionButton>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    <p className="text-slate-700 dark:text-slate-200">{n.text}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+              <SecondaryButton onClick={() => setSelectedAlert(null)}>Close Window</SecondaryButton>
+            </div>
+          </div>
         </div>
-      </SectionCard>
+      )}
+
+      {/* Sensitivity Threshold Modal (§5.9 REQ-AI-012) */}
+      {showConfigModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+              <h2 className="font-bold text-base text-slate-900 dark:text-white">Configure Sensitivity & Baseline Thresholds (§5.9 REQ-AI-012)</h2>
+              <button onClick={() => setShowConfigModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Alert Sensitivity Threshold Deviation (% Spike)</label>
+                <input
+                  type="text"
+                  value={devThreshold}
+                  onChange={(e) => setDevThreshold(e.target.value)}
+                  className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Auto-Escalation Threshold (Days at Acknowledged)</label>
+                <input
+                  type="text"
+                  value={autoEscalateDays}
+                  onChange={(e) => setAutoEscalateDays(e.target.value)}
+                  className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+              <SecondaryButton onClick={() => setShowConfigModal(false)}>Cancel</SecondaryButton>
+              <PrimaryButton onClick={() => setShowConfigModal(false)}>Save Sensitivity Config</PrimaryButton>
+            </div>
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }
