@@ -9,6 +9,8 @@ import {
 } from "@/components/AppShell";
 import { KpiCard } from "@/components/KpiCard";
 import { StatusBadge } from "@/components/StatusBadge";
+import { useRole } from "@/context/RoleContext";
+import { canManage } from "@/lib/roles";
 import {
   FileCheck2,
   Calendar,
@@ -17,757 +19,405 @@ import {
   AlertTriangle,
   Clock,
   Upload,
+  Plus,
+  X,
+  FileText,
+  AlertCircle,
+  Check,
+  RotateCcw,
 } from "lucide-react";
 
 export const Route = createFileRoute("/compliance")({
   component: Compliance,
 });
 
-// ─── DATA ───────────────────────────────────────────────────────────────────
+type SubmissionStatus = "Pending" | "Submitted" | "Validation Failed" | "Under Review" | "Approved" | "Rejected" | "Overdue";
 
-const OBLIGATIONS = [
-  {
-    id: "FSA-Q2-2025",
-    name: "FSA Quarterly Risk Report",
-    reg: "FSA",
-    period: "Q2 2025",
-    due: "Jul 15",
-    dueSoon: true,
-    status: "warning" as const,
-    format: "XML",
-  },
-  {
-    id: "AML-JUN-2025",
-    name: "AML Monthly Return",
-    reg: "FIU",
-    period: "Jun 2025",
-    due: "Jul 22",
-    dueSoon: true,
-    status: "draft" as const,
-    format: "CSV",
-  },
-  {
-    id: "CBK-ANN-2025",
-    name: "CBK Annual Compliance",
-    reg: "Central Bank",
-    period: "2024",
-    due: "Jul 31",
-    dueSoon: false,
-    status: "healthy" as const,
-    format: "PDF",
-  },
-  {
-    id: "IFRS9-Q2",
-    name: "IFRS 9 ECL Disclosure",
-    reg: "Auditors",
-    period: "Q2 2025",
-    due: "Aug 05",
-    dueSoon: false,
-    status: "draft" as const,
-    format: "Excel",
-  },
-  {
-    id: "GDPR-Q2",
-    name: "GDPR Processing Record",
-    reg: "Data Authority",
-    period: "Q2 2025",
-    due: "Jul 30",
-    dueSoon: false,
-    status: "healthy" as const,
-    format: "PDF",
-  },
-  {
-    id: "BASEL-Q2",
-    name: "Basel III Capital Adequacy",
-    reg: "BIS",
-    period: "Q2 2025",
-    due: "Aug 15",
-    dueSoon: false,
-    status: "draft" as const,
-    format: "XML",
-  },
-];
-
-const HEALTH_PILLARS = [
-  { name: "AML/CFT Monitoring",  status: "healthy"  as const, checked: "Jun 30" },
-  { name: "GDPR Data Handling",  status: "healthy"  as const, checked: "Jun 28" },
-  { name: "IFRS 9 Reporting",    status: "warning"  as const, checked: "Jun 25" },
-  { name: "Basel III Capital",   status: "healthy"  as const, checked: "Jun 20" },
-  { name: "Open Banking API",    status: "healthy"  as const, checked: "Jun 18" },
-];
-
-// ─── CALENDAR ────────────────────────────────────────────────────────────────
-
-// Jul 2025 starts on Tuesday (index 2 in Mon–Sun week)
-const JULY_DEADLINES: Record<number, { label: string; color: string; bg: string }> = {
-  15: { label: "FSA Quarterly",  color: "#E11D48", bg: "#FFE4E6" },
-  22: { label: "AML Monthly",    color: "#D97706", bg: "#FEF3C7" },
-  31: { label: "CBK Annual",     color: "#2D6A9F", bg: "#E8F1FA" },
+type RequirementEntry = {
+  id: string;
+  name: string;
+  regulatoryRef: string;
+  frequency: "Monthly" | "Quarterly" | "Annual" | "Ad hoc";
+  institution: string;
+  dueDate: string;
+  status: SubmissionStatus;
+  format: "CSV" | "XLSX" | "XML" | "PDF";
+  submittedAt?: string;
+  rejectionReason?: string;
 };
 
-function ReportingCalendar() {
-  const DAY_HEADERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  // Jul 1, 2025 is a Tuesday → offset 1 (Mon=0)
-  const OFFSET = 1;
-  const DAYS_IN_MONTH = 31;
+type IncidentSeverity = "Critical" | "High" | "Medium" | "Low";
+type IncidentStatus = "Open" | "Under Investigation" | "Remediation In Progress" | "Resolved" | "Closed";
 
-  // Build a 5-row × 7-col grid of day numbers (0 = empty)
-  const cells: number[] = [];
-  for (let i = 0; i < OFFSET; i++) cells.push(0);
-  for (let d = 1; d <= DAYS_IN_MONTH; d++) cells.push(d);
-  // Pad to a full grid (5 × 7 = 35)
-  while (cells.length < 35) cells.push(0);
+type Incident = {
+  id: string;
+  institution: string;
+  date: string;
+  description: string;
+  severity: IncidentSeverity;
+  status: IncidentStatus;
+  owner: string;
+  remediationAction?: string;
+  remediationDue?: string;
+};
 
-  return (
-    <div>
-      {/* Day-of-week header */}
-      <div
-        className="grid grid-cols-7 gap-px mb-1"
-        style={{ fontSize: "11px", fontWeight: 500, letterSpacing: "0.05em" }}
-      >
-        {DAY_HEADERS.map((d) => (
-          <div
-            key={d}
-            className="text-center py-1.5"
-            style={{
-              color: "var(--neutral-400)",
-              fontFamily: "monospace",
-              textTransform: "uppercase",
-            }}
-          >
-            {d}
-          </div>
-        ))}
-      </div>
+const INITIAL_REQUIREMENTS: RequirementEntry[] = [
+  { id: "REQ-201", name: "Quarterly Prudential Risk Return", regulatoryRef: "BNR Directive 07/2024", frequency: "Quarterly", institution: "Bank of Kigali", dueDate: "2026-07-15", status: "Approved", format: "XML", submittedAt: "2026-07-10 14:20" },
+  { id: "REQ-202", name: "AML Monthly Transaction Return", regulatoryRef: "FIU Regulation 03/2025", frequency: "Monthly", institution: "MTN Mobile Money", dueDate: "2026-07-22", status: "Under Review", format: "CSV", submittedAt: "2026-07-22 09:15" },
+  { id: "REQ-203", name: "MFI Loan Portfolio Quality Return", regulatoryRef: "BNR Microfinance Act", frequency: "Quarterly", institution: "Inkomoko MFI", dueDate: "2026-07-20", status: "Overdue", format: "CSV" },
+  { id: "REQ-204", name: "Annual Capital Adequacy Report", regulatoryRef: "Central Bank Act", frequency: "Annual", institution: "Equity Bank Rwanda", dueDate: "2026-07-31", status: "Pending", format: "PDF" },
+  { id: "REQ-205", name: "SACCO Liquidity & Reserve Return", regulatoryRef: "BNR SACCO Standard", frequency: "Monthly", institution: "Zigama CSS SACCO", dueDate: "2026-07-25", status: "Submitted", format: "XLSX", submittedAt: "2026-07-24 16:30" },
+];
 
-      {/* Calendar grid */}
-      <div
-        className="grid grid-cols-7 gap-px"
-        style={{ backgroundColor: "var(--border)" }}
-      >
-        {cells.map((day, idx) => {
-          const deadline = day > 0 ? JULY_DEADLINES[day] : undefined;
-          const isToday = day === 25; // Current date in demo context (Jun 25 → next month context)
-          return (
-            <div
-              key={idx}
-              style={{
-                backgroundColor: day === 0 ? "var(--neutral-50)" : "var(--card)",
-                minHeight: "56px",
-                padding: "4px 5px",
-                position: "relative",
-              }}
-            >
-              {day > 0 && (
-                <>
-                  <div
-                    style={{
-                      fontSize: "12px",
-                      fontWeight: deadline ? 700 : 400,
-                      color: deadline
-                        ? deadline.color
-                        : isToday
-                        ? "var(--primary-500)"
-                        : "var(--neutral-700)",
-                      lineHeight: 1,
-                      marginBottom: "3px",
-                      fontVariantNumeric: "tabular-nums",
-                    }}
-                  >
-                    {day}
-                  </div>
-                  {deadline && (
-                    <div
-                      style={{
-                        fontSize: "10px",
-                        lineHeight: 1.3,
-                        fontWeight: 600,
-                        color: deadline.color,
-                        backgroundColor: deadline.bg,
-                        borderRadius: "3px",
-                        padding: "2px 4px",
-                        overflow: "hidden",
-                        whiteSpace: "nowrap",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
-                      {deadline.label}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Legend */}
-      <div className="flex items-center gap-4 mt-3 flex-wrap">
-        {Object.entries(JULY_DEADLINES).map(([day, d]) => (
-          <div
-            key={day}
-            className="flex items-center gap-1.5"
-            style={{ fontSize: "11px", color: "var(--neutral-500)" }}
-          >
-            <span
-              style={{
-                display: "inline-block",
-                width: "8px",
-                height: "8px",
-                borderRadius: "2px",
-                backgroundColor: d.color,
-                flexShrink: 0,
-              }}
-            />
-            <span style={{ fontVariantNumeric: "tabular-nums" }}>Jul {day}</span>
-            <span style={{ color: d.color, fontWeight: 600 }}>{d.label}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ─── HEALTH PILLAR ROW ───────────────────────────────────────────────────────
-
-function PillarRow({
-  name,
-  status,
-  checked,
-}: {
-  name: string;
-  status: "healthy" | "warning" | "failed";
-  checked: string;
-}) {
-  const stripeColor =
-    status === "healthy"
-      ? "var(--ok)"
-      : status === "warning"
-      ? "var(--warn)"
-      : "var(--fail)";
-
-  return (
-    <div
-      className="flex items-center gap-3 py-3"
-      style={{ borderBottom: "1px solid var(--border)" }}
-    >
-      {/* Status stripe */}
-      <span
-        style={{
-          display: "inline-block",
-          width: "3px",
-          height: "32px",
-          borderRadius: "2px",
-          backgroundColor: stripeColor,
-          flexShrink: 0,
-        }}
-      />
-      <div className="flex-1 min-w-0">
-        <div
-          style={{
-            fontSize: "13px",
-            fontWeight: 500,
-            color: "var(--neutral-900)",
-            marginBottom: "2px",
-          }}
-        >
-          {name}
-        </div>
-        <div
-          style={{
-            fontSize: "11px",
-            fontFamily: "monospace",
-            color: "var(--neutral-400)",
-          }}
-        >
-          Checked: {checked}
-        </div>
-      </div>
-      <StatusBadge status={status} />
-    </div>
-  );
-}
-
-// ─── FORMAT CHIP ─────────────────────────────────────────────────────────────
-
-function FormatChip({ fmt }: { fmt: string }) {
-  const fmtColors: Record<string, { fg: string; bg: string }> = {
-    XML:   { fg: "#2D6A9F", bg: "#E8F1FA" },
-    CSV:   { fg: "#0D9488", bg: "#CCFBF1" },
-    PDF:   { fg: "#E11D48", bg: "#FFE4E6" },
-    Excel: { fg: "#D97706", bg: "#FEF3C7" },
-  };
-  const c = fmtColors[fmt] ?? { fg: "var(--neutral-500)", bg: "var(--neutral-100)" };
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        fontSize: "10px",
-        fontFamily: "monospace",
-        fontWeight: 700,
-        letterSpacing: "0.06em",
-        textTransform: "uppercase",
-        color: c.fg,
-        backgroundColor: c.bg,
-        borderRadius: "3px",
-        padding: "2px 6px",
-        whiteSpace: "nowrap",
-      }}
-    >
-      {fmt}
-    </span>
-  );
-}
-
-// ─── PAGE ────────────────────────────────────────────────────────────────────
+const INITIAL_INCIDENTS: Incident[] = [
+  { id: "INC-501", institution: "Inkomoko MFI", date: "2026-07-24", description: "Submission validation failure: row 42 PAR_30d value invalid format", severity: "Medium", status: "Open", owner: "Inkomoko Compliance", remediationAction: "Re-upload corrected loan portfolio CSV", remediationDue: "2026-07-28" },
+  { id: "INC-502", institution: "MTN Mobile Money", date: "2026-07-24", description: "Unexplained API transaction submission error rate spike (+4.2%)", severity: "High", status: "Under Investigation", owner: "MTN Technical Lead", remediationAction: "Audit API payload serializer for corrupted records", remediationDue: "2026-07-27" },
+  { id: "INC-503", institution: "Bank of Kigali", date: "2026-06-02", description: "API Gateway 504 Timeout during peak settlement window", severity: "Low", status: "Resolved", owner: "RSwitch Technical", remediationAction: "Scaled API Gateway worker instances", remediationDue: "2026-06-05" },
+];
 
 function Compliance() {
-  const [_regFilter, setRegFilter] = useState("All Regulators");
-  const [_periodFilter, setPeriodFilter] = useState("Q2 2025");
-  const [_statusFilter, setStatusFilter] = useState("All Status");
+  const { role } = useRole();
+  const canManageComp = canManage(role, "compliance");
+
+  const [reqs, setReqs]                   = useState<RequirementEntry[]>(INITIAL_REQUIREMENTS);
+  const [incidents, setIncidents]         = useState<Incident[]>(INITIAL_INCIDENTS);
+  const [statusFilter, setStatusFilter]   = useState<string>("All Status");
+
+  // Review Drawer state (§8.4)
+  const [reviewReq, setReviewReq]         = useState<RequirementEntry | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [reviewError, setReviewError]     = useState<string | null>(null);
+
+  // New Incident Modal state (§6.2)
+  const [showIncidentModal, setShowIncidentModal] = useState(false);
+  const [incInst, setIncInst]             = useState("Bank of Kigali");
+  const [incDesc, setIncDesc]             = useState("");
+  const [incSev, setIncSev]               = useState<IncidentSeverity>("Medium");
+  const [incOwner, setIncOwner]           = useState("Compliance User");
+
+  const filteredReqs = reqs.filter(
+    (r) => statusFilter === "All Status" || r.status === statusFilter
+  );
+
+  // Review Actions (§8.4)
+  function handleApprove(id: string) {
+    setReqs((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, status: "Approved" } : r))
+    );
+    setReviewReq(null);
+  }
+
+  function handleReject(id: string) {
+    if (!rejectionReason.trim() || rejectionReason.trim().length < 20) {
+      setReviewError("Rejection requires a non-empty reason note of at least 20 characters (§8.4).");
+      return;
+    }
+    setReqs((prev) =>
+      prev.map((r) =>
+        r.id === id
+          ? { ...r, status: "Rejected", rejectionReason: rejectionReason.trim() }
+          : r
+      )
+    );
+    setReviewReq(null);
+    setRejectionReason("");
+    setReviewError(null);
+  }
+
+  // Create Incident (§6.2)
+  function handleCreateIncident() {
+    if (!incDesc) return;
+    const created: Incident = {
+      id: `INC-50${incidents.length + 1}`,
+      institution: incInst,
+      date: new Date().toISOString().split("T")[0],
+      description: incDesc,
+      severity: incSev,
+      status: "Open",
+      owner: incOwner,
+    };
+    setIncidents([created, ...incidents]);
+    setShowIncidentModal(false);
+    setIncDesc("");
+  }
 
   return (
     <AppShell
-      title="Regulatory Compliance"
+      title="Participant Compliance Register & Incident Management (§5.8)"
       breadcrumb="GOVERN › COMPLIANCE"
-      scope="FDIF · Compliance Module"
+      scope="All Institutions"
       primaryAction={
-        <PrimaryButton icon={<Upload className="h-3.5 w-3.5" />}>
-          Submit Report
-        </PrimaryButton>
+        canManageComp ? (
+          <PrimaryButton icon={<Plus className="h-4 w-4" />} onClick={() => setShowIncidentModal(true)}>
+            Record New Incident
+          </PrimaryButton>
+        ) : undefined
       }
       toolbar={
-        <>
-          <FilterChip
-            label="Regulator"
-            value={_regFilter}
-            onClick={() => setRegFilter("All Regulators")}
-          />
-          <FilterChip
-            label="Period"
-            value={_periodFilter}
-            onClick={() => setPeriodFilter("Q2 2025")}
-          />
-          <FilterChip
-            label="Status"
-            value={_statusFilter}
-            onClick={() => setStatusFilter("All Status")}
-          />
-        </>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-500 font-mono">Submission Status:</span>
+          {["All Status", "Pending", "Submitted", "Under Review", "Approved", "Rejected", "Overdue"].map((st) => (
+            <button
+              key={st}
+              onClick={() => setStatusFilter(st)}
+              className={`h-7 px-3 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
+                statusFilter === st
+                  ? "bg-[#56B4D3] text-[#092E3D] font-bold border-[#56B4D3]"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700"
+              }`}
+            >
+              {st}
+            </button>
+          ))}
+        </div>
       }
     >
-      {/* ── ROW 1: KPI CARDS ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
-        <KpiCard
-          label="Reports Due (This Month)"
-          value="4"
-          delta={{ dir: "up", text: "+1", tone: "bad" }}
-          freshness="live"
-          updated="08:00"
-        />
-        <KpiCard
-          label="Submitted On Time"
-          value="12/14"
-          context="last quarter"
-          freshness="live"
-          updated="08:00"
-        />
-        <KpiCard
-          label="Open Remediation Items"
-          value="3"
-          delta={{ dir: "down", text: "-2", tone: "good" }}
-          freshness="live"
-          updated="08:00"
-        />
-        <KpiCard
-          label="Next Deadline"
-          value="Jul 15"
-          context="FSA Quarterly"
-          freshness="live"
-          updated="08:00"
-        />
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+        <KpiCard label="Overdue Compliance Submissions" value={reqs.filter(r => r.status === "Overdue").length.toString()} delta={{ dir: "up", text: "+1", tone: "bad" }} source="compliance-reg" freshness="live" />
+        <KpiCard label="Submissions Under Review" value={reqs.filter(r => r.status === "Under Review").length.toString()} source="compliance-reg" freshness="live" />
+        <KpiCard label="Open Incidents" value={incidents.filter(i => i.status !== "Closed" && i.status !== "Resolved").length.toString()} source="incidents-db" freshness="live" />
+        <KpiCard label="12m Rolling Failure Rate" value="4.8%" delta={{ dir: "down", text: "-0.4pp", tone: "good" }} source="compliance-calc" freshness="live" />
       </div>
 
-      {/* ── ROW 2: CALENDAR + HEALTH ── */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 mb-5">
-
-        {/* Reporting Calendar (8 cols) */}
-        <div className="xl:col-span-8">
-          <SectionCard
-            title={
-              <div className="flex items-center gap-2">
-                <Calendar
-                  className="h-4 w-4"
-                  style={{ color: "var(--neutral-400)" }}
-                />
-                <span>Reporting Calendar</span>
-                <span
-                  style={{
-                    fontSize: "11px",
-                    fontFamily: "monospace",
-                    fontWeight: 500,
-                    color: "var(--neutral-400)",
-                    marginLeft: "4px",
-                  }}
-                >
-                  July 2025
-                </span>
-              </div>
-            }
-          >
-            <ReportingCalendar />
-          </SectionCard>
-        </div>
-
-        {/* Compliance Health (4 cols) */}
-        <div className="xl:col-span-4">
-          <SectionCard
-            title={
-              <div className="flex items-center gap-2">
-                <FileCheck2
-                  className="h-4 w-4"
-                  style={{ color: "var(--neutral-400)" }}
-                />
-                <span>Compliance Health</span>
-              </div>
-            }
-          >
-            <div>
-              {HEALTH_PILLARS.map((p) => (
-                <PillarRow
-                  key={p.name}
-                  name={p.name}
-                  status={p.status as "healthy" | "warning" | "failed"}
-                  checked={p.checked}
-                />
-              ))}
-              {/* Summary line */}
-              <div
-                className="flex items-center justify-between mt-3 pt-2"
-                style={{ borderTop: "none" }}
-              >
-                <div className="flex items-center gap-1.5">
-                  <CheckCircle2
-                    className="h-3.5 w-3.5"
-                    style={{ color: "var(--ok)" }}
-                  />
-                  <span
-                    style={{
-                      fontSize: "12px",
-                      color: "var(--ok)",
-                      fontWeight: 600,
-                    }}
-                  >
-                    4 passing
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <AlertTriangle
-                    className="h-3.5 w-3.5"
-                    style={{ color: "var(--warn)" }}
-                  />
-                  <span
-                    style={{
-                      fontSize: "12px",
-                      color: "var(--warn)",
-                      fontWeight: 600,
-                    }}
-                  >
-                    1 needs attention
-                  </span>
-                </div>
-              </div>
-            </div>
-          </SectionCard>
-        </div>
-      </div>
-
-      {/* ── ROW 3: SUBMISSIONS TABLE ── */}
-      <SectionCard
-        title={
-          <div className="flex items-center gap-2">
-            <Clock
-              className="h-4 w-4"
-              style={{ color: "var(--neutral-400)" }}
-            />
-            <span>Regulatory Submissions</span>
-          </div>
-        }
-        action={
-          <SecondaryButton icon={<Download className="h-3.5 w-3.5" />}>
-            Export All
-          </SecondaryButton>
-        }
-        noPad
-      >
+      {/* Main Table: Compliance Register (§5.8 REQ-COMP-001, REQ-COMP-002) */}
+      <SectionCard title="Participant Compliance Register & Regulatory Directives" noPad>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead
-              style={{
-                backgroundColor: "var(--neutral-100)",
-                borderBottom: "1px solid var(--border)",
-              }}
-            >
+          <table className="w-full text-xs">
+            <thead className="bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
               <tr>
-                {[
-                  "Report Name",
-                  "Regulator",
-                  "Period",
-                  "Due Date",
-                  "Status",
-                  "Format",
-                  "Actions",
-                ].map((col) => (
-                  <th
-                    key={col}
-                    className="text-left px-4 py-3"
-                    style={{
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.06em",
-                      color: "var(--neutral-500)",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
+                {["Requirement Name", "Regulatory Reference", "Institution", "Frequency", "Due Date", "Status", "Format", "Actions"].map((col) => (
+                  <th key={col} className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                     {col}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody>
-              {OBLIGATIONS.map((row, i) => (
-                <tr
-                  key={row.id}
-                  style={{
-                    borderBottom: "1px solid var(--border)",
-                    backgroundColor: row.dueSoon
-                      ? "rgba(217,119,6,0.04)"
-                      : i % 2 === 0
-                      ? "transparent"
-                      : "var(--neutral-50)",
-                  }}
-                >
-                  {/* Report Name */}
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono">
+              {filteredReqs.map((req) => (
+                <tr key={req.id} className={req.status === "Overdue" ? "bg-red-50/60 dark:bg-red-950/30" : "hover:bg-slate-50 dark:hover:bg-slate-800/40"}>
+                  <td className="px-4 py-3 font-sans">
+                    <div className="font-bold text-slate-900 dark:text-white">{req.name}</div>
+                    <div className="text-[10px] text-slate-400 font-mono">{req.id}</div>
+                  </td>
+                  <td className="px-4 py-3 text-[#56B4D3] font-semibold">{req.regulatoryRef}</td>
+                  <td className="px-4 py-3 font-sans font-medium text-slate-800 dark:text-slate-200">{req.institution}</td>
+                  <td className="px-4 py-3 text-slate-500">{req.frequency}</td>
                   <td className="px-4 py-3">
-                    <div
-                      style={{
-                        fontSize: "13px",
-                        fontWeight: 500,
-                        color: "var(--neutral-900)",
-                      }}
-                    >
-                      {row.name}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: "11px",
-                        fontFamily: "monospace",
-                        color: "var(--neutral-400)",
-                        marginTop: "1px",
-                      }}
-                    >
-                      {row.id}
-                    </div>
+                    <span className={`font-bold ${req.status === "Overdue" ? "text-red-600 dark:text-red-400" : "text-slate-700 dark:text-slate-300"}`}>
+                      {req.dueDate}
+                    </span>
                   </td>
-
-                  {/* Regulator */}
-                  <td
-                    className="px-4 py-3"
-                    style={{
-                      fontSize: "13px",
-                      color: "var(--neutral-700)",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {row.reg}
-                  </td>
-
-                  {/* Period */}
-                  <td
-                    className="px-4 py-3"
-                    style={{
-                      fontSize: "12px",
-                      fontFamily: "monospace",
-                      color: "var(--neutral-500)",
-                      whiteSpace: "nowrap",
-                      fontVariantNumeric: "tabular-nums",
-                    }}
-                  >
-                    {row.period}
-                  </td>
-
-                  {/* Due Date */}
-                  <td className="px-4 py-3" style={{ whiteSpace: "nowrap" }}>
-                    <div className="flex items-center gap-1.5">
-                      {row.dueSoon && (
-                        <AlertTriangle
-                          className="h-3.5 w-3.5 shrink-0"
-                          style={{ color: "var(--warn)" }}
-                        />
-                      )}
-                      <span
-                        style={{
-                          fontSize: "13px",
-                          fontFamily: "monospace",
-                          fontWeight: row.dueSoon ? 700 : 400,
-                          color: row.dueSoon
-                            ? "var(--warn)"
-                            : "var(--neutral-700)",
-                          fontVariantNumeric: "tabular-nums",
-                        }}
-                      >
-                        {row.due}
-                      </span>
-                    </div>
-                  </td>
-
-                  {/* Status */}
                   <td className="px-4 py-3">
-                    <StatusBadge status={row.status} />
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                      req.status === "Approved"
+                        ? "bg-emerald-100 text-emerald-700"
+                        : req.status === "Overdue"
+                        ? "bg-red-100 text-red-700 font-extrabold"
+                        : req.status === "Rejected"
+                        ? "bg-red-100 text-red-700"
+                        : "bg-amber-100 text-amber-700"
+                    }`}>
+                      {req.status}
+                    </span>
                   </td>
-
-                  {/* Format */}
-                  <td className="px-4 py-3">
-                    <FormatChip fmt={row.format} />
-                  </td>
-
-                  {/* Actions */}
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1.5">
+                  <td className="px-4 py-3 text-slate-400">{req.format}</td>
+                  <td className="px-4 py-3 font-sans">
+                    {(req.status === "Under Review" || req.status === "Submitted") && canManageComp ? (
                       <button
-                        style={{
-                          height: "28px",
-                          padding: "0 10px",
-                          fontSize: "12px",
-                          fontWeight: 500,
-                          borderRadius: "5px",
-                          border: "1px solid var(--border)",
-                          backgroundColor: "var(--card)",
-                          color: "var(--neutral-700)",
-                          cursor: "pointer",
-                          whiteSpace: "nowrap",
+                        onClick={() => {
+                          setReviewReq(req);
+                          setRejectionReason("");
+                          setReviewError(null);
                         }}
-                        onMouseEnter={(e) => {
-                          (e.currentTarget as HTMLElement).style.backgroundColor =
-                            "var(--neutral-100)";
-                        }}
-                        onMouseLeave={(e) => {
-                          (e.currentTarget as HTMLElement).style.backgroundColor =
-                            "var(--card)";
-                        }}
+                        className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-[#56B4D3] text-[#092E3D] hover:bg-[#46A4C3] cursor-pointer"
                       >
-                        Preview
+                        Review Submission
                       </button>
+                    ) : (
                       <button
-                        style={{
-                          height: "28px",
-                          padding: "0 10px",
-                          fontSize: "12px",
-                          fontWeight: 500,
-                          borderRadius: "5px",
-                          border: "1px solid var(--border)",
-                          backgroundColor: "var(--card)",
-                          color: "var(--neutral-700)",
-                          cursor: "pointer",
-                          whiteSpace: "nowrap",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "4px",
-                        }}
-                        onMouseEnter={(e) => {
-                          (e.currentTarget as HTMLElement).style.backgroundColor =
-                            "var(--neutral-100)";
-                        }}
-                        onMouseLeave={(e) => {
-                          (e.currentTarget as HTMLElement).style.backgroundColor =
-                            "var(--card)";
-                        }}
+                        onClick={() => alert(`Viewing record details for ${req.id}`)}
+                        className="text-slate-400 hover:text-slate-600 text-xs font-medium"
                       >
-                        <Download className="h-3 w-3" />
-                        Download
+                        View Record
                       </button>
-                      <button
-                        style={{
-                          height: "28px",
-                          padding: "0 10px",
-                          fontSize: "12px",
-                          fontWeight: 600,
-                          borderRadius: "5px",
-                          border: "none",
-                          backgroundColor:
-                            row.status === "healthy"
-                              ? "var(--ok-bg)"
-                              : "var(--primary-500)",
-                          color:
-                            row.status === "healthy"
-                              ? "var(--ok)"
-                              : "#ffffff",
-                          cursor: "pointer",
-                          whiteSpace: "nowrap",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "4px",
-                          opacity: row.status === "healthy" ? 0.6 : 1,
-                        }}
-                        disabled={row.status === "healthy"}
-                        onMouseEnter={(e) => {
-                          if (row.status !== "healthy") {
-                            (
-                              e.currentTarget as HTMLElement
-                            ).style.backgroundColor = "var(--primary-700)";
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          if (row.status !== "healthy") {
-                            (
-                              e.currentTarget as HTMLElement
-                            ).style.backgroundColor = "var(--primary-500)";
-                          }
-                        }}
-                      >
-                        <Upload className="h-3 w-3" />
-                        Submit
-                      </button>
-                    </div>
+                    )}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+      </SectionCard>
 
-        {/* Table footer */}
-        <div
-          className="px-5 py-3 flex items-center justify-between"
-          style={{
-            borderTop: "1px solid var(--border)",
-            backgroundColor: "var(--neutral-50)",
-          }}
-        >
-          <span
-            style={{
-              fontSize: "12px",
-              fontFamily: "monospace",
-              color: "var(--neutral-400)",
-            }}
-          >
-            {OBLIGATIONS.length} obligations · 2 due soon
-          </span>
-          <div className="flex items-center gap-3">
-            <span
-              style={{
-                fontSize: "11px",
-                fontFamily: "monospace",
-                color: "var(--neutral-400)",
-              }}
-            >
-              FR-CMP-01 · SYS-08 · BR-04 · NFR-AUD-01
-            </span>
+      {/* Incidents & Remediation Register (§5.8 REQ-COMP-006, REQ-COMP-007, §6.2) */}
+      <div className="mt-6">
+        <SectionCard title="Incident Register & Remediation Management (§6.2)" noPad>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+                <tr>
+                  {["Incident ID", "Institution", "Description", "Severity", "Status", "Owner", "Remediation Due"].map((col) => (
+                    <th key={col} className="text-left px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                      {col}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono">
+                {incidents.map((inc) => (
+                  <tr key={inc.id}>
+                    <td className="px-4 py-2.5 font-bold text-[#56B4D3]">{inc.id}</td>
+                    <td className="px-4 py-2.5 font-sans font-medium text-slate-900 dark:text-white">{inc.institution}</td>
+                    <td className="px-4 py-2.5 font-sans text-slate-700 dark:text-slate-300">{inc.description}</td>
+                    <td className="px-4 py-2.5">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                        inc.severity === "Critical" ? "bg-red-100 text-red-700 font-extrabold" : inc.severity === "High" ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700"
+                      }`}>
+                        {inc.severity}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 font-sans">{inc.status}</td>
+                    <td className="px-4 py-2.5 text-slate-500">{inc.owner}</td>
+                    <td className="px-4 py-2.5 text-slate-500">{inc.remediationDue ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </SectionCard>
+      </div>
+
+      {/* Submission Review Drawer (§8.4) */}
+      {reviewReq && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+              <div>
+                <h2 className="font-bold text-base text-slate-900 dark:text-white">Compliance Submission Review (§8.4)</h2>
+                <p className="text-xs text-[#56B4D3] font-semibold">{reviewReq.institution} · {reviewReq.name}</p>
+              </div>
+              <button onClick={() => setReviewReq(null)} className="text-slate-400 hover:text-slate-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 font-mono space-y-1">
+                <div>Requirement ID: <span className="font-bold text-slate-800 dark:text-slate-200">{reviewReq.id}</span></div>
+                <div>Regulatory Ref: <span className="font-bold text-[#56B4D3]">{reviewReq.regulatoryRef}</span></div>
+                <div>Submitted At: <span className="font-bold text-slate-700 dark:text-slate-300">{reviewReq.submittedAt ?? "Today"}</span></div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Reviewer Notes / Rejection Reason (Mandatory min 20 chars if rejecting)
+                </label>
+                <textarea
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="Provide detailed compliance reviewer notes or explicit reasons for rejection…"
+                  rows={3}
+                  className="w-full p-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:outline-none"
+                />
+              </div>
+
+              {reviewError && (
+                <div className="text-red-500 font-bold text-xs p-2 rounded-lg bg-red-50 dark:bg-red-950/40">
+                  {reviewError}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+              <SecondaryButton onClick={() => setReviewReq(null)}>Cancel</SecondaryButton>
+              <button
+                onClick={() => handleReject(reviewReq.id)}
+                className="px-4 py-2 rounded-full text-xs font-semibold bg-red-500 text-white hover:bg-red-600 cursor-pointer"
+              >
+                Reject Submission
+              </button>
+              <button
+                onClick={() => handleApprove(reviewReq.id)}
+                className="px-4 py-2 rounded-full text-xs font-semibold bg-emerald-500 text-white hover:bg-emerald-600 cursor-pointer"
+              >
+                Approve Submission
+              </button>
+            </div>
           </div>
         </div>
-      </SectionCard>
+      )}
+
+      {/* Record Incident Modal (§6.2) */}
+      {showIncidentModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+              <h2 className="font-bold text-base text-slate-900 dark:text-white">Record Participant Incident (§6.2)</h2>
+              <button onClick={() => setShowIncidentModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Participant Institution</label>
+                <select
+                  value={incInst}
+                  onChange={(e) => setIncInst(e.target.value)}
+                  className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
+                >
+                  <option value="Bank of Kigali">Bank of Kigali</option>
+                  <option value="MTN Mobile Money">MTN Mobile Money</option>
+                  <option value="Inkomoko MFI">Inkomoko MFI</option>
+                  <option value="Zigama CSS SACCO">Zigama CSS SACCO</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Incident Description</label>
+                <textarea
+                  value={incDesc}
+                  onChange={(e) => setIncDesc(e.target.value)}
+                  placeholder="Describe the compliance or operational incident in detail…"
+                  rows={3}
+                  className="w-full p-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Severity</label>
+                <select
+                  value={incSev}
+                  onChange={(e) => setIncSev(e.target.value as IncidentSeverity)}
+                  className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
+                >
+                  <option value="Critical">Critical</option>
+                  <option value="High">High</option>
+                  <option value="Medium">Medium</option>
+                  <option value="Low">Low</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Assigned Remediation Owner</label>
+                <input
+                  type="text"
+                  value={incOwner}
+                  onChange={(e) => setIncOwner(e.target.value)}
+                  placeholder="e.g. Inkomoko Compliance Lead"
+                  className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+              <SecondaryButton onClick={() => setShowIncidentModal(false)}>Cancel</SecondaryButton>
+              <PrimaryButton onClick={handleCreateIncident}>Record Incident</PrimaryButton>
+            </div>
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }
