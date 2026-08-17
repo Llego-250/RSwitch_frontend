@@ -8,6 +8,8 @@ import {
   SectionCard,
 } from "@/components/AppShell";
 import { StatusBadge } from "@/components/StatusBadge";
+import { useRole } from "@/context/RoleContext";
+import { canManage } from "@/lib/roles";
 import {
   FileText,
   Download,
@@ -23,1206 +25,369 @@ import {
   Activity,
   Layers,
   Cpu,
+  Calendar,
+  X,
+  CheckCircle2,
 } from "lucide-react";
 
 export const Route = createFileRoute("/reports")({
   component: Reports,
 });
 
-// ─── DATA ────────────────────────────────────────────────────────────────────
+type ReportCategory = "Compliance Summary" | "Integration Health" | "Participant Performance" | "Financial Inclusion" | "Incident Report";
 
-type ReportStatus = "completed" | "running" | "queued";
-type ReportFormat = "PDF" | "XML" | "Excel" | "CSV";
-
-interface Report {
+type ReportItem = {
   id: string;
   name: string;
-  type: string;
+  category: ReportCategory;
   author: string;
-  generated: string;
-  status: ReportStatus;
-  format: ReportFormat;
-}
-
-const REPORTS: Report[] = [
-  {
-    id: "RPT-001",
-    name: "Q2 2025 Portfolio Risk Summary",
-    type: "Risk",
-    author: "You",
-    generated: "Jun 25, 2025 09:14",
-    status: "completed",
-    format: "PDF",
-  },
-  {
-    id: "RPT-002",
-    name: "FSA Quarterly Regulatory Return",
-    type: "Compliance",
-    author: "You",
-    generated: "Jun 24, 2025 14:32",
-    status: "completed",
-    format: "XML",
-  },
-  {
-    id: "RPT-003",
-    name: "Fraud Detection Monthly Report",
-    type: "Operations",
-    author: "J. Okello",
-    generated: "Jun 23, 2025 11:00",
-    status: "completed",
-    format: "Excel",
-  },
-  {
-    id: "RPT-004",
-    name: "Financial Inclusion Impact Q2",
-    type: "Analytics",
-    author: "A. Mbeki",
-    generated: "Jun 22, 2025 16:44",
-    status: "completed",
-    format: "PDF",
-  },
-  {
-    id: "RPT-005",
-    name: "Credit Bureau Reconciliation",
-    type: "Risk",
-    author: "You",
-    generated: "Running...",
-    status: "running",
-    format: "CSV",
-  },
-  {
-    id: "RPT-006",
-    name: "AML Monthly Transaction Report",
-    type: "Compliance",
-    author: "Compliance",
-    generated: "Scheduled",
-    status: "queued",
-    format: "CSV",
-  },
-  {
-    id: "RPT-007",
-    name: "Pipeline Throughput Report",
-    type: "Operations",
-    author: "System",
-    generated: "Jun 20, 2025 08:00",
-    status: "completed",
-    format: "PDF",
-  },
-];
-
-const TEMPLATES = [
-  {
-    id: "tpl-risk",
-    icon: AlertTriangle,
-    iconColor: "#E11D48",
-    iconBg: "#FFE4E6",
-    name: "Risk Summary",
-    description:
-      "Portfolio-wide risk exposure, credit quality breakdown, and VaR metrics across all active positions.",
-  },
-  {
-    id: "tpl-compliance",
-    icon: ShieldCheck,
-    iconColor: "#2D6A9F",
-    iconBg: "#E8F1FA",
-    name: "Compliance Return",
-    description:
-      "Regulatory submission template pre-mapped to FSA/CBK schema requirements with validation checks.",
-  },
-  {
-    id: "tpl-fraud",
-    icon: Activity,
-    iconColor: "#D97706",
-    iconBg: "#FEF3C7",
-    name: "Fraud Report",
-    description:
-      "Monthly fraud detection summary with case counts, typology breakdown, and resolution status.",
-  },
-  {
-    id: "tpl-inclusion",
-    icon: Layers,
-    iconColor: "#0D9488",
-    iconBg: "#CCFBF1",
-    name: "Inclusion Impact",
-    description:
-      "Financial inclusion KPIs: account penetration, active usage rates, and underserved segment reach.",
-  },
-  {
-    id: "tpl-ops",
-    icon: Cpu,
-    iconColor: "#7C3AED",
-    iconBg: "#EDE9FE",
-    name: "Operational Health",
-    description:
-      "Pipeline throughput, SLA adherence, data freshness indicators, and integration uptime across sources.",
-  },
-  {
-    id: "tpl-custom",
-    icon: FileText,
-    iconColor: "#6B7280",
-    iconBg: "#F3F4F6",
-    name: "Custom",
-    description:
-      "Start from a blank canvas — select data sources, metrics, and layout sections to build your own.",
-  },
-];
-
-const SCHEDULED = [
-  {
-    id: "SCH-001",
-    name: "FSA Quarterly Regulatory Return",
-    type: "Compliance",
-    frequency: "Quarterly",
-    nextRun: "Jul 01, 2025 06:00",
-    status: "active" as const,
-    format: "XML" as ReportFormat,
-  },
-  {
-    id: "SCH-002",
-    name: "AML Monthly Transaction Report",
-    type: "Compliance",
-    frequency: "Monthly",
-    nextRun: "Jul 01, 2025 05:30",
-    status: "active" as const,
-    format: "CSV" as ReportFormat,
-  },
-  {
-    id: "SCH-003",
-    name: "Credit Bureau Reconciliation",
-    type: "Risk",
-    frequency: "Weekly",
-    nextRun: "Jun 30, 2025 07:00",
-    status: "running" as const,
-    format: "CSV" as ReportFormat,
-  },
-  {
-    id: "SCH-004",
-    name: "Pipeline Throughput Report",
-    type: "Operations",
-    frequency: "Weekly",
-    nextRun: "Jun 27, 2025 08:00",
-    status: "active" as const,
-    format: "PDF" as ReportFormat,
-  },
-];
-
-// ─── TABS ─────────────────────────────────────────────────────────────────────
-
-const TABS = ["My Reports", "Shared", "Templates", "Scheduled"] as const;
-type Tab = (typeof TABS)[number];
-
-// ─── HELPERS ─────────────────────────────────────────────────────────────────
-
-const FORMAT_COLORS: Record<ReportFormat, { fg: string; bg: string }> = {
-  PDF:   { fg: "#E11D48", bg: "#FFE4E6" },
-  XML:   { fg: "#2D6A9F", bg: "#E8F1FA" },
-  Excel: { fg: "#0D9488", bg: "#CCFBF1" },
-  CSV:   { fg: "#D97706", bg: "#FEF3C7" },
+  generatedDate: string;
+  format: "PDF" | "XLSX";
+  size: string;
+  institutionTypeFilter: string;
+  regionFilter: string;
 };
 
-const TYPE_COLORS: Record<string, { fg: string; bg: string }> = {
-  Risk:       { fg: "#E11D48", bg: "#FFE4E6" },
-  Compliance: { fg: "#2D6A9F", bg: "#E8F1FA" },
-  Operations: { fg: "#7C3AED", bg: "#EDE9FE" },
-  Analytics:  { fg: "#0D9488", bg: "#CCFBF1" },
-};
+const INITIAL_REPORTS: ReportItem[] = [
+  { id: "RPT-001", name: "Q2 2026 Participant Compliance Summary", category: "Compliance Summary", author: "Compliance Officer", generatedDate: "2026-07-22 09:14", format: "PDF", size: "2.4 MB", institutionTypeFilter: "All Types", regionFilter: "National" },
+  { id: "RPT-002", name: "National Switch Integration Health Matrix", category: "Integration Health", author: "Technical Lead", generatedDate: "2026-07-20 14:32", format: "XLSX", size: "1.8 MB", institutionTypeFilter: "Commercial Bank", regionFilter: "Kigali" },
+  { id: "RPT-003", name: "Participant Composite Performance Ranking", category: "Participant Performance", author: "Business User", generatedDate: "2026-07-18 11:00", format: "PDF", size: "3.1 MB", institutionTypeFilter: "All Types", regionFilter: "National" },
+  { id: "RPT-004", name: "MFI & SACCO Financial Inclusion Impact", category: "Financial Inclusion", author: "Business Lead", generatedDate: "2026-07-15 16:44", format: "XLSX", size: "4.5 MB", institutionTypeFilter: "MFI", regionFilter: "Southern Province" },
+  { id: "RPT-005", name: "Monthly Operational Incident Log", category: "Incident Report", author: "Compliance User", generatedDate: "2026-07-10 10:00", format: "PDF", size: "1.2 MB", institutionTypeFilter: "E-money Issuer", regionFilter: "National" },
+];
 
-function FormatChip({ fmt }: { fmt: ReportFormat }) {
-  const c = FORMAT_COLORS[fmt] ?? { fg: "var(--neutral-500)", bg: "var(--neutral-100)" };
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        fontSize: "10px",
-        fontFamily: "monospace",
-        fontWeight: 700,
-        letterSpacing: "0.06em",
-        textTransform: "uppercase",
-        color: c.fg,
-        backgroundColor: c.bg,
-        borderRadius: "3px",
-        padding: "2px 6px",
-        whiteSpace: "nowrap",
-      }}
-    >
-      {fmt}
-    </span>
-  );
-}
-
-function TypeChip({ type }: { type: string }) {
-  const c = TYPE_COLORS[type] ?? { fg: "var(--neutral-500)", bg: "var(--neutral-100)" };
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        fontSize: "11px",
-        fontWeight: 500,
-        color: c.fg,
-        backgroundColor: c.bg,
-        borderRadius: "4px",
-        padding: "2px 8px",
-        whiteSpace: "nowrap",
-      }}
-    >
-      {type}
-    </span>
-  );
-}
-
-function IconBtn({
-  icon: Icon,
-  label,
-  danger,
-}: {
-  icon: typeof Eye;
-  label: string;
-  danger?: boolean;
-}) {
-  return (
-    <button
-      aria-label={label}
-      title={label}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        height: "28px",
-        width: "28px",
-        borderRadius: "5px",
-        border: "1px solid var(--border)",
-        backgroundColor: "var(--card)",
-        color: danger ? "var(--fail)" : "var(--neutral-500)",
-        cursor: "pointer",
-        flexShrink: 0,
-        transition: "background-color 0.12s",
-      }}
-      onMouseEnter={(e) => {
-        (e.currentTarget as HTMLElement).style.backgroundColor = danger
-          ? "var(--fail-bg)"
-          : "var(--neutral-100)";
-        (e.currentTarget as HTMLElement).style.color = danger
-          ? "var(--fail)"
-          : "var(--neutral-700)";
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.backgroundColor = "var(--card)";
-        (e.currentTarget as HTMLElement).style.color = danger
-          ? "var(--fail)"
-          : "var(--neutral-500)";
-      }}
-    >
-      <Icon style={{ width: "13px", height: "13px" }} />
-    </button>
-  );
-}
-
-// ─── TAB BAR ─────────────────────────────────────────────────────────────────
-
-function TabBar({
-  active,
-  onChange,
-}: {
-  active: Tab;
-  onChange: (t: Tab) => void;
-}) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        gap: "0",
-        borderBottom: "1px solid var(--border)",
-        marginBottom: "20px",
-      }}
-    >
-      {TABS.map((t) => {
-        const isActive = t === active;
-        return (
-          <button
-            key={t}
-            onClick={() => onChange(t)}
-            style={{
-              padding: "10px 16px",
-              fontSize: "13.5px",
-              fontWeight: isActive ? 600 : 400,
-              color: isActive ? "var(--primary-500)" : "var(--neutral-500)",
-              backgroundColor: "transparent",
-              border: "none",
-              borderBottom: isActive
-                ? "2px solid var(--primary-500)"
-                : "2px solid transparent",
-              cursor: "pointer",
-              transition: "color 0.12s",
-              whiteSpace: "nowrap",
-              marginBottom: "-1px",
-            }}
-            onMouseEnter={(e) => {
-              if (!isActive)
-                (e.currentTarget as HTMLElement).style.color =
-                  "var(--neutral-700)";
-            }}
-            onMouseLeave={(e) => {
-              if (!isActive)
-                (e.currentTarget as HTMLElement).style.color =
-                  "var(--neutral-500)";
-            }}
-          >
-            {t}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-// ─── MY REPORTS TAB ──────────────────────────────────────────────────────────
-
-function MyReportsTab({
-  typeFilter,
-  statusFilter,
-  search,
-}: {
-  typeFilter: string;
-  statusFilter: string;
-  search: string;
-}) {
-  const filtered = REPORTS.filter((r) => {
-    const matchType =
-      typeFilter === "All" || r.type === typeFilter;
-    const matchStatus =
-      statusFilter === "All" ||
-      r.status === statusFilter.toLowerCase();
-    const matchSearch =
-      search === "" ||
-      r.name.toLowerCase().includes(search.toLowerCase()) ||
-      r.id.toLowerCase().includes(search.toLowerCase());
-    return matchType && matchStatus && matchSearch;
-  });
-
-  return (
-    <SectionCard
-      title={
-        <div className="flex items-center gap-2">
-          <FileText
-            className="h-4 w-4"
-            style={{ color: "var(--neutral-400)" }}
-          />
-          <span>My Reports</span>
-          <span
-            style={{
-              fontSize: "11px",
-              fontFamily: "monospace",
-              color: "var(--neutral-400)",
-              marginLeft: "2px",
-            }}
-          >
-            {filtered.length} of {REPORTS.length}
-          </span>
-        </div>
-      }
-      action={
-        <SecondaryButton icon={<Download style={{ width: "13px", height: "13px" }} />}>
-          Export List
-        </SecondaryButton>
-      }
-      noPad
-    >
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead
-            style={{
-              backgroundColor: "var(--neutral-100)",
-              borderBottom: "1px solid var(--border)",
-            }}
-          >
-            <tr>
-              {[
-                "Report Name",
-                "Type",
-                "Created By",
-                "Generated",
-                "Status",
-                "Format",
-                "Actions",
-              ].map((col) => (
-                <th
-                  key={col}
-                  className="text-left px-4 py-3"
-                  style={{
-                    fontSize: "11px",
-                    fontWeight: 600,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
-                    color: "var(--neutral-500)",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {col}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((row, i) => (
-              <tr
-                key={row.id}
-                style={{
-                  borderBottom: "1px solid var(--border)",
-                  backgroundColor:
-                    i % 2 === 0 ? "transparent" : "var(--neutral-50)",
-                }}
-              >
-                {/* Report Name */}
-                <td className="px-4 py-3" style={{ minWidth: "220px" }}>
-                  <div
-                    style={{
-                      fontSize: "13px",
-                      fontWeight: 500,
-                      color: "var(--neutral-900)",
-                    }}
-                  >
-                    {row.name}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: "11px",
-                      fontFamily: "monospace",
-                      color: "var(--neutral-400)",
-                      marginTop: "1px",
-                    }}
-                  >
-                    {row.id}
-                  </div>
-                </td>
-
-                {/* Type */}
-                <td className="px-4 py-3" style={{ whiteSpace: "nowrap" }}>
-                  <TypeChip type={row.type} />
-                </td>
-
-                {/* Created By */}
-                <td
-                  className="px-4 py-3"
-                  style={{
-                    fontSize: "13px",
-                    color:
-                      row.author === "You"
-                        ? "var(--primary-500)"
-                        : "var(--neutral-700)",
-                    fontWeight: row.author === "You" ? 500 : 400,
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {row.author}
-                </td>
-
-                {/* Generated */}
-                <td
-                  className="px-4 py-3"
-                  style={{
-                    fontSize: "12px",
-                    fontFamily: "monospace",
-                    color:
-                      row.status === "running"
-                        ? "var(--primary-500)"
-                        : row.status === "queued"
-                        ? "var(--warn)"
-                        : "var(--neutral-500)",
-                    whiteSpace: "nowrap",
-                    fontVariantNumeric: "tabular-nums",
-                  }}
-                >
-                  {row.generated}
-                </td>
-
-                {/* Status */}
-                <td className="px-4 py-3">
-                  <StatusBadge status={row.status} />
-                </td>
-
-                {/* Format */}
-                <td className="px-4 py-3">
-                  <FormatChip fmt={row.format} />
-                </td>
-
-                {/* Actions */}
-                <td className="px-4 py-3">
-                  <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                    <IconBtn icon={Eye} label="Preview" />
-                    <IconBtn icon={Download} label="Download" />
-                    <IconBtn icon={Share2} label="Share" />
-                    <IconBtn icon={Trash2} label="Delete" danger />
-                  </div>
-                </td>
-              </tr>
-            ))}
-
-            {filtered.length === 0 && (
-              <tr>
-                <td
-                  colSpan={7}
-                  style={{
-                    padding: "40px 16px",
-                    textAlign: "center",
-                    color: "var(--neutral-400)",
-                    fontSize: "13px",
-                  }}
-                >
-                  No reports match the current filters.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Table footer */}
-      <div
-        style={{
-          padding: "10px 20px",
-          borderTop: "1px solid var(--border)",
-          backgroundColor: "var(--neutral-50)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <span
-          style={{
-            fontSize: "12px",
-            fontFamily: "monospace",
-            color: "var(--neutral-400)",
-          }}
-        >
-          {filtered.length} report{filtered.length !== 1 ? "s" : ""} ·{" "}
-          {REPORTS.filter((r) => r.status === "completed").length} completed ·{" "}
-          {REPORTS.filter((r) => r.status === "running").length} running ·{" "}
-          {REPORTS.filter((r) => r.status === "queued").length} queued
-        </span>
-        <span
-          style={{
-            fontSize: "11px",
-            fontFamily: "monospace",
-            color: "var(--neutral-400)",
-          }}
-        >
-          FR-REP-01 · SYS-14 · BR-09
-        </span>
-      </div>
-    </SectionCard>
-  );
-}
-
-// ─── SHARED TAB ──────────────────────────────────────────────────────────────
-
-function SharedTab() {
-  const sharedReports = REPORTS.filter((r) => r.author !== "You" && r.author !== "System");
-
-  return (
-    <SectionCard
-      title={
-        <div className="flex items-center gap-2">
-          <Share2
-            className="h-4 w-4"
-            style={{ color: "var(--neutral-400)" }}
-          />
-          <span>Shared With Me</span>
-          <span
-            style={{
-              fontSize: "11px",
-              fontFamily: "monospace",
-              color: "var(--neutral-400)",
-              marginLeft: "2px",
-            }}
-          >
-            {sharedReports.length}
-          </span>
-        </div>
-      }
-      noPad
-    >
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead
-            style={{
-              backgroundColor: "var(--neutral-100)",
-              borderBottom: "1px solid var(--border)",
-            }}
-          >
-            <tr>
-              {["Report Name", "Type", "Shared By", "Generated", "Status", "Format", "Actions"].map(
-                (col) => (
-                  <th
-                    key={col}
-                    className="text-left px-4 py-3"
-                    style={{
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.06em",
-                      color: "var(--neutral-500)",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {col}
-                  </th>
-                )
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {sharedReports.map((row, i) => (
-              <tr
-                key={row.id}
-                style={{
-                  borderBottom: "1px solid var(--border)",
-                  backgroundColor:
-                    i % 2 === 0 ? "transparent" : "var(--neutral-50)",
-                }}
-              >
-                <td className="px-4 py-3" style={{ minWidth: "220px" }}>
-                  <div
-                    style={{
-                      fontSize: "13px",
-                      fontWeight: 500,
-                      color: "var(--neutral-900)",
-                    }}
-                  >
-                    {row.name}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: "11px",
-                      fontFamily: "monospace",
-                      color: "var(--neutral-400)",
-                      marginTop: "1px",
-                    }}
-                  >
-                    {row.id}
-                  </div>
-                </td>
-                <td className="px-4 py-3">
-                  <TypeChip type={row.type} />
-                </td>
-                <td
-                  className="px-4 py-3"
-                  style={{
-                    fontSize: "13px",
-                    color: "var(--neutral-700)",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {row.author}
-                </td>
-                <td
-                  className="px-4 py-3"
-                  style={{
-                    fontSize: "12px",
-                    fontFamily: "monospace",
-                    color: "var(--neutral-500)",
-                    whiteSpace: "nowrap",
-                    fontVariantNumeric: "tabular-nums",
-                  }}
-                >
-                  {row.generated}
-                </td>
-                <td className="px-4 py-3">
-                  <StatusBadge status={row.status} />
-                </td>
-                <td className="px-4 py-3">
-                  <FormatChip fmt={row.format} />
-                </td>
-                <td className="px-4 py-3">
-                  <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                    <IconBtn icon={Eye} label="Preview" />
-                    <IconBtn icon={Download} label="Download" />
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </SectionCard>
-  );
-}
-
-// ─── TEMPLATES TAB ───────────────────────────────────────────────────────────
-
-function TemplatesTab() {
-  return (
-    <div>
-      <div
-        style={{
-          marginBottom: "16px",
-          fontSize: "13px",
-          color: "var(--neutral-500)",
-        }}
-      >
-        Start from a pre-built template to accelerate report creation. Each
-        template is pre-wired to the relevant data sources and regulatory
-        schemas.
-      </div>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-          gap: "16px",
-        }}
-      >
-        {TEMPLATES.map((tpl) => {
-          const Icon = tpl.icon;
-          return (
-            <div
-              key={tpl.id}
-              style={{
-                backgroundColor: "var(--card)",
-                border: "1px solid var(--border)",
-                borderRadius: "8px",
-                padding: "20px",
-                display: "flex",
-                flexDirection: "column",
-                gap: "12px",
-              }}
-            >
-              {/* Icon + Name */}
-              <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
-                <div
-                  style={{
-                    width: "40px",
-                    height: "40px",
-                    borderRadius: "8px",
-                    backgroundColor: tpl.iconBg,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                  }}
-                >
-                  <Icon
-                    style={{
-                      width: "18px",
-                      height: "18px",
-                      color: tpl.iconColor,
-                    }}
-                  />
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <div
-                    style={{
-                      fontSize: "14px",
-                      fontWeight: 600,
-                      color: "var(--neutral-900)",
-                      lineHeight: 1.3,
-                    }}
-                  >
-                    {tpl.name}
-                  </div>
-                </div>
-              </div>
-
-              {/* Description */}
-              <p
-                style={{
-                  fontSize: "12.5px",
-                  color: "var(--neutral-500)",
-                  lineHeight: 1.55,
-                  margin: 0,
-                  flexGrow: 1,
-                }}
-              >
-                {tpl.description}
-              </p>
-
-              {/* Use Template button */}
-              <button
-                style={{
-                  height: "32px",
-                  paddingLeft: "14px",
-                  paddingRight: "14px",
-                  borderRadius: "6px",
-                  border: "1px solid var(--border)",
-                  backgroundColor: "var(--card)",
-                  fontSize: "12.5px",
-                  fontWeight: 500,
-                  color: "var(--primary-500)",
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  alignSelf: "flex-start",
-                  transition: "background-color 0.12s",
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLElement).style.backgroundColor =
-                    "var(--primary-50)";
-                  (e.currentTarget as HTMLElement).style.borderColor =
-                    "var(--primary-500)";
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.backgroundColor =
-                    "var(--card)";
-                  (e.currentTarget as HTMLElement).style.borderColor =
-                    "var(--border)";
-                }}
-              >
-                <Plus style={{ width: "12px", height: "12px" }} />
-                Use Template
-              </button>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ─── SCHEDULED TAB ───────────────────────────────────────────────────────────
-
-function ScheduledTab() {
-  return (
-    <SectionCard
-      title={
-        <div className="flex items-center gap-2">
-          <Clock
-            className="h-4 w-4"
-            style={{ color: "var(--neutral-400)" }}
-          />
-          <span>Scheduled Reports</span>
-          <span
-            style={{
-              fontSize: "11px",
-              fontFamily: "monospace",
-              color: "var(--neutral-400)",
-              marginLeft: "2px",
-            }}
-          >
-            {SCHEDULED.length} active schedules
-          </span>
-        </div>
-      }
-      action={
-        <PrimaryButton icon={<Plus style={{ width: "13px", height: "13px" }} />}>
-          New Schedule
-        </PrimaryButton>
-      }
-      noPad
-    >
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead
-            style={{
-              backgroundColor: "var(--neutral-100)",
-              borderBottom: "1px solid var(--border)",
-            }}
-          >
-            <tr>
-              {[
-                "Report Name",
-                "Type",
-                "Frequency",
-                "Next Run",
-                "Status",
-                "Format",
-                "Actions",
-              ].map((col) => (
-                <th
-                  key={col}
-                  className="text-left px-4 py-3"
-                  style={{
-                    fontSize: "11px",
-                    fontWeight: 600,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
-                    color: "var(--neutral-500)",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {col}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {SCHEDULED.map((row, i) => (
-              <tr
-                key={row.id}
-                style={{
-                  borderBottom: "1px solid var(--border)",
-                  backgroundColor:
-                    i % 2 === 0 ? "transparent" : "var(--neutral-50)",
-                }}
-              >
-                {/* Report Name */}
-                <td className="px-4 py-3" style={{ minWidth: "220px" }}>
-                  <div
-                    style={{
-                      fontSize: "13px",
-                      fontWeight: 500,
-                      color: "var(--neutral-900)",
-                    }}
-                  >
-                    {row.name}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: "11px",
-                      fontFamily: "monospace",
-                      color: "var(--neutral-400)",
-                      marginTop: "1px",
-                    }}
-                  >
-                    {row.id}
-                  </div>
-                </td>
-
-                {/* Type */}
-                <td className="px-4 py-3">
-                  <TypeChip type={row.type} />
-                </td>
-
-                {/* Frequency */}
-                <td
-                  className="px-4 py-3"
-                  style={{
-                    fontSize: "12px",
-                    fontFamily: "monospace",
-                    color: "var(--neutral-700)",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {row.frequency}
-                </td>
-
-                {/* Next Run */}
-                <td
-                  className="px-4 py-3"
-                  style={{
-                    fontSize: "12px",
-                    fontFamily: "monospace",
-                    color: "var(--neutral-500)",
-                    whiteSpace: "nowrap",
-                    fontVariantNumeric: "tabular-nums",
-                  }}
-                >
-                  {row.nextRun}
-                </td>
-
-                {/* Status */}
-                <td className="px-4 py-3">
-                  <StatusBadge status={row.status} />
-                </td>
-
-                {/* Format */}
-                <td className="px-4 py-3">
-                  <FormatChip fmt={row.format} />
-                </td>
-
-                {/* Actions */}
-                <td className="px-4 py-3">
-                  <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                    <IconBtn icon={Eye} label="Preview" />
-                    <IconBtn icon={BarChart2} label="History" />
-                    <IconBtn icon={Trash2} label="Remove schedule" danger />
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Footer */}
-      <div
-        style={{
-          padding: "10px 20px",
-          borderTop: "1px solid var(--border)",
-          backgroundColor: "var(--neutral-50)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <span
-          style={{
-            fontSize: "12px",
-            fontFamily: "monospace",
-            color: "var(--neutral-400)",
-          }}
-        >
-          {SCHEDULED.length} scheduled · all times in UTC
-        </span>
-        <span
-          style={{
-            fontSize: "11px",
-            fontFamily: "monospace",
-            color: "var(--neutral-400)",
-          }}
-        >
-          FR-REP-02 · SYS-15
-        </span>
-      </div>
-    </SectionCard>
-  );
-}
-
-// ─── PAGE ─────────────────────────────────────────────────────────────────────
+const SCHEDULES = [
+  { id: "SCH-1", reportName: "Weekly Integration Health Matrix", frequency: "Weekly (Mondays 08:00)", recipient: "tech-team@rswitch.rw", active: true },
+  { id: "SCH-2", reportName: "Monthly Compliance Executive Digest", frequency: "Monthly (1st at 09:00)", recipient: "compliance-board@rswitch.rw", active: true },
+];
 
 function Reports() {
-  const [activeTab, setActiveTab] = useState<Tab>("My Reports");
-  const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState("All");
-  const [statusFilter, setStatusFilter] = useState("All");
+  const { role } = useRole();
+  const canGenerateReports = canManage(role, "reports");
 
-  const typeOptions = ["All", "Risk", "Compliance", "Operations", "Custom"];
-  const statusOptions = ["All", "Completed", "Running", "Queued"];
+  const [reports, setReports]             = useState<ReportItem[]>(INITIAL_REPORTS);
+  const [search, setSearch]               = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("All Categories");
+
+  // Modals
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+
+  // Generate Form (§14)
+  const [genCategory, setGenCategory] = useState<ReportCategory>("Compliance Summary");
+  const [genTitle, setGenTitle]       = useState("Custom Regulatory Compliance Report");
+  const [genFormat, setGenFormat]     = useState<"PDF" | "XLSX">("PDF");
+  const [genInstType, setGenInstType] = useState("All Types");
+  const [genRegion, setGenRegion]     = useState("National");
+
+  // Schedule Form (§5.11 REQ-RPT-005)
+  const [schedName, setSchedName]     = useState("Monthly Incident Summary Digest");
+  const [schedFreq, setSchedFreq]     = useState("Monthly");
+  const [schedEmail, setSchedEmail]   = useState("management@rswitch.rw");
+
+  const filtered = reports.filter((r) => {
+    const matchSearch =
+      search.trim() === "" ||
+      r.name.toLowerCase().includes(search.toLowerCase()) ||
+      r.category.toLowerCase().includes(search.toLowerCase());
+    const matchCat = categoryFilter === "All Categories" || r.category === categoryFilter;
+    return matchSearch && matchCat;
+  });
+
+  function handleGenerateSubmit() {
+    if (!genTitle) return;
+    const created: ReportItem = {
+      id: `RPT-00${reports.length + 1}`,
+      name: genTitle,
+      category: genCategory,
+      author: `${role.toUpperCase()} User`,
+      generatedDate: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      format: genFormat,
+      size: "2.1 MB",
+      institutionTypeFilter: genInstType,
+      regionFilter: genRegion,
+    };
+    setReports([created, ...reports]);
+    setShowGenerateModal(false);
+  }
+
+  function handleSimulateDownload(report: ReportItem) {
+    alert(`Downloading ${report.name} as ${report.format} file…`);
+  }
 
   return (
     <AppShell
-      title="Reports Workspace"
-      breadcrumb="DECIDE › REPORTS"
-      scope="FDIF · Reports Module"
+      title="Structured Report Generator & History (§5.11 & §14)"
+      breadcrumb="INTELLIGENCE › REPORTS"
+      scope="Official Reporting Engine"
       primaryAction={
-        <PrimaryButton icon={<Plus style={{ width: "13px", height: "13px" }} />}>
-          Create Report
-        </PrimaryButton>
+        canGenerateReports ? (
+          <div className="flex items-center gap-2">
+            <SecondaryButton icon={<Clock className="h-4 w-4" />} onClick={() => setShowScheduleModal(true)}>
+              Schedule Recurring Report
+            </SecondaryButton>
+            <PrimaryButton icon={<Plus className="h-4 w-4" />} onClick={() => setShowGenerateModal(true)}>
+              Generate New Report
+            </PrimaryButton>
+          </div>
+        ) : undefined
       }
       toolbar={
-        <>
-          {/* Search */}
-          <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-            <Search
-              style={{
-                position: "absolute",
-                left: "10px",
-                width: "14px",
-                height: "14px",
-                color: "var(--neutral-400)",
-                pointerEvents: "none",
-              }}
-            />
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
             <input
               type="search"
-              placeholder="Search reports…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              style={{
-                height: "32px",
-                paddingLeft: "30px",
-                paddingRight: "10px",
-                width: "220px",
-                borderRadius: "6px",
-                border: "1px solid var(--border)",
-                backgroundColor: "var(--card)",
-                fontSize: "13px",
-                color: "var(--neutral-900)",
-                outline: "none",
-              }}
+              placeholder="Search reports by name or category…"
+              className="h-8 pl-8 pr-3 rounded-lg text-xs w-64 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
             />
           </div>
 
-          {/* Type filter */}
-          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-            <span
-              style={{
-                fontSize: "11px",
-                fontFamily: "monospace",
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                color: "var(--neutral-400)",
-              }}
-            >
-              Type
-            </span>
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              style={{
-                height: "32px",
-                paddingLeft: "8px",
-                paddingRight: "24px",
-                borderRadius: "6px",
-                border: "1px solid var(--border)",
-                backgroundColor: "var(--card)",
-                fontSize: "13px",
-                color: "var(--neutral-900)",
-                cursor: "pointer",
-                appearance: "none",
-                backgroundImage:
-                  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E\")",
-                backgroundRepeat: "no-repeat",
-                backgroundPosition: "right 7px center",
-                outline: "none",
-              }}
-            >
-              {typeOptions.map((o) => (
-                <option key={o} value={o}>
-                  {o}
-                </option>
-              ))}
-            </select>
+          <div className="flex items-center gap-1 overflow-x-auto">
+            {["All Categories", "Compliance Summary", "Integration Health", "Participant Performance", "Financial Inclusion", "Incident Report"].map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setCategoryFilter(cat)}
+                className={`h-8 px-3 rounded-lg text-xs font-medium border transition-colors whitespace-nowrap cursor-pointer ${
+                  categoryFilter === cat
+                    ? "bg-[#56B4D3] text-[#092E3D] font-bold border-[#56B4D3]"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700"
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
           </div>
-
-          {/* Status filter */}
-          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-            <span
-              style={{
-                fontSize: "11px",
-                fontFamily: "monospace",
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                color: "var(--neutral-400)",
-              }}
-            >
-              Status
-            </span>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              style={{
-                height: "32px",
-                paddingLeft: "8px",
-                paddingRight: "24px",
-                borderRadius: "6px",
-                border: "1px solid var(--border)",
-                backgroundColor: "var(--card)",
-                fontSize: "13px",
-                color: "var(--neutral-900)",
-                cursor: "pointer",
-                appearance: "none",
-                backgroundImage:
-                  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E\")",
-                backgroundRepeat: "no-repeat",
-                backgroundPosition: "right 7px center",
-                outline: "none",
-              }}
-            >
-              {statusOptions.map((o) => (
-                <option key={o} value={o}>
-                  {o}
-                </option>
-              ))}
-            </select>
-          </div>
-        </>
+        </div>
       }
     >
-      {/* Tab switcher */}
-      <TabBar active={activeTab} onChange={setActiveTab} />
+      {/* 5 Official Report Categories Grid (§14) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
+        {[
+          { title: "Compliance Summary", code: "§14.1", desc: "Overview of compliance status across participants" },
+          { title: "Integration Health", code: "§14.2", desc: "Summary of integration statuses & pipeline runs" },
+          { title: "Participant Performance", code: "§14.3", desc: "Ranked view of participants by operational risk" },
+          { title: "Financial Inclusion", code: "§14.4", desc: "Aggregated inclusion metrics by institution type" },
+          { title: "Incident Report", code: "§14.5", desc: "Comprehensive incident log & remediation items" },
+        ].map((cat, idx) => (
+          <div
+            key={idx}
+            onClick={() => {
+              setGenCategory(cat.title as ReportCategory);
+              setGenTitle(`RDIP ${cat.title} - ${new Date().toISOString().split("T")[0]}`);
+              setShowGenerateModal(true);
+            }}
+            className="p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-[#56B4D3] transition-all cursor-pointer shadow-xs space-y-1"
+          >
+            <span className="font-mono text-[10px] font-bold text-[#56B4D3] block">{cat.code}</span>
+            <h4 className="font-bold text-xs text-slate-900 dark:text-white leading-snug">{cat.title}</h4>
+            <p className="text-[11px] text-slate-500 line-clamp-2">{cat.desc}</p>
+          </div>
+        ))}
+      </div>
 
-      {/* Tab content */}
-      {activeTab === "My Reports" && (
-        <MyReportsTab
-          typeFilter={typeFilter}
-          statusFilter={statusFilter}
-          search={search}
-        />
+      {/* Main Table: Report History Log (§5.11 REQ-RPT-004) */}
+      <SectionCard title="Generated System Reports History Log (REQ-RPT-004)" noPad>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead className="bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+              <tr>
+                {["Report Name & ID", "Category", "Generated Date", "Author", "Applied Filters", "Format", "Actions"].map((col) => (
+                  <th key={col} className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                    {col}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono">
+              {filtered.map((rpt) => (
+                <tr key={rpt.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                  <td className="px-4 py-3 font-sans">
+                    <div className="font-bold text-slate-900 dark:text-white">{rpt.name}</div>
+                    <div className="text-[10px] text-slate-400 font-mono">{rpt.id} · Size: {rpt.size}</div>
+                  </td>
+                  <td className="px-4 py-3 text-[#56B4D3] font-bold">{rpt.category}</td>
+                  <td className="px-4 py-3 text-slate-500">{rpt.generatedDate}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300 font-sans">{rpt.author}</td>
+                  <td className="px-4 py-3 text-slate-400">{rpt.institutionTypeFilter} ({rpt.regionFilter})</td>
+                  <td className="px-4 py-3 font-bold">{rpt.format}</td>
+                  <td className="px-4 py-3 font-sans">
+                    <button
+                      onClick={() => handleSimulateDownload(rpt)}
+                      className="inline-flex items-center gap-1 font-semibold text-[#56B4D3] hover:underline cursor-pointer"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      Download {rpt.format}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </SectionCard>
+
+      {/* Scheduled Recurring Reports Section (§5.11 REQ-RPT-005) */}
+      <div className="mt-6">
+        <SectionCard title="Scheduled Recurring Reports (REQ-RPT-005)">
+          <div className="space-y-2">
+            {SCHEDULES.map((s) => (
+              <div key={s.id} className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex items-center justify-between text-xs font-mono">
+                <div>
+                  <span className="font-bold text-slate-900 dark:text-white font-sans block">{s.reportName}</span>
+                  <span className="text-[11px] text-slate-500">{s.frequency} · Recipient: {s.recipient}</span>
+                </div>
+                <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 font-bold text-[10px]">
+                  Scheduled
+                </span>
+              </div>
+            ))}
+          </div>
+        </SectionCard>
+      </div>
+
+      {/* Generate Report Modal (§14) */}
+      {showGenerateModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+              <h2 className="font-bold text-base text-slate-900 dark:text-white">Generate Structured Report (§14)</h2>
+              <button onClick={() => setShowGenerateModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Report Category (§14)</label>
+                <select
+                  value={genCategory}
+                  onChange={(e) => setGenCategory(e.target.value as ReportCategory)}
+                  className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
+                >
+                  <option value="Compliance Summary">Compliance Summary Report (§14.1)</option>
+                  <option value="Integration Health">Integration Health Report (§14.2)</option>
+                  <option value="Participant Performance">Participant Performance Report (§14.3)</option>
+                  <option value="Financial Inclusion">Financial Inclusion Report (§14.4)</option>
+                  <option value="Incident Report">Incident Report (§14.5)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Report Title</label>
+                <input
+                  type="text"
+                  value={genTitle}
+                  onChange={(e) => setGenTitle(e.target.value)}
+                  className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Export Format (§14)</label>
+                <select
+                  value={genFormat}
+                  onChange={(e) => setGenFormat(e.target.value as "PDF" | "XLSX")}
+                  className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
+                >
+                  <option value="PDF">PDF Document (Formatted Report)</option>
+                  <option value="XLSX">Excel Spreadsheet (XLSX Data Matrix)</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Filter Institution Type</label>
+                  <select
+                    value={genInstType}
+                    onChange={(e) => setGenInstType(e.target.value)}
+                    className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
+                  >
+                    <option value="All Types">All Types</option>
+                    <option value="Commercial Bank">Commercial Bank</option>
+                    <option value="E-money Issuer">E-money Issuer</option>
+                    <option value="MFI">MFI</option>
+                    <option value="SACCO">SACCO</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Filter Region</label>
+                  <select
+                    value={genRegion}
+                    onChange={(e) => setGenRegion(e.target.value)}
+                    className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
+                  >
+                    <option value="National">National (All)</option>
+                    <option value="Kigali">Kigali</option>
+                    <option value="Eastern Province">Eastern Province</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+              <SecondaryButton onClick={() => setShowGenerateModal(false)}>Cancel</SecondaryButton>
+              <PrimaryButton onClick={handleGenerateSubmit}>Generate Report</PrimaryButton>
+            </div>
+          </div>
+        </div>
       )}
-      {activeTab === "Shared" && <SharedTab />}
-      {activeTab === "Templates" && <TemplatesTab />}
-      {activeTab === "Scheduled" && <ScheduledTab />}
+
+      {/* Schedule Recurring Report Modal (§5.11 REQ-RPT-005) */}
+      {showScheduleModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+              <h2 className="font-bold text-base text-slate-900 dark:text-white">Schedule Recurring Report (REQ-RPT-005)</h2>
+              <button onClick={() => setShowScheduleModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Report Name</label>
+                <input
+                  type="text"
+                  value={schedName}
+                  onChange={(e) => setSchedName(e.target.value)}
+                  className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Frequency</label>
+                <select
+                  value={schedFreq}
+                  onChange={(e) => setSchedFreq(e.target.value)}
+                  className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
+                >
+                  <option value="Daily">Daily (Every morning 08:00)</option>
+                  <option value="Weekly">Weekly (Every Monday 08:00)</option>
+                  <option value="Monthly">Monthly (1st of month 09:00)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Automated Email Recipient</label>
+                <input
+                  type="email"
+                  value={schedEmail}
+                  onChange={(e) => setSchedEmail(e.target.value)}
+                  className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+              <SecondaryButton onClick={() => setShowScheduleModal(false)}>Cancel</SecondaryButton>
+              <PrimaryButton onClick={() => setShowScheduleModal(false)}>Save Schedule</PrimaryButton>
+            </div>
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }
