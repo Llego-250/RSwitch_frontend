@@ -7,6 +7,8 @@ import {
 } from "@/components/AppShell";
 import { StatusBadge } from "@/components/StatusBadge";
 import type { Status } from "@/components/StatusBadge";
+import { useRole } from "@/context/RoleContext";
+import { canManage } from "@/lib/roles";
 import {
   Building2,
   Smartphone,
@@ -18,614 +20,620 @@ import {
   RefreshCw,
   Search,
   X,
+  Upload,
+  AlertTriangle,
+  CheckCircle2,
+  FileText,
+  Clock,
+  History,
+  ShieldCheck,
 } from "lucide-react";
 
 export const Route = createFileRoute("/integrations")({
   component: IntegrationCatalog,
 });
 
+type IntegrationMode = "Manual Upload" | "Automated API";
+
 type Source = {
   id: string;
   name: string;
+  institution: string;
   Icon: typeof Building2;
   color: string;
-  type: string;
+  mode: IntegrationMode;
   status: Status;
   sync: string;
   records: string;
+  errors: number;
   desc: string;
+  cron?: string;
+  endpointUrl?: string;
 };
 
-const SOURCES: Source[] = [
-  { id: "core-banking",  name: "Core Banking",    Icon: Building2,       color: "#2D6A9F", type: "Banking",  status: "healthy", sync: "2m ago",  records: "128,400", desc: "Accounts, balances, transactions" },
-  { id: "mobile-money",  name: "Mobile Money",    Icon: Smartphone,      color: "#0D9488", type: "Mobile",   status: "healthy", sync: "5m ago",  records: "84,201",  desc: "M-Pesa, Airtel Money transactions" },
-  { id: "payment-gw",    name: "Payment Gateway", Icon: CreditCard,      color: "#7C3AED", type: "Payments", status: "warning", sync: "12m ago", records: "22,100",  desc: "Stripe, card transaction feed" },
-  { id: "credit-bureau", name: "Credit Bureau",   Icon: FileSpreadsheet, color: "#D97706", type: "Credit",   status: "healthy", sync: "1h ago",  records: "45,890",  desc: "Credit scores and history" },
-  { id: "erp",           name: "ERP / Accounting",Icon: Landmark,        color: "#0891B2", type: "ERP",      status: "failed",  sync: "3h ago",  records: "0",       desc: "SAP GL, AR/AP ledgers" },
-  { id: "custom-api",    name: "Custom API",      Icon: Database,        color: "#374151", type: "Custom",   status: "queued",  sync: "Pending", records: "—",       desc: "Bespoke internal data source" },
+const INITIAL_SOURCES: Source[] = [
+  {
+    id: "int-001",
+    name: "Core Banking Data Exchange",
+    institution: "Bank of Kigali",
+    Icon: Building2,
+    color: "#2D6A9F",
+    mode: "Automated API",
+    status: "healthy",
+    sync: "5m ago",
+    records: "128,400",
+    errors: 0,
+    desc: "Automated transaction summary & liquidity metrics pull",
+    cron: "0 */2 * * *",
+    endpointUrl: "https://api.bk.rw/v1/rdip/feed",
+  },
+  {
+    id: "int-002",
+    name: "Mobile Money Switch Feed",
+    institution: "MTN Mobile Money",
+    Icon: Smartphone,
+    color: "#0D9488",
+    mode: "Automated API",
+    status: "warning",
+    sync: "12m ago",
+    records: "84,201",
+    errors: 14,
+    desc: "Real-time e-money wallet transaction stream",
+    cron: "0 * * * *",
+    endpointUrl: "https://momo.mtn.co.rw/api/rdip/transactions",
+  },
+  {
+    id: "int-003",
+    name: "Card Switch & POS Stream",
+    institution: "Equity Bank Rwanda",
+    Icon: CreditCard,
+    color: "#7C3AED",
+    mode: "Automated API",
+    status: "healthy",
+    sync: "1h ago",
+    records: "45,890",
+    errors: 0,
+    desc: "ATM & POS switching summary feed",
+    cron: "0 0 * * *",
+    endpointUrl: "https://api.equitybank.co.rw/rdip/v2",
+  },
+  {
+    id: "int-004",
+    name: "Quarterly Regulatory Upload",
+    institution: "Inkomoko MFI",
+    Icon: FileSpreadsheet,
+    color: "#D97706",
+    mode: "Manual Upload",
+    status: "failed",
+    sync: "3h ago",
+    records: "0",
+    errors: 3,
+    desc: "Manual CSV/XLSX submission for MFI loan portfolio return",
+  },
+  {
+    id: "int-005",
+    name: "SACCO Monthly Financial Return",
+    institution: "Zigama CSS SACCO",
+    Icon: Landmark,
+    color: "#0891B2",
+    mode: "Manual Upload",
+    status: "healthy",
+    sync: "1d ago",
+    records: "18,900",
+    errors: 0,
+    desc: "Manual XML/CSV monthly regulatory submission",
+  },
+  {
+    id: "int-006",
+    name: "Microfinance Ingestion API",
+    institution: "Umwalimu SACCO",
+    Icon: Database,
+    color: "#374151",
+    mode: "Automated API",
+    status: "healthy",
+    sync: "2h ago",
+    records: "32,110",
+    errors: 0,
+    desc: "Automated API pull for teacher savings & credit data",
+    cron: "0 12 * * *",
+    endpointUrl: "https://api.umwalimusacco.rw/v1/ingest",
+  },
 ];
 
-const MOCK_URLS: Record<string, string> = {
-  "core-banking":  "https://api.corebank.internal/v3/stream",
-  "mobile-money":  "https://mm.gateway.internal/api/v2/feed",
-  "payment-gw":    "https://hooks.stripe.com/v1/ingest",
-  "credit-bureau": "https://bureau.credit.internal/pull/v4",
-  "erp":           "https://sap.internal/gl/sync/v1",
-  "custom-api":    "https://custom.internal/api/endpoint",
+type SubmissionLog = {
+  id: string;
+  date: string;
+  fileName: string;
+  mode: IntegrationMode;
+  status: "Passed" | "Validation Failed" | "Rejected";
+  records: number;
+  errorsCount: number;
+  uploadedBy: string;
 };
 
-type StatusFilter = "all" | "healthy" | "warning" | "failed" | "queued";
-
-const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
-  { value: "all",     label: "All" },
-  { value: "healthy", label: "Healthy" },
-  { value: "warning", label: "Warning" },
-  { value: "failed",  label: "Failed" },
-  { value: "queued",  label: "Queued" },
-];
-
-function statusCount(status: StatusFilter) {
-  if (status === "all") return SOURCES.length;
-  return SOURCES.filter((s) => s.status === status).length;
-}
+const MOCK_HISTORY: Record<string, SubmissionLog[]> = {
+  "int-004": [
+    { id: "SUB-801", date: "2026-07-24 14:30", fileName: "Inkomoko_Q2_Portfolio.csv", mode: "Manual Upload", status: "Validation Failed", records: 0, errorsCount: 3, uploadedBy: "Compliance User" },
+    { id: "SUB-744", date: "2026-04-12 11:15", fileName: "Inkomoko_Q1_Portfolio_v2.csv", mode: "Manual Upload", status: "Passed", records: 14200, errorsCount: 0, uploadedBy: "Compliance User" },
+  ],
+  "int-001": [
+    { id: "SUB-902", date: "2026-07-24 16:00", fileName: "API_AutoSync_BK.json", mode: "Automated API", status: "Passed", records: 128400, errorsCount: 0, uploadedBy: "System Cron" },
+    { id: "SUB-881", date: "2026-07-24 14:00", fileName: "API_AutoSync_BK.json", mode: "Automated API", status: "Passed", records: 124100, errorsCount: 0, uploadedBy: "System Cron" },
+  ],
+};
 
 function IntegrationCatalog() {
+  const { role } = useRole();
+  const canEdit = canManage(role, "integrations");
+
+  const [sources, setSources]             = useState<Source[]>(INITIAL_SOURCES);
   const [search, setSearch]               = useState("");
-  const [statusFilter, setStatusFilter]   = useState<StatusFilter>("all");
-  const [showAddModal, setShowAddModal]   = useState(false);
-  const [selectedSource, setSelectedSource] = useState<Source | null>(null);
+  const [modeFilter, setModeFilter]       = useState<string>("All Modes");
+  const [statusFilter, setStatusFilter]   = useState<string>("All Status");
   const [refreshing, setRefreshing]       = useState<Set<string>>(new Set());
 
-  // Add modal fields
-  const [addName, setAddName]         = useState("");
-  const [addType, setAddType]         = useState("Banking");
-  const [addEndpoint, setAddEndpoint] = useState("");
-  const [addApiKey, setAddApiKey]     = useState("");
+  // Modals state
+  const [showAddModal, setShowAddModal]     = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [selectedSource, setSelectedSource] = useState<Source | null>(null);
+  const [historySource, setHistorySource]   = useState<Source | null>(null);
+  const [errorReport, setErrorReport]       = useState<{ row: number; field: string; error: string }[] | null>(null);
 
-  // Configure modal fields
-  const [cfgEndpoint, setCfgEndpoint]     = useState("");
-  const [cfgApiKey, setCfgApiKey]         = useState("");
-  const [cfgFrequency, setCfgFrequency]   = useState("Real-time");
+  // New Integration Form
+  const [newInst, setNewInst]       = useState("");
+  const [newName, setNewName]       = useState("");
+  const [newMode, setNewMode]       = useState<IntegrationMode>("Automated API");
+  const [newEndpoint, setNewEndpoint] = useState("");
+  const [newCron, setNewCron]       = useState("0 0 * * *");
+
+  // Upload Form
+  const [uploadReqType, setUploadReqType] = useState("Quarterly Prudential Return");
+  const [uploadPeriod, setUploadPeriod]   = useState("Q2 2026");
+  const [uploadFile, setUploadFile]       = useState<File | null>(null);
+  const [uploading, setUploading]         = useState(false);
 
   const filtered = useMemo(() => {
-    return SOURCES.filter((s) => {
+    return sources.filter((s) => {
       const matchSearch =
         search.trim() === "" ||
         s.name.toLowerCase().includes(search.toLowerCase()) ||
+        s.institution.toLowerCase().includes(search.toLowerCase()) ||
         s.desc.toLowerCase().includes(search.toLowerCase());
-      const matchStatus =
-        statusFilter === "all" || s.status === statusFilter;
-      return matchSearch && matchStatus;
+      const matchMode = modeFilter === "All Modes" || s.mode === modeFilter;
+      const matchStatus = statusFilter === "All Status" || s.status === statusFilter;
+      return matchSearch && matchMode && matchStatus;
     });
-  }, [search, statusFilter]);
+  }, [sources, search, modeFilter, statusFilter]);
 
+  // Manual Sync Action (§5.3 REQ-INTG-006)
   function handleSyncNow(id: string) {
-    setRefreshing((prev) => {
-      const next = new Set(prev);
-      next.add(id);
-      return next;
-    });
+    setRefreshing((prev) => new Set([...prev, id]));
     setTimeout(() => {
       setRefreshing((prev) => {
         const next = new Set(prev);
         next.delete(id);
         return next;
       });
+      setSources((prev) =>
+        prev.map((s) =>
+          s.id === id ? { ...s, sync: "Just now", status: "healthy", errors: 0 } : s
+        )
+      );
     }, 2000);
   }
 
-  function openConfigure(s: Source) {
-    setSelectedSource(s);
-    setCfgEndpoint(MOCK_URLS[s.id] ?? "");
-    setCfgApiKey("sk-••••••••••••••••••••••••••••••");
-    setCfgFrequency("Real-time");
+  // Create New Integration (§5.3 REQ-INTG-005)
+  function handleCreateIntegration() {
+    if (!newInst || !newName) return;
+    const newEntry: Source = {
+      id: `int-00${sources.length + 1}`,
+      name: newName,
+      institution: newInst,
+      Icon: newMode === "Automated API" ? Building2 : FileSpreadsheet,
+      color: "#2D6A9F",
+      mode: newMode,
+      status: "healthy",
+      sync: "Pending first run",
+      records: "0",
+      errors: 0,
+      desc: `${newMode} for ${newInst}`,
+      cron: newMode === "Automated API" ? newCron : undefined,
+      endpointUrl: newMode === "Automated API" ? newEndpoint : undefined,
+    };
+    setSources([newEntry, ...sources]);
+    setShowAddModal(false);
+    setNewInst("");
+    setNewName("");
+  }
+
+  // File Upload with Schema Validation & Error Report (§6.4, REQ-INTG-008)
+  function handleUploadSubmit() {
+    if (!selectedSource || !uploadFile) return;
+    setUploading(true);
+    setErrorReport(null);
+
+    setTimeout(() => {
+      setUploading(false);
+
+      // Simulate line-by-line validation failure for test CSV files with errors or failed institutions
+      if (selectedSource.id === "int-004" || uploadFile.name.includes("error")) {
+        setErrorReport([
+          { row: 14, field: "tax_identification_number", error: "Missing required TIN number format (MUST be 9 digits)" },
+          { row: 42, field: "portfolio_at_risk_30d", error: "Value '-5.2%' is negative; must be positive percentage" },
+          { row: 108, field: "reporting_date", error: "Date '2026-13-45' invalid ISO-8601 date string" },
+        ]);
+      } else {
+        // Success upload
+        setSources((prev) =>
+          prev.map((s) =>
+            s.id === selectedSource.id
+              ? { ...s, sync: "Just now", status: "healthy", records: "14,800", errors: 0 }
+              : s
+          )
+        );
+        setShowUploadModal(false);
+        setUploadFile(null);
+      }
+    }, 1500);
   }
 
   return (
     <AppShell
-      title="Integration Catalog"
+      title="Integrations Catalog & Data Exchange"
       breadcrumb="CONNECT › INTEGRATIONS"
-      scope="all sources"
+      scope="All Institutions"
       primaryAction={
-        <PrimaryButton icon={<Plus className="h-4 w-4" />} onClick={() => setShowAddModal(true)}>
-          Add Integration
-        </PrimaryButton>
+        canEdit ? (
+          <PrimaryButton icon={<Plus className="h-4 w-4" />} onClick={() => setShowAddModal(true)}>
+            Add Participant Integration
+          </PrimaryButton>
+        ) : undefined
       }
       toolbar={
         <>
-          {/* Search */}
           <div className="relative">
-            <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none"
-              style={{ color: "var(--neutral-400)" }}
-            />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
             <input
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search integrations…"
-              className="h-8 pl-8 pr-3 rounded-lg text-[13px] w-52 focus:outline-none"
-              style={{
-                border: "1px solid var(--border)",
-                backgroundColor: "var(--paper)",
-                color: "var(--neutral-900)",
-              }}
+              placeholder="Search integrations or institution…"
+              className="h-8 pl-8 pr-3 rounded-lg text-[13px] w-64 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none"
             />
           </div>
 
-          {/* Status filter buttons */}
           <div className="flex items-center gap-1">
-            {STATUS_OPTIONS.map((opt) => (
+            {["All Modes", "Automated API", "Manual Upload"].map((m) => (
               <button
-                key={opt.value}
-                onClick={() => setStatusFilter(opt.value)}
-                className="h-8 px-3 rounded-lg text-[12px] font-medium transition-colors"
-                style={{
-                  backgroundColor: statusFilter === opt.value ? "var(--primary-500)" : "transparent",
-                  color:           statusFilter === opt.value ? "#fff" : "var(--neutral-700)",
-                  border:          statusFilter === opt.value ? "1px solid var(--primary-500)" : "1px solid var(--border)",
-                }}
+                key={m}
+                onClick={() => setModeFilter(m)}
+                className={`h-8 px-3 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
+                  modeFilter === m
+                    ? "bg-[#56B4D3] text-[#092E3D] font-bold border-[#56B4D3]"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700"
+                }`}
               >
-                {opt.label}
+                {m}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-1">
+            {["All Status", "healthy", "warning", "failed"].map((st) => (
+              <button
+                key={st}
+                onClick={() => setStatusFilter(st)}
+                className={`h-8 px-3 rounded-lg text-xs font-medium border transition-colors cursor-pointer capitalize ${
+                  statusFilter === st
+                    ? "bg-[#56B4D3] text-[#092E3D] font-bold border-[#56B4D3]"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700"
+                }`}
+              >
+                {st}
               </button>
             ))}
           </div>
         </>
       }
     >
-      {/* ── Card grid ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-5">
+      {/* Cards Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
         {filtered.map((s) => {
           const Icon = s.Icon;
-          const isRefreshing = refreshing.has(s.id);
+          const isSyncing = refreshing.has(s.id);
           return (
             <div
               key={s.id}
-              className="rounded-xl p-5 cursor-pointer transition-shadow"
-              style={{
-                backgroundColor: "var(--card)",
-                border: "1px solid var(--border)",
-              }}
-              onMouseEnter={(e) =>
-                ((e.currentTarget as HTMLElement).style.boxShadow = "0 4px 16px rgba(0,0,0,0.08)")
-              }
-              onMouseLeave={(e) =>
-                ((e.currentTarget as HTMLElement).style.boxShadow = "none")
-              }
-              onClick={() => openConfigure(s)}
+              className="rounded-2xl bg-white/90 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 p-5 flex flex-col justify-between shadow-xs hover:shadow-md transition-all"
             >
-              {/* Header row */}
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="h-12 w-12 rounded-xl grid place-items-center shrink-0"
-                    style={{ backgroundColor: s.color }}
-                  >
-                    <Icon className="h-5 w-5 text-white" />
+              <div>
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="h-10 w-10 rounded-xl flex items-center justify-center text-white shrink-0 shadow-xs"
+                      style={{ backgroundColor: s.color }}
+                    >
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-sm text-slate-900 dark:text-white leading-tight">{s.name}</h3>
+                      <p className="text-xs font-semibold text-[#56B4D3]">{s.institution}</p>
+                    </div>
+                  </div>
+                  <StatusBadge status={s.status} />
+                </div>
+
+                <p className="text-xs text-slate-600 dark:text-slate-300 mb-4 line-clamp-2">{s.desc}</p>
+
+                <div className="grid grid-cols-2 gap-2 text-xs font-mono py-2.5 px-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800 mb-4">
+                  <div>
+                    <span className="text-[10px] text-slate-400 uppercase block">Mode</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-200">{s.mode}</span>
                   </div>
                   <div>
-                    <h3
-                      className="text-[15px] font-semibold leading-tight"
-                      style={{ color: "var(--neutral-900)" }}
-                    >
-                      {s.name}
-                    </h3>
-                    <span
-                      className="inline-block mt-0.5 px-2 py-0.5 rounded text-[11px] font-mono font-medium"
-                      style={{
-                        backgroundColor: "var(--neutral-100)",
-                        color: "var(--neutral-500)",
-                      }}
-                    >
-                      {s.type}
+                    <span className="text-[10px] text-slate-400 uppercase block">Last Sync</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-200">{s.sync}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 uppercase block">Records Ingested</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-200">{s.records}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 uppercase block">Errors</span>
+                    <span className={`font-semibold ${s.errors > 0 ? "text-red-500" : "text-emerald-500"}`}>
+                      {s.errors} {s.errors > 0 ? "Validation Error" : "None"}
                     </span>
                   </div>
                 </div>
-                <StatusBadge status={s.status} />
               </div>
 
-              {/* Description */}
-              <p
-                className="text-[13px] mb-3 leading-snug"
-                style={{ color: "var(--neutral-500)" }}
-              >
-                {s.desc}
-              </p>
-
-              {/* Stats row */}
-              <div
-                className="flex items-center justify-between mb-4 font-mono text-[11px] px-3 py-2 rounded-lg"
-                style={{
-                  backgroundColor: "var(--neutral-50)",
-                  border: "1px solid var(--neutral-200)",
-                }}
-              >
-                <span style={{ color: "var(--neutral-500)" }}>
-                  Last sync:{" "}
-                  <span style={{ color: "var(--neutral-900)", fontVariantNumeric: "tabular-nums" }}>
-                    {s.sync}
-                  </span>
-                </span>
-                <span style={{ color: "var(--neutral-500)" }}>
-                  Records:{" "}
-                  <span style={{ color: "var(--neutral-900)", fontVariantNumeric: "tabular-nums" }}>
-                    {s.records}
-                  </span>
-                </span>
-              </div>
-
-              {/* Bottom action row */}
-              <div
-                className="flex items-center justify-between"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <SecondaryButton onClick={() => openConfigure(s)}>
-                  Configure
-                </SecondaryButton>
+              <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                {s.mode === "Automated API" ? (
+                  <button
+                    onClick={() => handleSyncNow(s.id)}
+                    disabled={isSyncing}
+                    className="flex-1 h-9 rounded-xl text-xs font-semibold bg-[#56B4D3]/15 text-[#56B4D3] hover:bg-[#56B4D3]/25 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 ${isSyncing ? "animate-spin" : ""}`} />
+                    {isSyncing ? "Syncing API…" : "Trigger Manual Sync"}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setSelectedSource(s);
+                      setShowUploadModal(true);
+                      setErrorReport(null);
+                    }}
+                    className="flex-1 h-9 rounded-xl text-xs font-semibold bg-emerald-500 text-white hover:bg-emerald-600 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                  >
+                    <Upload className="h-3.5 w-3.5" />
+                    Upload Data File
+                  </button>
+                )}
 
                 <button
-                  onClick={() => handleSyncNow(s.id)}
-                  className="h-8 px-3 rounded-lg text-[12px] font-medium inline-flex items-center gap-1.5 transition-colors"
-                  style={{
-                    backgroundColor: "transparent",
-                    color:  s.status === "failed" ? "var(--fail)" : "var(--neutral-500)",
-                    border: `1px solid ${s.status === "failed" ? "rgba(225,29,72,0.25)" : "var(--border)"}`,
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLElement).style.backgroundColor =
-                      s.status === "failed" ? "var(--fail-bg)" : "var(--neutral-100)";
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLElement).style.backgroundColor = "transparent";
-                  }}
+                  onClick={() => setHistorySource(s)}
+                  className="h-9 px-3 rounded-xl text-xs font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 flex items-center gap-1 transition-all cursor-pointer"
+                  title="View Submission History Log"
                 >
-                  <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
-                  {s.status === "failed" ? "Retry" : isRefreshing ? "Syncing…" : "Sync now"}
+                  <History className="h-3.5 w-3.5" />
+                  History
                 </button>
               </div>
             </div>
           );
         })}
-
-        {filtered.length === 0 && (
-          <div
-            className="col-span-full py-16 text-center"
-            style={{ color: "var(--neutral-400)" }}
-          >
-            <span className="font-mono text-[13px]">
-              No integrations match the current filters.
-            </span>
-          </div>
-        )}
       </div>
 
-      {/* ── Summary strip ── */}
-      <div
-        className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl font-mono text-[12px]"
-        style={{
-          backgroundColor: "var(--card)",
-          border: "1px solid var(--border)",
-        }}
-      >
-        <span style={{ color: "var(--neutral-500)" }}>
-          {SOURCES.length} sources total
-        </span>
-        <span style={{ color: "var(--neutral-300, #D1D5DB)" }}>·</span>
-        <span style={{ color: "var(--ok)" }}>
-          {statusCount("healthy")} Healthy
-        </span>
-        <span style={{ color: "var(--neutral-300, #D1D5DB)" }}>·</span>
-        <span style={{ color: "var(--warn)" }}>
-          {statusCount("warning")} Warning
-        </span>
-        <span style={{ color: "var(--neutral-300, #D1D5DB)" }}>·</span>
-        <span style={{ color: "var(--fail)" }}>
-          {statusCount("failed")} Failed
-        </span>
-        <span style={{ color: "var(--neutral-300, #D1D5DB)" }}>·</span>
-        <span style={{ color: "var(--warn)" }}>
-          {statusCount("queued")} Queued
-        </span>
-      </div>
-
-      {/* ── Configure modal ── */}
-      {selectedSource && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={() => setSelectedSource(null)}
-        >
-          <div
-            className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg mx-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between mb-5">
-              <div className="flex items-center gap-3">
-                <div
-                  className="h-10 w-10 rounded-xl grid place-items-center shrink-0"
-                  style={{ backgroundColor: selectedSource.color }}
-                >
-                  <selectedSource.Icon className="h-4 w-4 text-white" />
-                </div>
-                <div>
-                  <h2
-                    className="text-[16px] font-semibold"
-                    style={{ color: "var(--neutral-900)" }}
-                  >
-                    Configure
-                  </h2>
-                  <p className="text-[12px] font-mono" style={{ color: "var(--neutral-500)" }}>
-                    {selectedSource.name}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setSelectedSource(null)}
-                className="h-8 w-8 rounded-lg grid place-items-center transition-colors"
-                style={{ color: "var(--neutral-500)" }}
-                onMouseEnter={(e) =>
-                  ((e.currentTarget as HTMLElement).style.backgroundColor = "var(--neutral-100)")
-                }
-                onMouseLeave={(e) =>
-                  ((e.currentTarget as HTMLElement).style.backgroundColor = "transparent")
-                }
-              >
-                <X className="h-4 w-4" />
+      {/* ── Add Integration Modal (Technical/Admin REQ-INTG-005) ── */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+              <h2 className="font-bold text-base text-slate-900 dark:text-white">Add Participant Integration Config</h2>
+              <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="h-5 w-5" />
               </button>
             </div>
 
-            {/* Read-only status strip */}
-            <div
-              className="flex flex-wrap items-center gap-4 px-4 py-3 rounded-lg mb-5 font-mono text-[12px]"
-              style={{
-                backgroundColor: "var(--neutral-50)",
-                border: "1px solid var(--border)",
-              }}
-            >
-              <div className="flex items-center gap-2">
-                <span style={{ color: "var(--neutral-500)" }}>Status</span>
-                <StatusBadge status={selectedSource.status} />
-              </div>
-              <div style={{ color: "var(--neutral-400)" }}>·</div>
-              <div style={{ color: "var(--neutral-500)" }}>
-                Type:{" "}
-                <span style={{ color: "var(--neutral-900)" }}>{selectedSource.type}</span>
-              </div>
-              <div style={{ color: "var(--neutral-400)" }}>·</div>
-              <div style={{ color: "var(--neutral-500)" }}>
-                Sync:{" "}
-                <span style={{ color: "var(--neutral-900)" }}>{selectedSource.sync}</span>
-              </div>
-              <div style={{ color: "var(--neutral-400)" }}>·</div>
-              <div style={{ color: "var(--neutral-500)" }}>
-                Records:{" "}
-                <span style={{ color: "var(--neutral-900)", fontVariantNumeric: "tabular-nums" }}>
-                  {selectedSource.records}
-                </span>
-              </div>
-            </div>
-
-            {/* Form */}
-            <div className="space-y-4 mb-6">
+            <div className="space-y-3 text-xs">
               <div>
-                <label
-                  className="block text-[12px] font-medium mb-1.5 font-mono uppercase tracking-wide"
-                  style={{ color: "var(--neutral-500)" }}
-                >
-                  Endpoint URL
-                </label>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Institution Name</label>
                 <input
                   type="text"
-                  value={cfgEndpoint}
-                  onChange={(e) => setCfgEndpoint(e.target.value)}
-                  className="w-full h-9 px-3 rounded-lg text-[13px] font-mono focus:outline-none"
-                  style={{
-                    border: "1px solid var(--border)",
-                    backgroundColor: "var(--paper)",
-                    color: "var(--neutral-900)",
-                  }}
+                  value={newInst}
+                  onChange={(e) => setNewInst(e.target.value)}
+                  placeholder="e.g. Bank of Kigali / MTN Mobile Money"
+                  className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
                 />
               </div>
+
               <div>
-                <label
-                  className="block text-[12px] font-medium mb-1.5 font-mono uppercase tracking-wide"
-                  style={{ color: "var(--neutral-500)" }}
-                >
-                  API Key
-                </label>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Integration Name</label>
                 <input
-                  type="password"
-                  value={cfgApiKey}
-                  onChange={(e) => setCfgApiKey(e.target.value)}
-                  className="w-full h-9 px-3 rounded-lg text-[13px] font-mono focus:outline-none"
-                  style={{
-                    border: "1px solid var(--border)",
-                    backgroundColor: "var(--paper)",
-                    color: "var(--neutral-900)",
-                  }}
+                  type="text"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="e.g. Core Banking Data Exchange"
+                  className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
                 />
               </div>
+
               <div>
-                <label
-                  className="block text-[12px] font-medium mb-1.5 font-mono uppercase tracking-wide"
-                  style={{ color: "var(--neutral-500)" }}
-                >
-                  Sync Frequency
-                </label>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Integration Mode</label>
                 <select
-                  value={cfgFrequency}
-                  onChange={(e) => setCfgFrequency(e.target.value)}
-                  className="w-full h-9 px-3 rounded-lg text-[13px] focus:outline-none"
-                  style={{
-                    border: "1px solid var(--border)",
-                    backgroundColor: "var(--paper)",
-                    color: "var(--neutral-900)",
-                  }}
+                  value={newMode}
+                  onChange={(e) => setNewMode(e.target.value as IntegrationMode)}
+                  className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
                 >
-                  {["Real-time", "5min", "15min", "Hourly", "Daily"].map((f) => (
-                    <option key={f} value={f}>{f}</option>
-                  ))}
+                  <option value="Automated API">Automated API (Scheduled Endpoint Pull)</option>
+                  <option value="Manual Upload">Manual Upload (CSV, XLSX, XML)</option>
                 </select>
               </div>
+
+              {newMode === "Automated API" && (
+                <>
+                  <div>
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Endpoint URL</label>
+                    <input
+                      type="url"
+                      value={newEndpoint}
+                      onChange={(e) => setNewEndpoint(e.target.value)}
+                      placeholder="https://api.institution.rw/v1/feed"
+                      className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Schedule Cron Expression</label>
+                    <input
+                      type="text"
+                      value={newCron}
+                      onChange={(e) => setNewCron(e.target.value)}
+                      placeholder="0 0 * * *"
+                      className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono focus:outline-none"
+                    />
+                  </div>
+                </>
+              )}
             </div>
 
-            {/* Actions */}
-            <div className="flex items-center gap-2 justify-end">
-              <button
-                onClick={() => alert("Connection test: OK")}
-                className="h-9 px-4 rounded-lg text-[13px] font-medium inline-flex items-center gap-1.5 transition-colors"
-                style={{
-                  backgroundColor: "var(--primary-50)",
-                  color: "var(--primary-700)",
-                  border: "1px solid var(--primary-100)",
-                }}
-                onMouseEnter={(e) =>
-                  ((e.currentTarget as HTMLElement).style.backgroundColor = "var(--primary-100)")
-                }
-                onMouseLeave={(e) =>
-                  ((e.currentTarget as HTMLElement).style.backgroundColor = "var(--primary-50)")
-                }
-              >
-                Test Connection
-              </button>
-              <SecondaryButton onClick={() => setSelectedSource(null)}>Cancel</SecondaryButton>
-              <PrimaryButton onClick={() => setSelectedSource(null)}>Save Configuration</PrimaryButton>
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+              <SecondaryButton onClick={() => setShowAddModal(false)}>Cancel</SecondaryButton>
+              <PrimaryButton onClick={handleCreateIntegration}>Save Integration</PrimaryButton>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── Add Integration modal ── */}
-      {showAddModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={() => setShowAddModal(false)}
-        >
-          <div
-            className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg mx-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-5">
-              <h2
-                className="text-[16px] font-semibold"
-                style={{ color: "var(--neutral-900)" }}
-              >
-                Add Integration
-              </h2>
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="h-8 w-8 rounded-lg grid place-items-center transition-colors"
-                style={{ color: "var(--neutral-500)" }}
-                onMouseEnter={(e) =>
-                  ((e.currentTarget as HTMLElement).style.backgroundColor = "var(--neutral-100)")
-                }
-                onMouseLeave={(e) =>
-                  ((e.currentTarget as HTMLElement).style.backgroundColor = "transparent")
-                }
-              >
-                <X className="h-4 w-4" />
+      {/* ── Manual File Upload & Line-by-Line Error Report Drawer (§6.4, REQ-INTG-007, REQ-INTG-008) ── */}
+      {showUploadModal && selectedSource && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-xl rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+              <div>
+                <h2 className="font-bold text-base text-slate-900 dark:text-white">Manual Data File Upload</h2>
+                <p className="text-xs text-[#56B4D3] font-semibold">{selectedSource.institution} · {selectedSource.name}</p>
+              </div>
+              <button onClick={() => setShowUploadModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="space-y-4 mb-6">
+            <div className="space-y-3 text-xs">
               <div>
-                <label
-                  className="block text-[12px] font-medium mb-1.5 font-mono uppercase tracking-wide"
-                  style={{ color: "var(--neutral-500)" }}
-                >
-                  Name
-                </label>
-                <input
-                  type="text"
-                  value={addName}
-                  onChange={(e) => setAddName(e.target.value)}
-                  placeholder="e.g. Savings Core"
-                  className="w-full h-9 px-3 rounded-lg text-[13px] focus:outline-none"
-                  style={{
-                    border: "1px solid var(--border)",
-                    backgroundColor: "var(--paper)",
-                    color: "var(--neutral-900)",
-                  }}
-                />
-              </div>
-              <div>
-                <label
-                  className="block text-[12px] font-medium mb-1.5 font-mono uppercase tracking-wide"
-                  style={{ color: "var(--neutral-500)" }}
-                >
-                  Type
-                </label>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Requirement Type</label>
                 <select
-                  value={addType}
-                  onChange={(e) => setAddType(e.target.value)}
-                  className="w-full h-9 px-3 rounded-lg text-[13px] focus:outline-none"
-                  style={{
-                    border: "1px solid var(--border)",
-                    backgroundColor: "var(--paper)",
-                    color: "var(--neutral-900)",
-                  }}
+                  value={uploadReqType}
+                  onChange={(e) => setUploadReqType(e.target.value)}
+                  className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
                 >
-                  {["Banking", "Mobile", "Payments", "Credit", "ERP", "Custom"].map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
+                  <option value="Quarterly Prudential Return">Quarterly Prudential Return (BNR Directive 07/2024)</option>
+                  <option value="AML Monthly Return">AML Monthly Transaction Return</option>
+                  <option value="Financial Inclusion Metric Feed">Financial Inclusion Metric Feed</option>
                 </select>
               </div>
+
               <div>
-                <label
-                  className="block text-[12px] font-medium mb-1.5 font-mono uppercase tracking-wide"
-                  style={{ color: "var(--neutral-500)" }}
-                >
-                  Endpoint URL
-                </label>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Reporting Period</label>
                 <input
                   type="text"
-                  value={addEndpoint}
-                  onChange={(e) => setAddEndpoint(e.target.value)}
-                  placeholder="https://api.yourservice.com/v1/"
-                  className="w-full h-9 px-3 rounded-lg text-[13px] font-mono focus:outline-none"
-                  style={{
-                    border: "1px solid var(--border)",
-                    backgroundColor: "var(--paper)",
-                    color: "var(--neutral-900)",
-                  }}
+                  value={uploadPeriod}
+                  onChange={(e) => setUploadPeriod(e.target.value)}
+                  placeholder="e.g. Q2 2026 / July 2026"
+                  className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
                 />
               </div>
+
               <div>
-                <label
-                  className="block text-[12px] font-medium mb-1.5 font-mono uppercase tracking-wide"
-                  style={{ color: "var(--neutral-500)" }}
-                >
-                  API Key
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Select Data File (CSV, XLSX, XML — Max 50MB)
                 </label>
-                <input
-                  type="password"
-                  value={addApiKey}
-                  onChange={(e) => setAddApiKey(e.target.value)}
-                  placeholder="sk-••••••••••••••••"
-                  className="w-full h-9 px-3 rounded-lg text-[13px] font-mono focus:outline-none"
-                  style={{
-                    border: "1px solid var(--border)",
-                    backgroundColor: "var(--paper)",
-                    color: "var(--neutral-900)",
-                  }}
-                />
+                <div className="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-6 text-center bg-slate-50 dark:bg-slate-800/40">
+                  <Upload className="h-8 w-8 mx-auto text-slate-400 mb-2" />
+                  <input
+                    type="file"
+                    accept=".csv,.xlsx,.xml"
+                    onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
+                    className="hidden"
+                    id="file-upload-input"
+                  />
+                  <label htmlFor="file-upload-input" className="text-xs font-semibold text-[#56B4D3] hover:underline cursor-pointer">
+                    {uploadFile ? uploadFile.name : "Click to select or drag and drop file"}
+                  </label>
+                  <p className="text-[11px] text-slate-400 mt-1">UTF-8 required for CSV files. Max 50MB.</p>
+                </div>
+              </div>
+
+              {/* Line-by-Line Error Report Display (§6.4, REQ-INTG-008) */}
+              {errorReport && (
+                <div className="rounded-xl border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 p-4 space-y-2">
+                  <div className="flex items-center gap-2 text-red-600 dark:text-red-400 font-bold text-xs">
+                    <AlertTriangle className="h-4 w-4" />
+                    <span>Schema Validation Failed — Submission Rejected (No Partial Ingestion)</span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-300">
+                    The file failed schema checks. Per RDIP Data Quality Rule §6.4, partial ingestion is not allowed. Please correct the errors below and re-upload.
+                  </p>
+                  <div className="divide-y divide-red-200 dark:divide-red-900/40 text-[11px] font-mono">
+                    {errorReport.map((err, idx) => (
+                      <div key={idx} className="py-1.5 flex items-start justify-between gap-2">
+                        <span className="font-bold text-red-700 dark:text-red-300 shrink-0">Row {err.row}:</span>
+                        <span className="text-slate-700 dark:text-slate-200 flex-1">[{err.field}] {err.error}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+              <SecondaryButton onClick={() => setShowUploadModal(false)}>Close</SecondaryButton>
+              <PrimaryButton onClick={handleUploadSubmit} disabled={!uploadFile || uploading}>
+                {uploading ? "Validating Schema…" : "Validate & Upload"}
+              </PrimaryButton>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Submission History Drawer (REQ-INTG-011) ── */}
+      {historySource && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-end">
+          <div className="w-full max-w-xl h-full bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-700 p-6 shadow-2xl flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800 mb-4">
+                <div>
+                  <h2 className="font-bold text-base text-slate-900 dark:text-white">Submission History Log</h2>
+                  <p className="text-xs text-[#56B4D3] font-semibold">{historySource.institution} · {historySource.name}</p>
+                </div>
+                <button onClick={() => setHistorySource(null)} className="text-slate-400 hover:text-slate-600">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {(MOCK_HISTORY[historySource.id] ?? [
+                  { id: "SUB-101", date: "2026-07-20 10:00", fileName: "Automated_Sync.json", mode: historySource.mode, status: "Passed", records: 18900, errorsCount: 0, uploadedBy: "System API" }
+                ]).map((log) => (
+                  <div key={log.id} className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 space-y-1.5 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{log.id}</span>
+                      <StatusBadge status={log.status === "Passed" ? "healthy" : "failed"} />
+                    </div>
+                    <div className="text-slate-600 dark:text-slate-300 font-medium">{log.fileName}</div>
+                    <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 pt-1 border-t border-slate-200/60 dark:border-slate-700/60">
+                      <span>Date: {log.date}</span>
+                      <span>Records: {log.records.toLocaleString()}</span>
+                      <span>By: {log.uploadedBy}</span>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
-            <div className="flex items-center gap-2 justify-end">
-              <SecondaryButton onClick={() => setShowAddModal(false)}>Cancel</SecondaryButton>
-              <PrimaryButton
-                onClick={() => {
-                  setShowAddModal(false);
-                  setAddName("");
-                  setAddType("Banking");
-                  setAddEndpoint("");
-                  setAddApiKey("");
-                  alert("Integration added");
-                }}
-              >
-                Add Integration
-              </PrimaryButton>
+            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex justify-end">
+              <SecondaryButton onClick={() => setHistorySource(null)}>Close History</SecondaryButton>
             </div>
           </div>
         </div>
