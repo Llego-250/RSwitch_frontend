@@ -1,424 +1,471 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { AppShell, PrimaryButton, SecondaryButton, FilterChip, SectionCard } from "@/components/AppShell";
-import { KpiCard } from "@/components/KpiCard";
+import {
+  AppShell,
+  PrimaryButton,
+  SecondaryButton,
+  SectionCard,
+} from "@/components/AppShell";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useRole } from "@/context/RoleContext";
 import { canManage } from "@/lib/roles";
-import { Scale, Shield, Database, AlertTriangle, CheckCircle2, TrendingUp, Plus, Eye, Pencil, ClipboardCheck } from "lucide-react";
+import {
+  Scale,
+  Calendar,
+  FileText,
+  Plus,
+  Users,
+  CheckCircle2,
+  AlertTriangle,
+  Clock,
+  Download,
+  Upload,
+  X,
+  Filter,
+  UserCheck,
+} from "lucide-react";
 
 export const Route = createFileRoute("/governance")({
   component: Governance,
 });
 
-// ─── Data ────────────────────────────────────────────────────────────────────
+type DocCategory = "Policy" | "Minutes" | "Decision" | "Working Paper" | "Other";
 
-const POLICIES = [
-  { id: "POL-001", name: "PII Masking — Analyst Role",    owner: "Data Office", scope: "All sources",   status: "healthy" as const,  audited: "2025-06-20" },
-  { id: "POL-002", name: "Retention Policy — 7 Years",    owner: "Legal",       scope: "Core Banking",  status: "healthy" as const,  audited: "2025-06-15" },
-  { id: "POL-003", name: "Purpose Limitation — Credit",   owner: "Risk Team",   scope: "Credit Bureau", status: "warning" as const,  audited: "2025-06-10" },
-  { id: "POL-004", name: "Cross-border Transfer Controls",owner: "Compliance",  scope: "All sources",   status: "healthy" as const,  audited: "2025-06-08" },
-  { id: "POL-005", name: "AI Model Explainability",       owner: "AI Guild",    scope: "Fraud ML",      status: "warning" as const,  audited: "2025-05-30" },
-  { id: "POL-006", name: "Consent Management Framework",  owner: "Legal",       scope: "Customer 360",  status: "healthy" as const,  audited: "2025-06-22" },
+type GovDocument = {
+  id: string;
+  title: string;
+  category: DocCategory;
+  committee: string;
+  version: string;
+  uploadedBy: string;
+  uploadDate: string;
+  accessLevel: "Internal" | "Restricted";
+};
+
+type ActionItemStatus = "Open" | "In Progress" | "Completed" | "Overdue";
+
+type ActionItem = {
+  id: string;
+  description: string;
+  owner: string;
+  committee: string;
+  dueDate: string;
+  status: ActionItemStatus;
+};
+
+type MeetingRecord = {
+  id: string;
+  title: string;
+  committee: string;
+  date: string;
+  attendeesCount: number;
+  decisionsCount: number;
+  minutesDoc?: string;
+};
+
+const INITIAL_DOCS: GovDocument[] = [
+  { id: "DOC-101", title: "National Switch Governance Charter 2026", category: "Policy", committee: "Board", version: "v2.0", uploadedBy: "Compliance Officer", uploadDate: "2026-06-15", accessLevel: "Internal" },
+  { id: "DOC-102", title: "Steering Committee Meeting Minutes - Q2", category: "Minutes", committee: "Steering Committee", version: "v1.0", uploadedBy: "Board Secretary", uploadDate: "2026-07-01", accessLevel: "Restricted" },
+  { id: "DOC-103", title: "API Interoperability Technical Standard", category: "Working Paper", committee: "Technical Working Group", version: "v3.1", uploadedBy: "Technical Lead", uploadDate: "2026-07-10", accessLevel: "Internal" },
+  { id: "DOC-104", title: "Resolution on Mobile Money Settlement Window", category: "Decision", committee: "Operations Working Group", version: "v1.2", uploadedBy: "Compliance User", uploadDate: "2026-07-18", accessLevel: "Internal" },
 ];
 
-// Heatmap scores: [Completeness, Accuracy, Timeliness, Consistency, Uniqueness]
-const QUALITY_SOURCES = [
-  { name: "Core Banking",     scores: [97, 95, 91, 88, 96] },
-  { name: "Mobile Money",     scores: [92, 89, 94, 85, 91] },
-  { name: "Credit Bureau",    scores: [88, 91, 72, 90, 95] },
-  { name: "ERP",              scores: [76, 83, 68, 79, 88] },
-  { name: "Payment Gateway",  scores: [94, 92, 96, 93, 97] },
+const INITIAL_ACTIONS: ActionItem[] = [
+  { id: "ACT-801", description: "Submit corrected schema mapping for MFI ingestion", owner: "Inkomoko MFI", committee: "Technical Working Group", dueDate: "2026-07-20", status: "Overdue" },
+  { id: "ACT-802", description: "Review BNR Directive 07/2024 compliance deadline extension", owner: "RSwitch Compliance", committee: "Steering Committee", dueDate: "2026-07-28", status: "In Progress" },
+  { id: "ACT-803", description: "Update e-money settlement risk weights in Settings", owner: "Risk Manager", committee: "Operations Working Group", dueDate: "2026-08-05", status: "Open" },
+  { id: "ACT-804", description: "Finalize ISO 20022 message specs for SACCOs", owner: "Data Architect", committee: "Technical Working Group", dueDate: "2026-07-15", status: "Completed" },
 ];
 
-const QUALITY_DIMS = ["Completeness", "Accuracy", "Timeliness", "Consistency", "Uniqueness"];
-
-const ISSUES = [
-  { label: "Critical", count: 2,  color: "var(--fail)",    bg: "var(--fail-bg)",    max: 12 },
-  { label: "High",     count: 4,  color: "#B45309",        bg: "#FDE68A",           max: 12 },
-  { label: "Medium",   count: 6,  color: "var(--warn)",    bg: "var(--warn-bg)",    max: 12 },
-  { label: "Low",      count: 0,  color: "var(--neutral-400)", bg: "var(--neutral-100)", max: 12 },
+const MEETINGS: MeetingRecord[] = [
+  { id: "MTG-401", title: "Board Quarterly Governance Session", committee: "Board", date: "2026-08-12 10:00", attendeesCount: 9, decisionsCount: 4, minutesDoc: "Board_Minutes_Q2.pdf" },
+  { id: "MTG-402", title: "Technical Working Group Bi-Weekly Sync", committee: "Technical Working Group", date: "2026-07-30 14:00", attendeesCount: 14, decisionsCount: 2 },
+  { id: "MTG-403", title: "Steering Committee Interoperability Review", committee: "Steering Committee", date: "2026-07-15 09:30", attendeesCount: 11, decisionsCount: 3, minutesDoc: "Steering_Minutes_Jul.pdf" },
 ];
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function scoreColor(score: number): { fg: string; bg: string } {
-  if (score >= 90) return { fg: "#0D9488", bg: "#CCFBF1" };
-  if (score >= 70) return { fg: "#D97706", bg: "#FEF3C7" };
-  return { fg: "#E11D48", bg: "#FFE4E6" };
-}
-
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString("en", { day: "2-digit", month: "short", year: "numeric" });
-}
-
-// ─── Component ───────────────────────────────────────────────────────────────
+const WORKING_GROUPS = [
+  { name: "Board of Directors", chair: "RSwitch Chairman", members: "9 RSwitch & Board Members" },
+  { name: "Steering Committee", chair: "Head of Compliance", members: "12 Participant Executives" },
+  { name: "Technical Working Group", chair: "Chief Technology Officer", members: "18 IT Leads & Architects" },
+  { name: "Operations Working Group", chair: "Head of Operations", members: "15 Settlement Officers" },
+];
 
 function Governance() {
   const { role } = useRole();
-  const canEdit = canManage(role, "governance");
+  const canManageGov = canManage(role, "governance"); // Compliance manages, Business/Tech view (§5.7 REQ-GOV-011)
 
-  const [sourceFilter, setSourceFilter] = useState("All Sources");
-  const [ownerFilter, setOwnerFilter] = useState("All Owners");
-  const [periodFilter, setPeriodFilter] = useState("Last 30d");
+  const [docs, setDocs]                     = useState<GovDocument[]>(INITIAL_DOCS);
+  const [actions, setActions]               = useState<ActionItem[]>(INITIAL_ACTIONS);
+  const [categoryFilter, setCategoryFilter] = useState<string>("All Categories");
+
+  // Modals state
+  const [showUploadDocModal, setShowUploadDocModal] = useState(false);
+  const [showMeetingModal, setShowMeetingModal]     = useState(false);
+
+  // New Doc Form
+  const [newTitle, setNewTitle]     = useState("");
+  const [newCat, setNewCat]         = useState<DocCategory>("Policy");
+  const [newCommittee, setNewCommittee] = useState("Board");
+  const [newVersion, setNewVersion] = useState("v1.0");
+
+  // New Meeting Form
+  const [mtgTitle, setMtgTitle]     = useState("");
+  const [mtgCommittee, setMtgCommittee] = useState("Steering Committee");
+  const [mtgDate, setMtgDate]           = useState("2026-08-10 10:00");
+
+  const filteredDocs = docs.filter(
+    (d) => categoryFilter === "All Categories" || d.category === categoryFilter
+  );
+
+  const overdueActions = actions.filter((a) => a.status === "Overdue");
+
+  function handleUploadDoc() {
+    if (!newTitle) return;
+    const doc: GovDocument = {
+      id: `DOC-10${docs.length + 1}`,
+      title: newTitle,
+      category: newCat,
+      committee: newCommittee,
+      version: newVersion,
+      uploadedBy: role === "compliance" ? "Compliance User" : "Authorized User",
+      uploadDate: new Date().toISOString().split("T")[0],
+      accessLevel: "Internal",
+    };
+    setDocs([doc, ...docs]);
+    setShowUploadDocModal(false);
+    setNewTitle("");
+  }
+
+  function handleCompleteAction(id: string) {
+    setActions((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, status: "Completed" } : a))
+    );
+  }
 
   return (
     <AppShell
-      title="Governance Dashboard"
-      breadcrumb="GOVERN › DATA GOVERNANCE"
-      scope="org-wide"
+      title="Governance Center & Meeting Management (§5.7)"
+      breadcrumb="GOVERN › GOVERNANCE"
+      scope="Board & Working Groups"
       primaryAction={
-        canEdit ? (
-          <PrimaryButton icon={<Plus className="h-3.5 w-3.5" />}>
-            Create Policy
-          </PrimaryButton>
+        canManageGov ? (
+          <div className="flex items-center gap-2">
+            <SecondaryButton icon={<Calendar className="h-4 w-4" />} onClick={() => setShowMeetingModal(true)}>
+              Schedule Meeting
+            </SecondaryButton>
+            <PrimaryButton icon={<Upload className="h-4 w-4" />} onClick={() => setShowUploadDocModal(true)}>
+              Upload Governance Document
+            </PrimaryButton>
+          </div>
         ) : undefined
       }
       toolbar={
-        <>
-          <FilterChip label="Source" value={sourceFilter} onClick={() => {}} />
-          <FilterChip label="Owner" value={ownerFilter} onClick={() => {}} />
-          <FilterChip label="Period" value={periodFilter} onClick={() => {}} />
-        </>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-500 font-mono">Category Filter:</span>
+          {["All Categories", "Policy", "Minutes", "Decision", "Working Paper"].map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setCategoryFilter(cat)}
+              className={`h-7 px-3 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
+                categoryFilter === cat
+                  ? "bg-[#56B4D3] text-[#092E3D] font-bold border-[#56B4D3]"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+          <div className="ml-auto text-[11px] font-mono text-slate-400">
+            REQ-GOV-011: Business & Tech View Only · Compliance Manage
+          </div>
+        </div>
       }
     >
-      {/* ── ROW 1: KPI Cards ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-        <KpiCard
-          label="Data Quality Score"
-          value="94.2%"
-          delta={{ dir: "up", text: "+1.3pp", tone: "good" }}
-          context="Aggregate across all sources"
-          freshness="live"
-        />
-        <KpiCard
-          label="Open Issues"
-          value="12"
-          delta={{ dir: "down", text: "-4", tone: "good" }}
-          context="Down from 16 last period"
-          freshness="live"
-        />
-        <KpiCard
-          label="Active Stewards"
-          value="8"
-          context="Assigned data owners"
-          freshness="live"
-        />
-        <KpiCard
-          label="Policies Enforced"
-          value="24"
-          delta={{ dir: "up", text: "+2", tone: "good" }}
-          context="Across all data domains"
-          freshness="live"
-        />
-      </div>
-
-      {/* ── ROW 2: Quality Heatmap + Issue Summary ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-5">
-
-        {/* Left: Heatmap */}
-        <div className="lg:col-span-8">
-          <SectionCard
-            title={
-              <span className="flex items-center gap-2">
-                <Database className="h-4 w-4" style={{ color: "var(--neutral-400)" }} />
-                Data Quality by Source
+      {/* Overdue Action Items Banner (§5.7 REQ-GOV-007) */}
+      {overdueActions.length > 0 && (
+        <div className="mb-5 p-4 rounded-2xl border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-red-500 shrink-0" />
+            <div>
+              <span className="font-bold text-xs text-red-700 dark:text-red-300 block">
+                {overdueActions.length} Overdue Governance Action Items (§5.7 REQ-GOV-007)
               </span>
-            }
-            noPad
-          >
+              <span className="text-[11px] text-slate-600 dark:text-slate-300">
+                Automated escalation notifications delivered to Committee Chair.
+              </span>
+            </div>
+          </div>
+          <span className="text-xs font-mono font-bold text-red-600">Action Required</span>
+        </div>
+      )}
+
+      {/* Main Grid: Document Repository & Meetings */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 mb-6">
+        {/* Left 7 cols: Document Repository (§5.7 REQ-GOV-002, REQ-GOV-003) */}
+        <div className="lg:col-span-7 space-y-4">
+          <SectionCard title="Central Governance Document Repository" noPad>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead style={{ backgroundColor: "var(--neutral-100)", borderBottom: "1px solid var(--border)" }}>
+              <table className="w-full text-xs">
+                <thead className="bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
                   <tr>
-                    <th
-                      className="text-left px-4 py-3 text-[12px] font-medium uppercase tracking-wide"
-                      style={{ color: "var(--neutral-500)", minWidth: "140px" }}
-                    >
-                      Source
-                    </th>
-                    {QUALITY_DIMS.map((dim) => (
-                      <th
-                        key={dim}
-                        className="text-center px-3 py-3 text-[11px] font-medium uppercase tracking-wide"
-                        style={{ color: "var(--neutral-500)", minWidth: "104px" }}
-                      >
-                        {dim}
-                      </th>
-                    ))}
+                    <th className="px-4 py-2.5 text-left font-semibold">Title & Category</th>
+                    <th className="px-4 py-2.5 text-left font-semibold">Committee</th>
+                    <th className="px-4 py-2.5 text-left font-semibold">Version</th>
+                    <th className="px-4 py-2.5 text-left font-semibold">Uploaded</th>
+                    <th className="px-4 py-2.5 text-right font-semibold">Action</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {QUALITY_SOURCES.map((src, i) => (
-                    <tr
-                      key={src.name}
-                      style={{
-                        borderBottom: "1px solid var(--border)",
-                        backgroundColor: i % 2 === 0 ? "transparent" : "var(--neutral-50)",
-                      }}
-                    >
-                      <td className="px-4 py-3 font-medium text-[13px]" style={{ color: "var(--neutral-700)" }}>
-                        {src.name}
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono">
+                  {filteredDocs.map((doc) => (
+                    <tr key={doc.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                      <td className="px-4 py-2.5 font-sans">
+                        <div className="font-bold text-slate-900 dark:text-white">{doc.title}</div>
+                        <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                          {doc.id} · <span className="text-[#56B4D3] font-bold">{doc.category}</span>
+                        </div>
                       </td>
-                      {src.scores.map((score, j) => {
-                        const { fg, bg } = scoreColor(score);
-                        return (
-                          <td key={j} className="px-3 py-3 text-center">
-                            <span
-                              className="inline-flex items-center justify-center font-mono text-[12px] font-semibold"
-                              style={{
-                                color: fg,
-                                backgroundColor: bg,
-                                borderRadius: "4px",
-                                padding: "3px 10px",
-                                minWidth: "52px",
-                                display: "inline-block",
-                                fontVariantNumeric: "tabular-nums",
-                              }}
-                            >
-                              {score}%
-                            </span>
-                          </td>
-                        );
-                      })}
+                      <td className="px-4 py-2.5 text-slate-600 dark:text-slate-300">{doc.committee}</td>
+                      <td className="px-4 py-2.5 font-bold text-[#56B4D3]">{doc.version}</td>
+                      <td className="px-4 py-2.5 text-slate-500">{doc.uploadDate}</td>
+                      <td className="px-4 py-2.5 text-right font-sans">
+                        <button
+                          onClick={() => alert(`Simulated download for ${doc.title}`)}
+                          className="inline-flex items-center gap-1 font-semibold text-[#56B4D3] hover:underline cursor-pointer"
+                        >
+                          <Download className="h-3 w-3" />
+                          Download
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-
-            {/* Legend */}
-            <div
-              className="px-4 py-3 flex items-center gap-5 text-[11px] font-mono"
-              style={{ borderTop: "1px solid var(--border)", color: "var(--neutral-500)" }}
-            >
-              <span className="uppercase tracking-wide">Score key</span>
-              {[
-                { label: "≥ 90 — Good",    fg: "#0D9488", bg: "#CCFBF1" },
-                { label: "70–89 — Fair",   fg: "#D97706", bg: "#FEF3C7" },
-                { label: "< 70 — At risk", fg: "#E11D48", bg: "#FFE4E6" },
-              ].map(({ label, fg, bg }) => (
-                <span key={label} className="flex items-center gap-1.5">
-                  <span
-                    className="h-2.5 w-2.5 rounded-sm shrink-0"
-                    style={{ backgroundColor: bg, border: `1px solid ${fg}` }}
-                  />
-                  {label}
-                </span>
-              ))}
-            </div>
           </SectionCard>
         </div>
 
-        {/* Right: Issue Summary */}
-        <div className="lg:col-span-4">
-          <SectionCard
-            title={
-              <span className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4" style={{ color: "var(--neutral-400)" }} />
-                Issue Summary
-              </span>
-            }
-          >
-            <div className="flex flex-col gap-4">
-              {ISSUES.map(({ label, count, color, bg, max }) => (
-                <div key={label}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[13px] font-medium" style={{ color: "var(--neutral-700)" }}>
-                      {label}
-                    </span>
-                    <span
-                      className="font-mono text-[13px] font-semibold"
-                      style={{ color: count === 0 ? "var(--neutral-400)" : color, fontVariantNumeric: "tabular-nums" }}
-                    >
-                      {count}
+        {/* Right 5 cols: Scheduled Meetings & Calendar (§5.7 REQ-GOV-004) */}
+        <div className="lg:col-span-5 space-y-4">
+          <SectionCard title="Meeting Calendar & Records (REQ-GOV-004)">
+            <div className="space-y-3">
+              {MEETINGS.map((mtg) => (
+                <div key={mtg.id} className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-900 dark:text-white">{mtg.title}</span>
+                    <span className="font-mono text-[10px] font-semibold text-[#56B4D3] px-2 py-0.5 rounded bg-[#56B4D3]/15">
+                      {mtg.committee}
                     </span>
                   </div>
-                  <div
-                    className="h-2 rounded-full overflow-hidden"
-                    style={{ backgroundColor: "var(--neutral-100)" }}
-                  >
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{
-                        width: `${(count / max) * 100}%`,
-                        backgroundColor: count === 0 ? "var(--neutral-200)" : color,
-                        minWidth: count > 0 ? "4px" : "0",
-                      }}
-                    />
+                  <div className="flex items-center justify-between text-[11px] font-mono text-slate-500">
+                    <span className="flex items-center gap-1"><Clock className="h-3 w-3 text-slate-400" />{mtg.date}</span>
+                    <span>{mtg.attendeesCount} Attendees</span>
+                    <span>{mtg.decisionsCount} Decisions Recorded</span>
                   </div>
+                  {mtg.minutesDoc && (
+                    <div className="pt-1.5 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-between text-[11px]">
+                      <span className="font-mono text-slate-400 flex items-center gap-1"><FileText className="h-3 w-3" />{mtg.minutesDoc}</span>
+                      <button onClick={() => alert(`Opening minutes for ${mtg.title}`)} className="text-[#56B4D3] hover:underline font-semibold">View Minutes</button>
+                    </div>
+                  )}
                 </div>
               ))}
-
-              {/* Total */}
-              <div
-                className="mt-2 pt-4 flex items-center justify-between"
-                style={{ borderTop: "1px solid var(--border)" }}
-              >
-                <span className="text-[12px] font-mono uppercase tracking-wide" style={{ color: "var(--neutral-400)" }}>
-                  Total open
-                </span>
-                <span
-                  className="text-[20px] font-mono font-bold"
-                  style={{ color: "var(--neutral-900)", fontVariantNumeric: "tabular-nums" }}
-                >
-                  12
-                </span>
-              </div>
-
-              {/* Context note */}
-              <div
-                className="rounded-md px-3 py-2.5 text-[12px]"
-                style={{ backgroundColor: "var(--warn-bg)", color: "var(--warn)" }}
-              >
-                <div className="flex items-start gap-2">
-                  <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                  <span>
-                    2 critical issues require immediate attention from a data steward.
-                  </span>
-                </div>
-              </div>
             </div>
           </SectionCard>
         </div>
       </div>
 
-      {/* ── ROW 3: Policies Table ── */}
-      <SectionCard
-        title={
-          <span className="flex items-center gap-2">
-            <Scale className="h-4 w-4" style={{ color: "var(--neutral-400)" }} />
-            Data Governance Policies
-          </span>
-        }
-        action={
-          <span className="font-mono text-[11px]" style={{ color: "var(--neutral-400)" }}>
-            {POLICIES.length} policies
-          </span>
-        }
-        noPad
-      >
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead style={{ backgroundColor: "var(--neutral-100)", borderBottom: "1px solid var(--border)" }}>
-              <tr>
-                <th className="text-left px-4 py-3 text-[12px] font-medium uppercase tracking-wide" style={{ color: "var(--neutral-500)", width: "96px" }}>
-                  ID
-                </th>
-                <th className="text-left px-4 py-3 text-[12px] font-medium uppercase tracking-wide" style={{ color: "var(--neutral-500)" }}>
-                  Policy Name
-                </th>
-                <th className="text-left px-4 py-3 text-[12px] font-medium uppercase tracking-wide" style={{ color: "var(--neutral-500)", width: "130px" }}>
-                  Owner
-                </th>
-                <th className="text-left px-4 py-3 text-[12px] font-medium uppercase tracking-wide" style={{ color: "var(--neutral-500)", width: "140px" }}>
-                  Scope
-                </th>
-                <th className="text-left px-4 py-3 text-[12px] font-medium uppercase tracking-wide" style={{ color: "var(--neutral-500)", width: "110px" }}>
-                  Status
-                </th>
-                <th className="text-left px-4 py-3 text-[12px] font-medium uppercase tracking-wide" style={{ color: "var(--neutral-500)", width: "130px" }}>
-                  Last Audited
-                </th>
-                <th className="text-right px-4 py-3 text-[12px] font-medium uppercase tracking-wide" style={{ color: "var(--neutral-500)", width: "120px" }}>
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {POLICIES.map((p, i) => (
-                <tr
-                  key={p.id}
-                  style={{
-                    borderBottom: "1px solid var(--border)",
-                    backgroundColor: i % 2 === 0 ? "transparent" : "var(--neutral-50)",
-                  }}
-                >
-                  <td className="px-4 py-3 font-mono text-[12px]" style={{ color: "var(--neutral-500)" }}>
-                    {p.id}
-                  </td>
-                  <td className="px-4 py-3 font-medium text-[13px]" style={{ color: "var(--neutral-900)" }}>
-                    {p.name}
-                  </td>
-                  <td className="px-4 py-3 text-[13px]" style={{ color: "var(--neutral-700)" }}>
-                    {p.owner}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className="inline-flex items-center font-mono text-[11px] px-2 py-0.5 rounded"
-                      style={{
-                        backgroundColor: "var(--neutral-100)",
-                        color: "var(--neutral-500)",
-                        border: "1px solid var(--border)",
-                      }}
-                    >
-                      {p.scope}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <StatusBadge status={p.status} />
-                  </td>
-                  <td className="px-4 py-3 font-mono text-[12px]" style={{ color: "var(--neutral-500)", fontVariantNumeric: "tabular-nums" }}>
-                    {formatDate(p.audited)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-1">
-                      <button
-                        aria-label={`View ${p.id}`}
-                        className="h-7 w-7 grid place-items-center rounded transition-colors"
-                        style={{ color: "var(--neutral-400)" }}
-                        onMouseEnter={e => {
-                          (e.currentTarget as HTMLElement).style.backgroundColor = "var(--primary-100)";
-                          (e.currentTarget as HTMLElement).style.color = "var(--primary-500)";
-                        }}
-                        onMouseLeave={e => {
-                          (e.currentTarget as HTMLElement).style.backgroundColor = "transparent";
-                          (e.currentTarget as HTMLElement).style.color = "var(--neutral-400)";
-                        }}
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                      </button>
-                      {canEdit && (
-                        <button
-                          aria-label={`Edit ${p.id}`}
-                          className="h-7 w-7 grid place-items-center rounded transition-colors"
-                          style={{ color: "var(--neutral-400)" }}
-                          onMouseEnter={e => {
-                            (e.currentTarget as HTMLElement).style.backgroundColor = "var(--primary-100)";
-                            (e.currentTarget as HTMLElement).style.color = "var(--primary-500)";
-                          }}
-                          onMouseLeave={e => {
-                            (e.currentTarget as HTMLElement).style.backgroundColor = "transparent";
-                            (e.currentTarget as HTMLElement).style.color = "var(--neutral-400)";
-                          }}
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                      <button
-                        aria-label={`Audit ${p.id}`}
-                        className="h-7 w-7 grid place-items-center rounded transition-colors"
-                        style={{ color: "var(--neutral-400)" }}
-                        onMouseEnter={e => {
-                          (e.currentTarget as HTMLElement).style.backgroundColor = "var(--primary-100)";
-                          (e.currentTarget as HTMLElement).style.color = "var(--primary-500)";
-                        }}
-                        onMouseLeave={e => {
-                          (e.currentTarget as HTMLElement).style.backgroundColor = "transparent";
-                          (e.currentTarget as HTMLElement).style.color = "var(--neutral-400)";
-                        }}
-                      >
-                        <ClipboardCheck className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Bottom Grid: Action Items Register & Working Group Membership */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        {/* Action Items (7 cols REQ-GOV-006) */}
+        <div className="lg:col-span-7">
+          <SectionCard title="Governance Action Items Register (REQ-GOV-006)" noPad>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+                  <tr>
+                    <th className="px-4 py-2.5 text-left font-semibold">Description</th>
+                    <th className="px-4 py-2.5 text-left font-semibold">Assigned Owner</th>
+                    <th className="px-4 py-2.5 text-left font-semibold">Due Date</th>
+                    <th className="px-4 py-2.5 text-left font-semibold">Status</th>
+                    <th className="px-4 py-2.5 text-right font-semibold">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono">
+                  {actions.map((act) => (
+                    <tr key={act.id} className={act.status === "Overdue" ? "bg-red-50/50 dark:bg-red-950/20" : ""}>
+                      <td className="px-4 py-2.5 font-sans font-medium text-slate-900 dark:text-white">{act.description}</td>
+                      <td className="px-4 py-2.5 text-slate-600 dark:text-slate-300">{act.owner}</td>
+                      <td className="px-4 py-2.5 text-slate-500">{act.dueDate}</td>
+                      <td className="px-4 py-2.5">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          act.status === "Completed" ? "bg-emerald-100 text-emerald-700" : act.status === "Overdue" ? "bg-red-100 text-red-700 font-bold" : "bg-amber-100 text-amber-700"
+                        }`}>
+                          {act.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-sans">
+                        {act.status !== "Completed" && canManageGov && (
+                          <button
+                            onClick={() => handleCompleteAction(act.id)}
+                            className="text-[11px] font-semibold text-emerald-600 hover:underline cursor-pointer"
+                          >
+                            Mark Complete
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </SectionCard>
         </div>
-      </SectionCard>
+
+        {/* Working Group Register (5 cols REQ-GOV-008) */}
+        <div className="lg:col-span-5">
+          <SectionCard title="Working Group Membership Register (REQ-GOV-008)">
+            <div className="space-y-3">
+              {WORKING_GROUPS.map((wg, idx) => (
+                <div key={idx} className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 space-y-1 text-xs">
+                  <div className="flex items-center justify-between font-bold text-slate-900 dark:text-white">
+                    <span>{wg.name}</span>
+                    <span className="font-mono text-[10px] text-slate-400">{wg.members}</span>
+                  </div>
+                  <div className="text-[11px] text-slate-500 font-mono">Chairperson: <span className="font-semibold text-slate-700 dark:text-slate-300">{wg.chair}</span></div>
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+        </div>
+      </div>
+
+      {/* Upload Document Modal */}
+      {showUploadDocModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+              <h2 className="font-bold text-base text-slate-900 dark:text-white">Upload Governance Document</h2>
+              <button onClick={() => setShowUploadDocModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Document Title</label>
+                <input
+                  type="text"
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  placeholder="e.g. National Switch Security Policy 2026"
+                  className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Category</label>
+                <select
+                  value={newCat}
+                  onChange={(e) => setNewCat(e.target.value as DocCategory)}
+                  className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
+                >
+                  <option value="Policy">Policy</option>
+                  <option value="Minutes">Minutes</option>
+                  <option value="Decision">Decision</option>
+                  <option value="Working Paper">Working Paper</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Associated Committee</label>
+                <select
+                  value={newCommittee}
+                  onChange={(e) => setNewCommittee(e.target.value)}
+                  className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
+                >
+                  <option value="Board">Board of Directors</option>
+                  <option value="Steering Committee">Steering Committee</option>
+                  <option value="Technical Working Group">Technical Working Group</option>
+                  <option value="Operations Working Group">Operations Working Group</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Version String</label>
+                <input
+                  type="text"
+                  value={newVersion}
+                  onChange={(e) => setNewVersion(e.target.value)}
+                  placeholder="v1.0"
+                  className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+              <SecondaryButton onClick={() => setShowUploadDocModal(false)}>Cancel</SecondaryButton>
+              <PrimaryButton onClick={handleUploadDoc}>Save Document</PrimaryButton>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Schedule Meeting Modal */}
+      {showMeetingModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+              <h2 className="font-bold text-base text-slate-900 dark:text-white">Schedule Governance Meeting Record</h2>
+              <button onClick={() => setShowMeetingModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Meeting Title</label>
+                <input
+                  type="text"
+                  value={mtgTitle}
+                  onChange={(e) => setMtgTitle(e.target.value)}
+                  placeholder="e.g. Steering Committee Interoperability Review"
+                  className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Committee / Working Group</label>
+                <select
+                  value={mtgCommittee}
+                  onChange={(e) => setMtgCommittee(e.target.value)}
+                  className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
+                >
+                  <option value="Steering Committee">Steering Committee</option>
+                  <option value="Board">Board of Directors</option>
+                  <option value="Technical Working Group">Technical Working Group</option>
+                  <option value="Operations Working Group">Operations Working Group</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Date & Time</label>
+                <input
+                  type="text"
+                  value={mtgDate}
+                  onChange={(e) => setMtgDate(e.target.value)}
+                  className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+              <SecondaryButton onClick={() => setShowMeetingModal(false)}>Cancel</SecondaryButton>
+              <PrimaryButton onClick={() => setShowMeetingModal(false)}>Save Meeting Record</PrimaryButton>
+            </div>
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }
