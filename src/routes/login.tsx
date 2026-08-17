@@ -524,34 +524,42 @@ function Login() {
         >
           <div
             style={{
-              width: "180px",
-              height: "180px",
+              width: "160px",
+              height: "160px",
               borderRadius: "36px",
-              background: "linear-gradient(135deg, var(--primary-500), var(--primary-700))",
+              background: "linear-gradient(135deg, rgba(86,180,211,0.2), rgba(9,46,61,0.9))",
+              border: "1.5px solid rgba(86,180,211,0.4)",
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
-              marginBottom: "18px",
-              boxShadow: "0 20px 40px rgba(45,106,159,0.24)",
-              padding: "20px",
+              marginBottom: "20px",
+              boxShadow: "0 24px 48px -12px rgba(9,46,61,0.35), 0 0 30px rgba(86,180,211,0.2)",
+              padding: "18px",
+              backdropFilter: "blur(12px)",
+              transition: "transform 0.3s ease, box-shadow 0.3s ease",
             }}
           >
             <img
               src="/insight-navigator-logo.png"
-              alt="Finterop logo"
-              style={{ width: "100%", height: "100%", objectFit: "contain" }}
+              alt="RDIP logo"
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                filter: "drop-shadow(0 6px 12px rgba(0,0,0,0.25))",
+              }}
             />
           </div>
           <div
             style={{
               fontSize: "32px",
-              fontWeight: 700,
+              fontWeight: 800,
               color: "var(--neutral-900)",
               letterSpacing: "-0.03em",
               lineHeight: 1.15,
             }}
           >
-            Finterop
+            RDIP Platform
           </div>
           <div
             style={{

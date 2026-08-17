@@ -150,19 +150,20 @@ export function AppShell({
       >
         {/* Top Logo & Header */}
         <div className="flex items-center justify-between px-1 pt-1 pb-3">
-          <Link to="/" className="flex items-center gap-3">
-            <div className={`h-11 w-11 rounded-full ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-[#E5ECEF] border-white/80'} border shadow-inner flex items-center justify-center p-1 overflow-hidden shrink-0`}>
+          <Link to="/" className="flex items-center gap-3 group">
+            <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-[#56B4D3] via-[#3593B3] to-[#092E3D] p-1.5 shadow-md shadow-[#56B4D3]/20 border border-white/50 dark:border-slate-700/60 flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-105">
               <img
                 src="/insight-navigator-logo.png"
                 alt="RDIP logo"
-                className="h-full w-full object-contain"
+                className="h-full w-full object-contain filter drop-shadow-md"
               />
             </div>
             <div>
-              <div className={`font-bold text-[15px] leading-tight tracking-wide ${isDark ? 'text-white' : 'text-[#1E293B]'}`}>
+              <div className={`font-extrabold text-[15px] leading-tight tracking-wide ${isDark ? 'text-white' : 'text-[#1E293B]'} group-hover:text-[#56B4D3] transition-colors`}>
                 RDIP PLATFORM
               </div>
-              <div className="text-[10px] font-medium tracking-widest uppercase text-[#718596] leading-none mt-0.5">
+              <div className="text-[10px] font-semibold tracking-widest uppercase text-[#56B4D3] leading-none mt-0.5 flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#10B981] animate-pulse inline-block" />
                 RSWITCH INTELLIGENCE
               </div>
             </div>
@@ -267,6 +268,15 @@ export function AppShell({
               </button>
             </div>
           )}
+        </div>
+
+        {/* Bottom Sidebar Brand Tag */}
+        <div className="pt-2 flex items-center justify-between px-2 text-[10px] font-mono text-slate-400 dark:text-slate-500 border-t border-slate-200/60 dark:border-slate-800/60 mt-1">
+          <div className="flex items-center gap-1.5 opacity-85 hover:opacity-100 transition-opacity">
+            <img src="/insight-navigator-logo.png" alt="Insight Navigator" className="h-3.5 w-3.5 object-contain filter drop-shadow-xs" />
+            <span className="font-semibold text-slate-600 dark:text-slate-400">Insight Navigator</span>
+          </div>
+          <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 font-bold border border-emerald-500/20">LIVE</span>
         </div>
       </aside>
 
