@@ -1,12 +1,14 @@
-import { createFileRoute } from "@tanstack/react-router"
-import { useState, useMemo } from "react"
+import { createFileRoute } from "@tanstack/react-router";
+import { useState, useMemo } from "react";
 import {
   AppShell,
   PrimaryButton,
   SecondaryButton,
   SectionCard,
-} from "@/components/AppShell"
-import { StatusBadge } from "@/components/StatusBadge"
+} from "@/components/AppShell";
+import { StatusBadge } from "@/components/StatusBadge";
+import { useRole } from "@/context/RoleContext";
+import { canManage } from "@/lib/roles";
 import {
   Plus,
   Edit2,
@@ -20,1324 +22,441 @@ import {
   Search,
   X,
   RotateCcw,
-} from "lucide-react"
+  CheckCircle2,
+  Lock,
+} from "lucide-react";
 
 export const Route = createFileRoute("/mapping")({
   component: MappingPage,
-})
+});
 
-/* ─── TYPES ─── */
+type VersionEntry = { v: string; date: string; by: string };
 
-type VersionEntry = { v: string; date: string; by: string }
+type FieldRule = {
+  id: string;
+  sourceField: string;
+  targetField: string;
+  transform: string;
+  mapped: boolean;
+};
 
 type MappingRow = {
-  id: string
-  name: string
-  src: string
-  target: string
-  version: string
-  status: "healthy" | "warning" | "draft"
-  updated: string
-  fields: number
-  mapped: number
-  versions: VersionEntry[]
-}
+  id: string;
+  name: string;
+  src: string;
+  target: string;
+  version: string;
+  status: "healthy" | "warning" | "draft";
+  updated: string;
+  fields: number;
+  mapped: number;
+  versions: VersionEntry[];
+  rules: FieldRule[];
+};
 
-/* ─── STATIC DATA ─── */
-
-const MAPPINGS: MappingRow[] = [
+const INITIAL_MAPPINGS: MappingRow[] = [
   {
     id: "M-001",
-    name: "Core Banking → ISO 20022",
-    src: "Core Banking",
-    target: "ISO 20022",
+    name: "Core Banking → ISO 20022 Canonical",
+    src: "Bank of Kigali Core",
+    target: "ISO 20022 XML",
     version: "v3.1",
     status: "healthy",
-    updated: "2025-06-20",
+    updated: "2026-07-20",
     fields: 42,
     mapped: 42,
     versions: [
-      { v: "v3.1", date: "2025-06-20", by: "architect" },
-      { v: "v3.0", date: "2025-04-10", by: "architect" },
-      { v: "v2.9", date: "2025-01-15", by: "lead-dev" },
+      { v: "v3.1", date: "2026-07-20", by: "Technical Lead" },
+      { v: "v3.0", date: "2026-04-10", by: "Technical Lead" },
+      { v: "v2.9", date: "2026-01-15", by: "Data Architect" },
+    ],
+    rules: [
+      { id: "r1", sourceField: "account_no", targetField: "DbtrAcct.Id.Othr.Id", transform: "Direct Copy", mapped: true },
+      { id: "r2", sourceField: "tx_amount", targetField: "IntrBkSttlmAmt", transform: "Decimal(18,2)", mapped: true },
+      { id: "r3", sourceField: "currency_code", targetField: "IntrBkSttlmAmt.Ccy", transform: "Uppercase ISO-4217", mapped: true },
     ],
   },
   {
     id: "M-002",
     name: "Mobile Money → JSON Canonical",
-    src: "Mobile Money",
-    target: "JSON",
+    src: "MTN MoMo Feed",
+    target: "JSON Canonical",
     version: "v2.0",
     status: "healthy",
-    updated: "2025-06-18",
+    updated: "2026-07-18",
     fields: 28,
     mapped: 28,
     versions: [
-      { v: "v2.0", date: "2025-06-18", by: "dev-1" },
-      { v: "v1.9", date: "2025-03-22", by: "dev-1" },
+      { v: "v2.0", date: "2026-07-18", by: "Integration Engineer" },
+    ],
+    rules: [
+      { id: "r4", sourceField: "msisdn", targetField: "payer_phone_hash", transform: "SHA-256 Masked", mapped: true },
+      { id: "r5", sourceField: "transaction_id", targetField: "switch_tx_id", transform: "UUID Prefix", mapped: true },
     ],
   },
   {
     id: "M-003",
-    name: "Credit Bureau → Canonical",
-    src: "Credit Bureau",
-    target: "CSV",
+    name: "Inkomoko MFI → RDIP Standard",
+    src: "Inkomoko MFI",
+    target: "CSV Canonical",
     version: "v1.4",
     status: "warning",
-    updated: "2025-06-15",
+    updated: "2026-07-15",
     fields: 31,
     mapped: 29,
-    versions: [{ v: "v1.4", date: "2025-06-15", by: "analyst" }],
-  },
-  {
-    id: "M-004",
-    name: "ERP Ledger → ISO 20022",
-    src: "ERP",
-    target: "ISO 20022",
-    version: "v1.0-draft",
-    status: "draft",
-    updated: "2025-06-10",
-    fields: 18,
-    mapped: 14,
-    versions: [],
-  },
-  {
-    id: "M-005",
-    name: "Payment Gateway → JSON",
-    src: "Payment GW",
-    target: "JSON",
-    version: "v2.1",
-    status: "healthy",
-    updated: "2025-06-22",
-    fields: 22,
-    mapped: 22,
-    versions: [
-      { v: "v2.1", date: "2025-06-22", by: "dev-2" },
-      { v: "v2.0", date: "2025-04-01", by: "dev-2" },
+    versions: [{ v: "v1.4", date: "2026-07-15", by: "Data Architect" }],
+    rules: [
+      { id: "r6", sourceField: "tin_no", targetField: "tax_id", transform: "Regex 9-digit", mapped: true },
+      { id: "r7", sourceField: "par_30", targetField: "portfolio_at_risk", transform: "Percentage", mapped: true },
+      { id: "r8", sourceField: "collateral_type", targetField: "collateral_category", transform: "Unmapped", mapped: false },
+      { id: "r9", sourceField: "guarantor_id", targetField: "guarantor_ref", transform: "Unmapped", mapped: false },
     ],
   },
   {
-    id: "M-006",
-    name: "Regulatory Feed → XML",
-    src: "Regulatory",
-    target: "XML",
-    version: "v4.0",
-    status: "healthy",
-    updated: "2025-06-19",
-    fields: 55,
-    mapped: 55,
-    versions: [{ v: "v4.0", date: "2025-06-19", by: "compliance" }],
+    id: "M-004",
+    name: "Zigama SACCO → ISO 20022",
+    src: "Zigama SACCO GL",
+    target: "ISO 20022 XML",
+    version: "v1.0-draft",
+    status: "draft",
+    updated: "2026-07-10",
+    fields: 18,
+    mapped: 12,
+    versions: [{ v: "v1.0-draft", date: "2026-07-10", by: "Integration Engineer" }],
+    rules: [
+      { id: "r10", sourceField: "member_no", targetField: "member_id", transform: "Direct", mapped: true },
+      { id: "r11", sourceField: "monthly_contrib", targetField: "monthly_amount", transform: "Decimal", mapped: false },
+    ],
   },
-]
-
-const SOURCE_OPTIONS = [
-  "Core Banking",
-  "Mobile Money",
-  "Credit Bureau",
-  "ERP",
-  "Payment GW",
-  "Regulatory",
-  "Custom",
-]
-
-const TARGET_OPTIONS = ["JSON", "ISO 20022", "XML", "CSV", "Custom"]
-
-/* ─── MAIN COMPONENT ─── */
+];
 
 function MappingPage() {
-  /* filter state */
-  const [search, setSearch] = useState("")
-  const [statusFilter, setStatusFilter] = useState("All")
-  const [standardFilter, setStandardFilter] = useState("All")
+  const { role } = useRole();
+  const canManageMapping = canManage(role, "mapping");
 
-  /* expand state — only one row open at a time */
-  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [mappings, setMappings]         = useState<MappingRow[]>(INITIAL_MAPPINGS);
+  const [search, setSearch]             = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
-  /* modal state */
-  const [showNewModal, setShowNewModal] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [deleteId, setDeleteId] = useState<string | null>(null)
+  // Modals state
+  const [editingMapping, setEditingMapping] = useState<MappingRow | null>(null);
+  const [historySource, setHistorySource]   = useState<MappingRow | null>(null);
+  const [publishWarning, setPublishWarning] = useState<MappingRow | null>(null);
 
-  /* new mapping form */
-  const [newMapping, setNewMapping] = useState({
-    name: "",
-    src: "Core Banking",
-    target: "JSON",
-    version: "v1.0",
-  })
-
-  /* derived data */
   const filtered = useMemo(() => {
-    return MAPPINGS.filter((r) => {
-      const q = search.toLowerCase()
+    return mappings.filter((m) => {
       const matchSearch =
-        q === "" ||
-        r.name.toLowerCase().includes(q) ||
-        r.src.toLowerCase().includes(q) ||
-        r.target.toLowerCase().includes(q) ||
-        r.id.toLowerCase().includes(q)
-      const matchStatus =
-        statusFilter === "All" ||
-        r.status === statusFilter.toLowerCase()
-      const matchStandard =
-        standardFilter === "All" || r.target === standardFilter
-      return matchSearch && matchStatus && matchStandard
-    })
-  }, [search, statusFilter, standardFilter])
+        search.trim() === "" ||
+        m.name.toLowerCase().includes(search.toLowerCase()) ||
+        m.src.toLowerCase().includes(search.toLowerCase()) ||
+        m.target.toLowerCase().includes(search.toLowerCase());
+      const matchStatus = statusFilter === "all" || m.status === statusFilter;
+      return matchSearch && matchStatus;
+    });
+  }, [mappings, search, statusFilter]);
 
-  const total = filtered.length
-  const fullyMapped = filtered.filter((r) => r.mapped === r.fields).length
-  const warnings = filtered.filter((r) => r.status === "warning").length
-  const drafts = filtered.filter((r) => r.status === "draft").length
+  // Clone mapping (§5.5 REQ-MAP-006)
+  function handleClone(mapping: MappingRow) {
+    const cloned: MappingRow = {
+      ...mapping,
+      id: `M-00${mappings.length + 1}`,
+      name: `${mapping.name} (Copy)`,
+      version: `${mapping.version}-clone`,
+      status: "draft",
+      updated: new Date().toISOString().split("T")[0],
+      versions: [{ v: `${mapping.version}-clone`, date: new Date().toISOString().split("T")[0], by: role }],
+    };
+    setMappings([cloned, ...mappings]);
+  }
 
-  const editingRow = editingId ? MAPPINGS.find((r) => r.id === editingId) : null
-  const deleteRow = deleteId ? MAPPINGS.find((r) => r.id === deleteId) : null
+  // Publish version (§5.5 REQ-MAP-004, REQ-MAP-008)
+  function handlePublishClick(mapping: MappingRow) {
+    if (mapping.mapped < mapping.fields) {
+      setPublishWarning(mapping);
+    } else {
+      executePublish(mapping.id);
+    }
+  }
+
+  function executePublish(id: string) {
+    setMappings((prev) =>
+      prev.map((m) => {
+        if (m.id === id) {
+          const nextV = `v${(parseFloat(m.version.replace(/[^0-9.]/g, "")) + 0.1).toFixed(1)}`;
+          return {
+            ...m,
+            version: nextV,
+            status: "healthy",
+            updated: new Date().toISOString().split("T")[0],
+            versions: [{ v: nextV, date: new Date().toISOString().split("T")[0], by: role }, ...m.versions],
+          };
+        }
+        return m;
+      })
+    );
+    setPublishWarning(null);
+  }
+
+  // If business user attempts access, show access control note per §5.5 REQ-MAP-009
+  if (role === "business") {
+    return (
+      <AppShell title="Standards & Mapping" breadcrumb="CONNECT › MAPPING" scope="Technical Only">
+        <div className="p-8 text-center bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 max-w-lg mx-auto mt-10 space-y-3">
+          <Lock className="h-10 w-10 text-amber-500 mx-auto" />
+          <h2 className="font-bold text-base text-slate-800 dark:text-white">Technical Configuration Restricted (§5.5)</h2>
+          <p className="text-xs text-slate-500">
+            Per SRS §5.5, Standards & Mapping is exposed strictly as a Technical/Admin configuration interface. Business users have no operational need to access raw field translation schemas.
+          </p>
+        </div>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell
-      title="Standards & Mapping"
-      breadcrumb="CONNECT › MAPPING"
+      title="Standards & Data Mapping Configuration (§5.5)"
+      breadcrumb="CONNECT › STANDARDS & MAPPING"
+      scope="Technical Configuration"
       primaryAction={
-        <PrimaryButton
-          icon={<Plus className="h-4 w-4" />}
-          onClick={() => {
-            setNewMapping({ name: "", src: "Core Banking", target: "JSON", version: "v1.0" })
-            setShowNewModal(true)
-          }}
-        >
-          New Mapping
-        </PrimaryButton>
+        canManageMapping ? (
+          <PrimaryButton
+            icon={<Plus className="h-4 w-4" />}
+            onClick={() => {
+              const newM: MappingRow = {
+                id: `M-00${mappings.length + 1}`,
+                name: "New Data Field Mapping",
+                src: "Source System",
+                target: "ISO 20022",
+                version: "v1.0-draft",
+                status: "draft",
+                updated: new Date().toISOString().split("T")[0],
+                fields: 10,
+                mapped: 5,
+                versions: [{ v: "v1.0-draft", date: new Date().toISOString().split("T")[0], by: role }],
+                rules: [],
+              };
+              setMappings([newM, ...mappings]);
+            }}
+          >
+            Create New Field Mapping
+          </PrimaryButton>
+        ) : undefined
       }
       toolbar={
         <>
-          {/* Search */}
           <div className="relative">
-            <Search
-              className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none"
-              style={{ color: "var(--neutral-400)" }}
-            />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
             <input
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search mappings…"
-              className="h-8 pl-8 pr-3 rounded-md text-[13px] focus:outline-none"
-              style={{
-                border: "1px solid var(--border)",
-                backgroundColor: "var(--card)",
-                color: "var(--neutral-900)",
-                width: "220px",
-              }}
+              placeholder="Search field mappings…"
+              className="h-8 pl-8 pr-3 rounded-lg text-xs w-60 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
             />
           </div>
 
-          {/* Standard select */}
-          <div className="relative">
-            <select
-              value={standardFilter}
-              onChange={(e) => setStandardFilter(e.target.value)}
-              className="h-8 pl-3 pr-8 rounded-md text-[13px] appearance-none focus:outline-none cursor-pointer"
-              style={{
-                border: "1px solid var(--border)",
-                backgroundColor: "var(--card)",
-                color: "var(--neutral-700)",
-              }}
-            >
-              {["All", "ISO 20022", "JSON", "XML", "CSV"].map((s) => (
-                <option key={s} value={s}>
-                  {s === "All" ? "Standard: All" : s}
-                </option>
-              ))}
-            </select>
-            <ChevronDown
-              className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none"
-              style={{ color: "var(--neutral-400)" }}
-            />
+          <div className="flex items-center gap-1">
+            {["all", "healthy", "warning", "draft"].map((st) => (
+              <button
+                key={st}
+                onClick={() => setStatusFilter(st)}
+                className={`h-8 px-3 rounded-lg text-xs font-medium border capitalize transition-colors cursor-pointer ${
+                  statusFilter === st
+                    ? "bg-[#56B4D3] text-[#092E3D] font-bold border-[#56B4D3]"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700"
+                }`}
+              >
+                {st}
+              </button>
+            ))}
           </div>
-
-          {/* Status select */}
-          <div className="relative">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-8 pl-3 pr-8 rounded-md text-[13px] appearance-none focus:outline-none cursor-pointer"
-              style={{
-                border: "1px solid var(--border)",
-                backgroundColor: "var(--card)",
-                color: "var(--neutral-700)",
-              }}
-            >
-              {["All", "Healthy", "Warning", "Draft"].map((s) => (
-                <option key={s} value={s}>
-                  {s === "All" ? "Status: All" : s}
-                </option>
-              ))}
-            </select>
-            <ChevronDown
-              className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none"
-              style={{ color: "var(--neutral-400)" }}
-            />
-          </div>
-
-          <span
-            className="ml-auto font-mono text-[11px]"
-            style={{ color: "var(--neutral-500)" }}
-          >
-            {filtered.length} of {MAPPINGS.length} shown
-          </span>
         </>
       }
     >
-      <div className="flex flex-col gap-5">
-
-        {/* ─── FIELD MAPPINGS TABLE ─── */}
-        <SectionCard
-          title={
-            <span className="flex items-center gap-2">
-              <GitBranch className="h-4 w-4" style={{ color: "var(--primary-500)" }} />
-              Field Mappings
-            </span>
-          }
-          noPad
-        >
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm" style={{ minWidth: "820px" }}>
-              <thead
-                style={{
-                  backgroundColor: "var(--neutral-100)",
-                  borderBottom: "1px solid var(--border)",
-                }}
-              >
-                <tr>
-                  <th style={{ width: "40px" }} />
-                  <th
-                    className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide"
-                    style={{ color: "var(--neutral-500)" }}
-                  >
-                    Name
-                  </th>
-                  <th
-                    className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide"
-                    style={{ color: "var(--neutral-500)", width: "130px" }}
-                  >
-                    Source
-                  </th>
-                  <th
-                    className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide"
-                    style={{ color: "var(--neutral-500)", width: "120px" }}
-                  >
-                    Target
-                  </th>
-                  <th
-                    className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide"
-                    style={{ color: "var(--neutral-500)", width: "100px" }}
-                  >
-                    Version
-                  </th>
-                  <th
-                    className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide"
-                    style={{ color: "var(--neutral-500)", width: "100px" }}
-                  >
-                    Status
-                  </th>
-                  <th
-                    className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide"
-                    style={{ color: "var(--neutral-500)", width: "110px" }}
-                  >
-                    Mapped Fields
-                  </th>
-                  <th
-                    className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide"
-                    style={{ color: "var(--neutral-500)", width: "110px" }}
-                  >
-                    Updated
-                  </th>
-                  <th
-                    className="text-right px-4 py-3 text-[11px] font-medium uppercase tracking-wide"
-                    style={{ color: "var(--neutral-500)", width: "96px" }}
-                  >
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={9}
-                      className="px-4 py-10 text-center text-sm"
-                      style={{ color: "var(--neutral-400)" }}
-                    >
-                      No mappings match the current filters.
-                    </td>
-                  </tr>
-                ) : (
-                  filtered.map((row) => {
-                    const isExpanded = expandedId === row.id
-                    const allMapped = row.mapped === row.fields
-                    const mappedColor = allMapped ? "var(--ok)" : "var(--warn)"
-                    const mappedBg = allMapped ? "var(--ok-bg)" : "var(--warn-bg)"
-
-                    return (
-                      <>
-                        <tr
-                          key={row.id}
-                          className="hover:bg-(--neutral-50) cursor-pointer"
-                          style={{
-                            borderBottom: isExpanded
-                              ? "none"
-                              : "1px solid var(--border)",
-                            backgroundColor: isExpanded
-                              ? "var(--primary-50)"
-                              : undefined,
-                          }}
-                        >
-                          {/* Expand chevron */}
-                          <td className="pl-3 py-3 w-10">
-                            <button
-                              onClick={() =>
-                                setExpandedId(isExpanded ? null : row.id)
-                              }
-                              aria-label={
-                                isExpanded ? "Collapse row" : "Expand row"
-                              }
-                              className="h-6 w-6 rounded flex items-center justify-center transition-colors"
-                              style={{ color: "var(--neutral-400)" }}
-                              onMouseEnter={(e) => {
-                                ;(
-                                  e.currentTarget as HTMLElement
-                                ).style.backgroundColor = "var(--neutral-200)"
-                                ;(
-                                  e.currentTarget as HTMLElement
-                                ).style.color = "var(--primary-500)"
-                              }}
-                              onMouseLeave={(e) => {
-                                ;(
-                                  e.currentTarget as HTMLElement
-                                ).style.backgroundColor = "transparent"
-                                ;(
-                                  e.currentTarget as HTMLElement
-                                ).style.color = "var(--neutral-400)"
-                              }}
-                            >
-                              {isExpanded ? (
-                                <ChevronDown className="h-3.5 w-3.5" />
-                              ) : (
-                                <ChevronRight className="h-3.5 w-3.5" />
-                              )}
-                            </button>
-                          </td>
-
-                          {/* Name */}
-                          <td className="px-4 py-3">
-                            <div
-                              className="font-medium text-[13px]"
-                              style={{ color: "var(--neutral-900)" }}
-                            >
-                              {row.name}
-                            </div>
-                            <div
-                              className="font-mono text-[11px] mt-0.5"
-                              style={{ color: "var(--neutral-400)" }}
-                            >
-                              {row.id}
-                            </div>
-                          </td>
-
-                          {/* Source */}
-                          <td className="px-4 py-3">
-                            <span
-                              className="font-mono text-[11px] px-2 py-1 rounded inline-block"
-                              style={{
-                                backgroundColor: "var(--neutral-100)",
-                                color: "var(--neutral-700)",
-                              }}
-                            >
-                              {row.src}
-                            </span>
-                          </td>
-
-                          {/* Target */}
-                          <td className="px-4 py-3">
-                            <span
-                              className="font-mono text-[11px] px-2 py-1 rounded inline-block"
-                              style={{
-                                backgroundColor: "var(--primary-100)",
-                                color: "var(--primary-700)",
-                              }}
-                            >
-                              {row.target}
-                            </span>
-                          </td>
-
-                          {/* Version */}
-                          <td
-                            className="px-4 py-3 font-mono text-[12px]"
-                            style={{ color: "var(--neutral-500)" }}
-                          >
-                            {row.version}
-                          </td>
-
-                          {/* Status */}
-                          <td className="px-4 py-3">
-                            <StatusBadge status={row.status} />
-                          </td>
-
-                          {/* Mapped fields */}
-                          <td className="px-4 py-3">
-                            <span
-                              className="inline-flex items-center gap-1 font-mono text-[12px] font-semibold px-2 py-0.5 rounded"
-                              style={{
-                                color: mappedColor,
-                                backgroundColor: mappedBg,
-                                fontVariantNumeric: "tabular-nums",
-                              }}
-                            >
-                              {allMapped && (
-                                <Check
-                                  className="h-3 w-3 shrink-0"
-                                  style={{ color: mappedColor }}
-                                />
-                              )}
-                              {row.mapped}/{row.fields}
-                            </span>
-                          </td>
-
-                          {/* Updated */}
-                          <td
-                            className="px-4 py-3 font-mono text-[12px]"
-                            style={{ color: "var(--neutral-500)" }}
-                          >
-                            {row.updated}
-                          </td>
-
-                          {/* Actions */}
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-1 justify-end">
-                              <button
-                                title="Edit"
-                                aria-label="Edit mapping"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setEditingId(row.id)
-                                }}
-                                className="h-7 w-7 rounded flex items-center justify-center transition-colors"
-                                style={{ color: "var(--neutral-400)" }}
-                                onMouseEnter={(e) => {
-                                  ;(
-                                    e.currentTarget as HTMLElement
-                                  ).style.backgroundColor =
-                                    "var(--primary-100)"
-                                  ;(
-                                    e.currentTarget as HTMLElement
-                                  ).style.color = "var(--primary-500)"
-                                }}
-                                onMouseLeave={(e) => {
-                                  ;(
-                                    e.currentTarget as HTMLElement
-                                  ).style.backgroundColor = "transparent"
-                                  ;(
-                                    e.currentTarget as HTMLElement
-                                  ).style.color = "var(--neutral-400)"
-                                }}
-                              >
-                                <Edit2 className="h-3.5 w-3.5" />
-                              </button>
-
-                              <button
-                                title="Duplicate"
-                                aria-label="Duplicate mapping"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  alert(`Duplicated: ${row.name}`)
-                                }}
-                                className="h-7 w-7 rounded flex items-center justify-center transition-colors"
-                                style={{ color: "var(--neutral-400)" }}
-                                onMouseEnter={(e) => {
-                                  ;(
-                                    e.currentTarget as HTMLElement
-                                  ).style.backgroundColor =
-                                    "var(--neutral-100)"
-                                  ;(
-                                    e.currentTarget as HTMLElement
-                                  ).style.color = "var(--neutral-700)"
-                                }}
-                                onMouseLeave={(e) => {
-                                  ;(
-                                    e.currentTarget as HTMLElement
-                                  ).style.backgroundColor = "transparent"
-                                  ;(
-                                    e.currentTarget as HTMLElement
-                                  ).style.color = "var(--neutral-400)"
-                                }}
-                              >
-                                <Copy className="h-3.5 w-3.5" />
-                              </button>
-
-                              <button
-                                title="Delete"
-                                aria-label="Delete mapping"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setDeleteId(row.id)
-                                }}
-                                className="h-7 w-7 rounded flex items-center justify-center transition-colors"
-                                style={{ color: "var(--neutral-400)" }}
-                                onMouseEnter={(e) => {
-                                  ;(
-                                    e.currentTarget as HTMLElement
-                                  ).style.backgroundColor = "var(--fail-bg)"
-                                  ;(
-                                    e.currentTarget as HTMLElement
-                                  ).style.color = "var(--fail)"
-                                }}
-                                onMouseLeave={(e) => {
-                                  ;(
-                                    e.currentTarget as HTMLElement
-                                  ).style.backgroundColor = "transparent"
-                                  ;(
-                                    e.currentTarget as HTMLElement
-                                  ).style.color = "var(--neutral-400)"
-                                }}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-
-                        {/* ─── EXPANDED VERSION HISTORY ─── */}
-                        {isExpanded && (
-                          <tr
-                            key={`${row.id}-expanded`}
-                            style={{ borderBottom: "1px solid var(--border)" }}
-                          >
-                            <td
-                              colSpan={9}
-                              style={{
-                                padding: 0,
-                                backgroundColor: "var(--primary-50)",
-                              }}
-                            >
-                              <div className="px-12 py-4">
-                                <div
-                                  className="text-[11px] font-mono uppercase tracking-wider mb-3"
-                                  style={{ color: "var(--primary-500)" }}
-                                >
-                                  Version History — {row.name}
-                                </div>
-                                {row.versions.length === 0 ? (
-                                  <p
-                                    className="text-[12px] italic"
-                                    style={{ color: "var(--neutral-400)" }}
-                                  >
-                                    No published versions yet.
-                                  </p>
-                                ) : (
-                                  <div className="overflow-x-auto">
-                                    <table
-                                      className="w-full text-sm"
-                                      style={{ minWidth: "520px" }}
-                                    >
-                                      <thead>
-                                        <tr>
-                                          {[
-                                            "Version",
-                                            "Date",
-                                            "Author",
-                                            "Actions",
-                                          ].map((h) => (
-                                            <th
-                                              key={h}
-                                              className="text-left px-3 py-2 text-[11px] font-medium uppercase tracking-wide"
-                                              style={{
-                                                color: "var(--neutral-500)",
-                                                backgroundColor:
-                                                  "var(--primary-100)",
-                                                borderBottom:
-                                                  "1px solid var(--border)",
-                                              }}
-                                            >
-                                              {h}
-                                            </th>
-                                          ))}
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {row.versions.map((ver, vi) => (
-                                          <tr
-                                            key={ver.v}
-                                            style={{
-                                              borderBottom:
-                                                vi < row.versions.length - 1
-                                                  ? "1px solid var(--border)"
-                                                  : "none",
-                                              backgroundColor:
-                                                vi === 0
-                                                  ? "var(--primary-50)"
-                                                  : "var(--card)",
-                                            }}
-                                          >
-                                            <td className="px-3 py-2">
-                                              <span
-                                                className="font-mono text-[12px]"
-                                                style={{
-                                                  color:
-                                                    "var(--primary-700)",
-                                                }}
-                                              >
-                                                {ver.v}
-                                              </span>
-                                              {vi === 0 && (
-                                                <span
-                                                  className="ml-2 text-[10px] font-medium uppercase tracking-wide px-1.5 py-0.5 rounded"
-                                                  style={{
-                                                    backgroundColor:
-                                                      "var(--primary-100)",
-                                                    color:
-                                                      "var(--primary-500)",
-                                                  }}
-                                                >
-                                                  current
-                                                </span>
-                                              )}
-                                            </td>
-                                            <td
-                                              className="px-3 py-2 font-mono text-[12px]"
-                                              style={{
-                                                color: "var(--neutral-500)",
-                                              }}
-                                            >
-                                              {ver.date}
-                                            </td>
-                                            <td
-                                              className="px-3 py-2 text-[12px]"
-                                              style={{
-                                                color: "var(--neutral-700)",
-                                              }}
-                                            >
-                                              {ver.by}
-                                            </td>
-                                            <td className="px-3 py-2">
-                                              <button
-                                                onClick={() =>
-                                                  alert(
-                                                    `Restored to ${ver.v}`
-                                                  )
-                                                }
-                                                className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded transition-colors"
-                                                style={{
-                                                  color:
-                                                    "var(--primary-500)",
-                                                  backgroundColor:
-                                                    "var(--primary-100)",
-                                                  border:
-                                                    "1px solid var(--primary-300)",
-                                                }}
-                                                onMouseEnter={(e) => {
-                                                  ;(
-                                                    e.currentTarget as HTMLElement
-                                                  ).style.backgroundColor =
-                                                    "var(--primary-500)"
-                                                  ;(
-                                                    e.currentTarget as HTMLElement
-                                                  ).style.color = "#fff"
-                                                }}
-                                                onMouseLeave={(e) => {
-                                                  ;(
-                                                    e.currentTarget as HTMLElement
-                                                  ).style.backgroundColor =
-                                                    "var(--primary-100)"
-                                                  ;(
-                                                    e.currentTarget as HTMLElement
-                                                  ).style.color =
-                                                    "var(--primary-500)"
-                                                }}
-                                              >
-                                                <RotateCcw className="h-3 w-3" />
-                                                Restore
-                                              </button>
-                                            </td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </>
-                    )
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* ─── SUMMARY FOOTER ─── */}
-          <div
-            className="px-5 py-3 flex flex-wrap items-center gap-4 font-mono text-[12px]"
-            style={{
-              borderTop: "1px solid var(--border)",
-              backgroundColor: "var(--neutral-50)",
-              color: "var(--neutral-500)",
-            }}
-          >
-            <span>
-              <strong
-                style={{
-                  color: "var(--neutral-900)",
-                  fontVariantNumeric: "tabular-nums",
-                }}
-              >
-                {total}
-              </strong>{" "}
-              mappings
-            </span>
-            <span
-              className="flex items-center gap-1"
-              style={{ color: "var(--ok)" }}
-            >
-              <Check className="h-3 w-3" />
-              <strong style={{ fontVariantNumeric: "tabular-nums" }}>
-                {fullyMapped}
-              </strong>{" "}
-              fully mapped
-            </span>
-            {warnings > 0 && (
-              <span
-                className="flex items-center gap-1"
-                style={{ color: "var(--warn)" }}
-              >
-                <AlertTriangle className="h-3 w-3" />
-                <strong style={{ fontVariantNumeric: "tabular-nums" }}>
-                  {warnings}
-                </strong>{" "}
-                with warnings
-              </span>
-            )}
-            {drafts > 0 && (
-              <span style={{ color: "var(--neutral-400)" }}>
-                <strong style={{ fontVariantNumeric: "tabular-nums" }}>
-                  {drafts}
-                </strong>{" "}
-                draft
-              </span>
-            )}
-          </div>
-        </SectionCard>
-
-        {/* ─── STANDARDS COMPLIANCE PANEL ─── */}
-        <SectionCard title="Standards Compliance">
-          <div className="flex flex-col gap-3">
-            {/* ISO 20022 */}
-            <div
-              className="flex items-center justify-between px-4 py-3 rounded-md"
-              style={{ backgroundColor: "var(--ok-bg)" }}
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  className="h-7 w-7 rounded-full flex items-center justify-center shrink-0"
-                  style={{ backgroundColor: "var(--ok)", color: "#fff" }}
-                >
-                  <Check className="h-3.5 w-3.5" />
+      {/* Mapping Cards Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 gap-4 mb-6">
+        {filtered.map((m) => (
+          <div key={m.id} className="rounded-2xl bg-white/90 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 p-5 space-y-4 shadow-xs">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-300">{m.id}</span>
+                  <span className="font-mono text-[11px] font-bold text-[#56B4D3]">{m.version}</span>
                 </div>
-                <div>
-                  <div
-                    className="font-semibold text-[13px]"
-                    style={{ color: "var(--neutral-900)" }}
-                  >
-                    ISO 20022
-                  </div>
-                  <div
-                    className="text-[12px]"
-                    style={{ color: "var(--ok)" }}
-                  >
-                    Compliant
-                  </div>
-                </div>
+                <h3 className="font-bold text-sm text-slate-900 dark:text-white">{m.name}</h3>
+                <p className="text-xs text-slate-500">{m.src} → {m.target}</p>
               </div>
-              <button
-                onClick={() =>
-                  alert("Compliance details for ISO 20022")
-                }
-                className="text-[12px] font-medium transition-colors"
-                style={{ color: "var(--primary-500)" }}
-                onMouseEnter={(e) =>
-                  ((e.currentTarget as HTMLElement).style.color =
-                    "var(--primary-700)")
-                }
-                onMouseLeave={(e) =>
-                  ((e.currentTarget as HTMLElement).style.color =
-                    "var(--primary-500)")
-                }
-              >
-                Details
-              </button>
+              <StatusBadge status={m.status} />
             </div>
 
-            {/* FAPI 2.0 */}
-            <div
-              className="flex items-center justify-between px-4 py-3 rounded-md"
-              style={{ backgroundColor: "var(--ok-bg)" }}
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  className="h-7 w-7 rounded-full flex items-center justify-center shrink-0"
-                  style={{ backgroundColor: "var(--ok)", color: "#fff" }}
-                >
-                  <Check className="h-3.5 w-3.5" />
-                </div>
-                <div>
-                  <div
-                    className="font-semibold text-[13px]"
-                    style={{ color: "var(--neutral-900)" }}
-                  >
-                    FAPI 2.0
-                  </div>
-                  <div
-                    className="text-[12px]"
-                    style={{ color: "var(--ok)" }}
-                  >
-                    Compliant
-                  </div>
-                </div>
+            <div className="grid grid-cols-3 gap-2 py-2 px-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800 text-xs font-mono">
+              <div>
+                <span className="text-[10px] text-slate-400 block">Total Fields</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200">{m.fields}</span>
               </div>
-              <button
-                onClick={() =>
-                  alert("Compliance details for FAPI 2.0")
-                }
-                className="text-[12px] font-medium transition-colors"
-                style={{ color: "var(--primary-500)" }}
-                onMouseEnter={(e) =>
-                  ((e.currentTarget as HTMLElement).style.color =
-                    "var(--primary-700)")
-                }
-                onMouseLeave={(e) =>
-                  ((e.currentTarget as HTMLElement).style.color =
-                    "var(--primary-500)")
-                }
-              >
-                Details
-              </button>
+              <div>
+                <span className="text-[10px] text-slate-400 block">Mapped Fields</span>
+                <span className={`font-bold ${m.mapped < m.fields ? "text-amber-500" : "text-emerald-500"}`}>
+                  {m.mapped} / {m.fields}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400 block">Last Updated</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200">{m.updated}</span>
+              </div>
             </div>
 
-            {/* Open Banking API */}
-            <div
-              className="flex items-center justify-between px-4 py-3 rounded-md"
-              style={{ backgroundColor: "var(--warn-bg)" }}
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  className="h-7 w-7 rounded-full flex items-center justify-center shrink-0"
-                  style={{ backgroundColor: "var(--warn)", color: "#fff" }}
-                >
-                  <AlertTriangle className="h-3.5 w-3.5" />
-                </div>
-                <div>
-                  <div
-                    className="font-semibold text-[13px]"
-                    style={{ color: "var(--neutral-900)" }}
-                  >
-                    Open Banking API
-                  </div>
-                  <div
-                    className="text-[12px]"
-                    style={{ color: "var(--warn)" }}
-                  >
-                    1 issue
-                  </div>
-                </div>
-              </div>
+            <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
               <button
-                onClick={() =>
-                  alert("Compliance details for Open Banking API")
-                }
-                className="text-[12px] font-medium transition-colors"
-                style={{ color: "var(--primary-500)" }}
-                onMouseEnter={(e) =>
-                  ((e.currentTarget as HTMLElement).style.color =
-                    "var(--primary-700)")
-                }
-                onMouseLeave={(e) =>
-                  ((e.currentTarget as HTMLElement).style.color =
-                    "var(--primary-500)")
-                }
+                onClick={() => setEditingMapping(m)}
+                className="flex-1 h-9 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-800 dark:text-slate-200 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
               >
-                Details
+                <Edit2 className="h-3.5 w-3.5" />
+                Edit Mapping Rules
+              </button>
+
+              {canManageMapping && (
+                <>
+                  <button
+                    onClick={() => handlePublishClick(m)}
+                    className="h-9 px-3 rounded-xl text-xs font-semibold bg-[#56B4D3] text-[#092E3D] hover:bg-[#46A4C3] flex items-center gap-1 transition-all cursor-pointer"
+                    title="Publish Versioned Release (REQ-MAP-004)"
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Publish
+                  </button>
+
+                  <button
+                    onClick={() => handleClone(m)}
+                    className="h-9 px-3 rounded-xl text-xs font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 flex items-center gap-1 transition-all cursor-pointer"
+                    title="Clone Mapping Baseline (REQ-MAP-006)"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                    Clone
+                  </button>
+                </>
+              )}
+
+              <button
+                onClick={() => setHistorySource(m)}
+                className="h-9 px-3 rounded-xl text-xs font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 flex items-center gap-1 transition-all cursor-pointer"
+                title="Version History Log (REQ-MAP-005)"
+              >
+                <GitBranch className="h-3.5 w-3.5" />
+                History
               </button>
             </div>
           </div>
-        </SectionCard>
+        ))}
       </div>
 
-      {/* ═══════════════════════════════════
-          NEW MAPPING MODAL
-      ═══════════════════════════════════ */}
-      {showNewModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={() => setShowNewModal(false)}
-        >
-          <div
-            className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg mx-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-5">
-              <h2
-                className="text-lg font-semibold"
-                style={{ color: "var(--neutral-900)" }}
-              >
-                New Mapping
-              </h2>
-              <button
-                onClick={() => setShowNewModal(false)}
-                className="rounded-md p-1 transition-colors"
-                style={{ color: "var(--neutral-400)" }}
-                onMouseEnter={(e) =>
-                  ((e.currentTarget as HTMLElement).style.color =
-                    "var(--neutral-700)")
-                }
-                onMouseLeave={(e) =>
-                  ((e.currentTarget as HTMLElement).style.color =
-                    "var(--neutral-400)")
-                }
-              >
+      {/* Field Mapping Rules Editor Drawer */}
+      {editingMapping && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-6 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+              <div>
+                <h2 className="font-bold text-base text-slate-900 dark:text-white">Field Mapping Definition Rules</h2>
+                <p className="text-xs text-[#56B4D3] font-semibold">{editingMapping.name} ({editingMapping.version})</p>
+              </div>
+              <button onClick={() => setEditingMapping(null)} className="text-slate-400 hover:text-slate-600">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="flex flex-col gap-4">
-              {/* Name */}
-              <div>
-                <label
-                  className="block text-[12px] font-medium mb-1.5 uppercase tracking-wide"
-                  style={{ color: "var(--neutral-500)" }}
-                >
-                  Mapping Name
-                </label>
-                <input
-                  type="text"
-                  value={newMapping.name}
-                  onChange={(e) =>
-                    setNewMapping((p) => ({ ...p, name: e.target.value }))
-                  }
-                  placeholder="e.g. Savings Core → ISO 20022"
-                  className="w-full h-9 px-3 rounded-md text-[13px] focus:outline-none focus:ring-2"
-                  style={{
-                    border: "1px solid var(--border)",
-                    color: "var(--neutral-900)",
-                  }}
-                />
-              </div>
-
-              {/* Source */}
-              <div>
-                <label
-                  className="block text-[12px] font-medium mb-1.5 uppercase tracking-wide"
-                  style={{ color: "var(--neutral-500)" }}
-                >
-                  Source System
-                </label>
-                <div className="relative">
-                  <select
-                    value={newMapping.src}
-                    onChange={(e) =>
-                      setNewMapping((p) => ({ ...p, src: e.target.value }))
-                    }
-                    className="w-full h-9 pl-3 pr-8 rounded-md text-[13px] appearance-none focus:outline-none focus:ring-2 cursor-pointer"
-                    style={{
-                      border: "1px solid var(--border)",
-                      color: "var(--neutral-900)",
-                    }}
-                  >
-                    {SOURCE_OPTIONS.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
+            <div className="space-y-3">
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="bg-slate-100 dark:bg-slate-800">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-semibold">Source Field</th>
+                      <th className="px-3 py-2 text-left font-semibold">Target Canonical Field</th>
+                      <th className="px-3 py-2 text-left font-semibold">Transformation Rule</th>
+                      <th className="px-3 py-2 text-center font-semibold">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono">
+                    {editingMapping.rules.map((r) => (
+                      <tr key={r.id}>
+                        <td className="px-3 py-2.5 text-slate-800 dark:text-slate-200">{r.sourceField}</td>
+                        <td className="px-3 py-2.5 text-[#56B4D3]">{r.targetField}</td>
+                        <td className="px-3 py-2.5 text-slate-600 dark:text-slate-400">{r.transform}</td>
+                        <td className="px-3 py-2.5 text-center">
+                          {r.mapped ? (
+                            <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-700 font-bold">Mapped</span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded text-[10px] bg-amber-100 text-amber-700 font-bold">Unmapped</span>
+                          )}
+                        </td>
+                      </tr>
                     ))}
-                  </select>
-                  <ChevronDown
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none"
-                    style={{ color: "var(--neutral-400)" }}
-                  />
-                </div>
-              </div>
-
-              {/* Target Standard */}
-              <div>
-                <label
-                  className="block text-[12px] font-medium mb-1.5 uppercase tracking-wide"
-                  style={{ color: "var(--neutral-500)" }}
-                >
-                  Target Standard
-                </label>
-                <div className="relative">
-                  <select
-                    value={newMapping.target}
-                    onChange={(e) =>
-                      setNewMapping((p) => ({ ...p, target: e.target.value }))
-                    }
-                    className="w-full h-9 pl-3 pr-8 rounded-md text-[13px] appearance-none focus:outline-none focus:ring-2 cursor-pointer"
-                    style={{
-                      border: "1px solid var(--border)",
-                      color: "var(--neutral-900)",
-                    }}
-                  >
-                    {TARGET_OPTIONS.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none"
-                    style={{ color: "var(--neutral-400)" }}
-                  />
-                </div>
-              </div>
-
-              {/* Version */}
-              <div>
-                <label
-                  className="block text-[12px] font-medium mb-1.5 uppercase tracking-wide"
-                  style={{ color: "var(--neutral-500)" }}
-                >
-                  Initial Version
-                </label>
-                <input
-                  type="text"
-                  value={newMapping.version}
-                  onChange={(e) =>
-                    setNewMapping((p) => ({ ...p, version: e.target.value }))
-                  }
-                  placeholder="v1.0"
-                  className="w-full h-9 px-3 rounded-md font-mono text-[13px] focus:outline-none focus:ring-2"
-                  style={{
-                    border: "1px solid var(--border)",
-                    color: "var(--neutral-900)",
-                  }}
-                />
+                  </tbody>
+                </table>
               </div>
             </div>
 
-            <div className="flex gap-2 justify-end mt-6">
-              <SecondaryButton onClick={() => setShowNewModal(false)}>
-                Cancel
-              </SecondaryButton>
-              <PrimaryButton
-                onClick={() => {
-                  setShowNewModal(false)
-                  alert(
-                    `Mapping created: ${newMapping.name || "(unnamed)"} · ${newMapping.src} → ${newMapping.target} · ${newMapping.version}`
-                  )
-                }}
-              >
-                Create Mapping
-              </PrimaryButton>
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+              <SecondaryButton onClick={() => setEditingMapping(null)}>Close Editor</SecondaryButton>
             </div>
           </div>
         </div>
       )}
 
-      {/* ═══════════════════════════════════
-          EDIT MODAL
-      ═══════════════════════════════════ */}
-      {editingId && editingRow && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={() => setEditingId(null)}
-        >
-          <div
-            className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg mx-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <h2
-                  className="text-lg font-semibold"
-                  style={{ color: "var(--neutral-900)" }}
-                >
-                  Edit Mapping
-                </h2>
-                <div
-                  className="font-mono text-[11px] mt-0.5"
-                  style={{ color: "var(--neutral-400)" }}
-                >
-                  {editingRow.id}
-                </div>
-              </div>
-              <button
-                onClick={() => setEditingId(null)}
-                className="rounded-md p-1 transition-colors"
-                style={{ color: "var(--neutral-400)" }}
-                onMouseEnter={(e) =>
-                  ((e.currentTarget as HTMLElement).style.color =
-                    "var(--neutral-700)")
-                }
-                onMouseLeave={(e) =>
-                  ((e.currentTarget as HTMLElement).style.color =
-                    "var(--neutral-400)")
-                }
-              >
-                <X className="h-5 w-5" />
-              </button>
+      {/* Unmapped Fields Warning Modal (§5.5 REQ-MAP-008) */}
+      {publishWarning && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 text-amber-500 font-bold text-base pb-2 border-b border-slate-200 dark:border-slate-800">
+              <AlertTriangle className="h-6 w-6 shrink-0" />
+              <span>Warning: Unmapped Fields Present</span>
             </div>
-
-            <div className="flex flex-col gap-4">
-              <div>
-                <label
-                  className="block text-[12px] font-medium mb-1.5 uppercase tracking-wide"
-                  style={{ color: "var(--neutral-500)" }}
-                >
-                  Mapping Name
-                </label>
-                <input
-                  type="text"
-                  defaultValue={editingRow.name}
-                  className="w-full h-9 px-3 rounded-md text-[13px] focus:outline-none"
-                  style={{
-                    border: "1px solid var(--border)",
-                    color: "var(--neutral-900)",
-                  }}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label
-                    className="block text-[12px] font-medium mb-1.5 uppercase tracking-wide"
-                    style={{ color: "var(--neutral-500)" }}
-                  >
-                    Source
-                  </label>
-                  <input
-                    type="text"
-                    defaultValue={editingRow.src}
-                    className="w-full h-9 px-3 rounded-md text-[13px] focus:outline-none"
-                    style={{
-                      border: "1px solid var(--border)",
-                      color: "var(--neutral-900)",
-                    }}
-                  />
-                </div>
-                <div>
-                  <label
-                    className="block text-[12px] font-medium mb-1.5 uppercase tracking-wide"
-                    style={{ color: "var(--neutral-500)" }}
-                  >
-                    Version
-                  </label>
-                  <input
-                    type="text"
-                    defaultValue={editingRow.version}
-                    className="w-full h-9 px-3 font-mono rounded-md text-[13px] focus:outline-none"
-                    style={{
-                      border: "1px solid var(--border)",
-                      color: "var(--neutral-900)",
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-2 justify-end mt-6">
-              <SecondaryButton onClick={() => setEditingId(null)}>
-                Cancel
-              </SecondaryButton>
-              <PrimaryButton
-                onClick={() => {
-                  setEditingId(null)
-                  alert(`Changes saved for ${editingRow.name}`)
-                }}
-              >
-                Save Changes
-              </PrimaryButton>
+            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+              Mapping <strong className="text-slate-900 dark:text-white">{publishWarning.name}</strong> contains{" "}
+              <strong className="text-amber-500">{publishWarning.fields - publishWarning.mapped} unmapped fields</strong>.
+              Publishing will flag incoming missing target fields as warnings during pipeline ingestion.
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <SecondaryButton onClick={() => setPublishWarning(null)}>Cancel & Review</SecondaryButton>
+              <PrimaryButton onClick={() => executePublish(publishWarning.id)}>Publish Version Anyway</PrimaryButton>
             </div>
           </div>
         </div>
       )}
 
-      {/* ═══════════════════════════════════
-          DELETE CONFIRM MODAL
-      ═══════════════════════════════════ */}
-      {deleteId && deleteRow && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={() => setDeleteId(null)}
-        >
-          <div
-            className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h2
-                className="text-lg font-semibold"
-                style={{ color: "var(--neutral-900)" }}
-              >
-                Delete mapping?
-              </h2>
-              <button
-                onClick={() => setDeleteId(null)}
-                className="rounded-md p-1 transition-colors"
-                style={{ color: "var(--neutral-400)" }}
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
+      {/* Version History Drawer (REQ-MAP-005) */}
+      {historySource && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-end">
+          <div className="w-full max-w-md h-full bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-700 p-6 shadow-2xl flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800 mb-4">
+                <div>
+                  <h2 className="font-bold text-base text-slate-900 dark:text-white">Mapping Version History</h2>
+                  <p className="text-xs text-[#56B4D3] font-semibold">{historySource.name}</p>
+                </div>
+                <button onClick={() => setHistorySource(null)} className="text-slate-400 hover:text-slate-600">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
 
-            <div
-              className="flex items-start gap-3 p-4 rounded-lg mb-5"
-              style={{ backgroundColor: "var(--fail-bg)" }}
-            >
-              <AlertTriangle
-                className="h-5 w-5 shrink-0 mt-0.5"
-                style={{ color: "var(--fail)" }}
-              />
-              <div>
-                <p
-                  className="font-semibold text-[13px]"
-                  style={{ color: "var(--neutral-900)" }}
-                >
-                  {deleteRow.name}
-                </p>
-                <p
-                  className="text-[12px] mt-1"
-                  style={{ color: "var(--neutral-600)" }}
-                >
-                  This cannot be undone. All {deleteRow.versions.length} version
-                  {deleteRow.versions.length !== 1 ? "s" : ""} will be
-                  permanently removed.
-                </p>
+              <div className="space-y-3 font-mono text-xs">
+                {historySource.versions.map((ver, idx) => (
+                  <div key={idx} className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex items-center justify-between">
+                    <div>
+                      <span className="font-bold text-[#56B4D3]">{ver.v}</span>
+                      <span className="text-[11px] text-slate-400 block mt-0.5">Published by {ver.by}</span>
+                    </div>
+                    <span className="text-slate-500 font-semibold">{ver.date}</span>
+                  </div>
+                ))}
               </div>
             </div>
 
-            <div className="flex gap-2 justify-end">
-              <SecondaryButton onClick={() => setDeleteId(null)}>
-                Cancel
-              </SecondaryButton>
-              <button
-                onClick={() => {
-                  setDeleteId(null)
-                  alert(`Deleted: ${deleteRow.name}`)
-                }}
-                className="h-9 px-4 rounded-lg text-sm font-semibold text-white inline-flex items-center gap-1.5 transition-opacity"
-                style={{ backgroundColor: "var(--fail)" }}
-                onMouseEnter={(e) =>
-                  ((e.currentTarget as HTMLElement).style.opacity = "0.85")
-                }
-                onMouseLeave={(e) =>
-                  ((e.currentTarget as HTMLElement).style.opacity = "1")
-                }
-              >
-                <Trash2 className="h-4 w-4" />
-                Delete
-              </button>
+            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex justify-end">
+              <SecondaryButton onClick={() => setHistorySource(null)}>Close History</SecondaryButton>
             </div>
           </div>
         </div>
       )}
     </AppShell>
-  )
+  );
 }
