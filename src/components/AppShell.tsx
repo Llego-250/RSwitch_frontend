@@ -13,38 +13,80 @@ type Item = { key: ModuleKey; label: string; to: string; icon: typeof Plug };
 
 const CLUSTERS: { title: string; items: Item[] }[] = [
   {
-    title: "Connect",
+    title: "Connect & Ingest",
     items: [
       { key: "dashboard",    label: "Dashboard",           to: "/",             icon: LayoutDashboard },
-      { key: "integrations", label: "Integrations",        to: "/integrations", icon: Plug },
+      { key: "integrations", label: "Integrations Catalog", to: "/integrations", icon: Plug },
       { key: "mapping",      label: "Standards & Mapping", to: "/mapping",      icon: GitBranch },
-      { key: "pipelines",    label: "Pipelines",           to: "/pipelines",    icon: Workflow },
+      { key: "pipelines",    label: "Pipeline Monitor",    to: "/pipelines",    icon: Workflow },
     ],
   },
   {
-    title: "Govern",
+    title: "Govern & Comply",
     items: [
-      { key: "customer360",  label: "Customer 360",        to: "/customer-360", icon: Users2 },
-      { key: "governance",   label: "Governance",          to: "/governance",   icon: Scale },
-      { key: "compliance",   label: "Compliance",          to: "/compliance",   icon: FileCheck2 },
+      { key: "customer360",  label: "Participant 360",     to: "/customer-360", icon: Users2 },
+      { key: "governance",   label: "Governance Center",   to: "/governance",   icon: Scale },
+      { key: "compliance",   label: "Compliance Register", to: "/compliance",   icon: FileCheck2 },
     ],
   },
   {
-    title: "Decide",
+    title: "Intelligence & Reports",
     items: [
       { key: "ai",           label: "AI Decision Support", to: "/ai",           icon: Brain },
-      { key: "credit",       label: "Credit Risk",         to: "/credit-risk",  icon: ClipboardList },
-      { key: "fraud",        label: "Fraud Detection",     to: "/fraud",        icon: AlertTriangle },
       { key: "inclusion",    label: "Financial Inclusion", to: "/inclusion",    icon: Sparkles },
-      { key: "reports",      label: "Reports",             to: "/reports",      icon: FileText },
+      { key: "reports",      label: "Report Generator",    to: "/reports",      icon: FileText },
     ],
   },
   {
-    title: "Admin",
+    title: "Administration",
     items: [
       { key: "users",        label: "Users & Security",    to: "/users",        icon: Lock },
-      { key: "settings",     label: "Settings",            to: "/settings",     icon: Settings },
+      { key: "settings",     label: "System Settings",     to: "/settings",     icon: Settings },
     ],
+  },
+];
+
+type NotificationItem = {
+  id: string;
+  title: string;
+  desc: string;
+  time: string;
+  read: boolean;
+  type: "alert" | "info" | "warning";
+};
+
+const INITIAL_NOTIFS: NotificationItem[] = [
+  {
+    id: "n1",
+    title: "ERP Pipeline Failed",
+    desc: "Ingestion job erp-nightly-ingest failed connection validation.",
+    time: "10m ago",
+    read: false,
+    type: "alert",
+  },
+  {
+    id: "n2",
+    title: "FSA Quarterly Return Due Soon",
+    desc: "Deadline for FSA-Q2-2025 is in 14 days.",
+    time: "1h ago",
+    read: false,
+    type: "warning",
+  },
+  {
+    id: "n3",
+    title: "AI Deviation Alert Generated",
+    desc: "MTN Mobile Money error rate spike (+4.2%) detected by engine.",
+    time: "2h ago",
+    read: false,
+    type: "alert",
+  },
+  {
+    id: "n4",
+    title: "New Governance Document Uploaded",
+    desc: "Board Minutes v2.1 added by Compliance Officer.",
+    time: "1d ago",
+    read: true,
+    type: "info",
   },
 ];
 
@@ -69,6 +111,20 @@ export function AppShell({
   const [roleOpen, setRoleOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [isDark, setIsDark] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifs, setNotifs] = useState<NotificationItem[]>(INITIAL_NOTIFS);
+
+  const unreadCount = notifs.filter((n) => !n.read).length;
+
+  const markAllAsRead = () => {
+    setNotifs((prev) => prev.map((n) => ({ ...n, read: true })));
+  };
+
+  const toggleRead = (id: string) => {
+    setNotifs((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: !n.read } : n))
+    );
+  };
 
   const avatarInitial = roleLabel.charAt(0).toUpperCase();
 
@@ -98,16 +154,16 @@ export function AppShell({
             <div className={`h-11 w-11 rounded-full ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-[#E5ECEF] border-white/80'} border shadow-inner flex items-center justify-center p-1 overflow-hidden shrink-0`}>
               <img
                 src="/insight-navigator-logo.png"
-                alt="NAVEXA logo"
+                alt="RDIP logo"
                 className="h-full w-full object-contain"
               />
             </div>
             <div>
               <div className={`font-bold text-[15px] leading-tight tracking-wide ${isDark ? 'text-white' : 'text-[#1E293B]'}`}>
-                NAVEXA
+                RDIP PLATFORM
               </div>
               <div className="text-[10px] font-medium tracking-widest uppercase text-[#718596] leading-none mt-0.5">
-                CLIENT PORTAL
+                RSWITCH INTELLIGENCE
               </div>
             </div>
           </Link>
@@ -276,13 +332,89 @@ export function AppShell({
               <ChevronDown className="h-3.5 w-3.5 text-[#7A8E9C]" />
             </div>
 
-            {/* Date & Notifications Pill */}
-            <div className={`hidden sm:flex h-11 px-4 rounded-full ${
-              isDark ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-[#DAE2E7] text-[#526678] border-white/60'
-            } hover:bg-white dark:hover:bg-slate-700 items-center gap-2.5 text-xs font-mono border shadow-sm transition-all`}>
-              <Bell className="h-4 w-4 text-[#7A8E9C]" />
-              <span>{new Date().toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" })}</span>
-              <span className="h-2 w-2 rounded-full bg-[#10B981] animate-pulse" />
+            {/* Notifications Bell Button */}
+            <div className="relative">
+              <button
+                onClick={() => setNotifOpen(!notifOpen)}
+                aria-label="View notifications"
+                className={`h-11 px-4 rounded-full ${
+                  isDark ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-[#DAE2E7] text-[#526678] border-white/60'
+                } hover:bg-white dark:hover:bg-slate-700 flex items-center gap-2 text-xs font-mono border shadow-sm transition-all relative cursor-pointer`}
+              >
+                <Bell className="h-4 w-4 text-[#56B4D3]" />
+                <span>{new Date().toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" })}</span>
+                {unreadCount > 0 ? (
+                  <span className="h-4 px-1.5 rounded-full bg-red-500 text-white font-bold text-[10px] flex items-center justify-center animate-pulse">
+                    {unreadCount}
+                  </span>
+                ) : (
+                  <span className="h-2 w-2 rounded-full bg-[#10B981]" />
+                )}
+              </button>
+
+              {/* Notification Popover Modal (§5.12) */}
+              {notifOpen && (
+                <div
+                  className={`absolute right-0 top-full mt-2 w-80 sm:w-96 rounded-2xl border shadow-2xl p-4 z-50 ${
+                    isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'
+                  }`}
+                >
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+                    <div className="flex items-center gap-2">
+                      <Bell className="h-4 w-4 text-[#56B4D3]" />
+                      <span className="font-bold text-sm">Notifications ({unreadCount} unread)</span>
+                    </div>
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={markAllAsRead}
+                        className="text-[11px] text-[#56B4D3] hover:underline font-medium"
+                      >
+                        Mark all as read
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="max-h-72 overflow-y-auto py-2 space-y-2 divide-y divide-slate-100 dark:divide-slate-800">
+                    {notifs.map((n) => (
+                      <div
+                        key={n.id}
+                        onClick={() => toggleRead(n.id)}
+                        className={`pt-2 flex items-start gap-2.5 cursor-pointer p-2 rounded-xl transition-colors ${
+                          !n.read
+                            ? isDark ? 'bg-slate-800/80' : 'bg-blue-50/70'
+                            : 'hover:bg-slate-100 dark:hover:bg-slate-800/50'
+                        }`}
+                      >
+                        <span
+                          className={`h-2 w-2 rounded-full shrink-0 mt-1.5 ${
+                            n.type === "alert"
+                              ? "bg-red-500"
+                              : n.type === "warning"
+                              ? "bg-amber-500"
+                              : "bg-blue-500"
+                          }`}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-xs truncate">{n.title}</span>
+                            <span className="text-[10px] text-slate-400 font-mono shrink-0 ml-1">{n.time}</span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">{n.desc}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-200 dark:border-slate-800 text-center">
+                    <button
+                      onClick={() => setNotifOpen(false)}
+                      className="text-xs font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                    >
+                      Close Notifications
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
           </div>
