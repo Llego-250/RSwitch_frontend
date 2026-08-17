@@ -15,33 +15,33 @@ const CLUSTERS: { title: string; items: Item[] }[] = [
   {
     title: "Connect & Ingest",
     items: [
-      { key: "dashboard",    label: "Dashboard",           to: "/",             icon: LayoutDashboard },
+      { key: "dashboard", label: "Dashboard", to: "/", icon: LayoutDashboard },
       { key: "integrations", label: "Integrations Catalog", to: "/integrations", icon: Plug },
-      { key: "mapping",      label: "Standards & Mapping", to: "/mapping",      icon: GitBranch },
-      { key: "pipelines",    label: "Pipeline Monitor",    to: "/pipelines",    icon: Workflow },
+      { key: "mapping", label: "Standards & Mapping", to: "/mapping", icon: GitBranch },
+      { key: "pipelines", label: "Pipeline Monitor", to: "/pipelines", icon: Workflow },
     ],
   },
   {
     title: "Govern & Comply",
     items: [
-      { key: "customer360",  label: "Participant 360",     to: "/customer-360", icon: Users2 },
-      { key: "governance",   label: "Governance Center",   to: "/governance",   icon: Scale },
-      { key: "compliance",   label: "Compliance Register", to: "/compliance",   icon: FileCheck2 },
+      { key: "customer360", label: "Participant 360", to: "/customer-360", icon: Users2 },
+      { key: "governance", label: "Governance Center", to: "/governance", icon: Scale },
+      { key: "compliance", label: "Compliance Register", to: "/compliance", icon: FileCheck2 },
     ],
   },
   {
     title: "Intelligence & Reports",
     items: [
-      { key: "ai",           label: "AI Decision Support", to: "/ai",           icon: Brain },
-      { key: "inclusion",    label: "Financial Inclusion", to: "/inclusion",    icon: Sparkles },
-      { key: "reports",      label: "Report Generator",    to: "/reports",      icon: FileText },
+      { key: "ai", label: "AI Decision Support", to: "/ai", icon: Brain },
+      { key: "inclusion", label: "Financial Inclusion", to: "/inclusion", icon: Sparkles },
+      { key: "reports", label: "Report Generator", to: "/reports", icon: FileText },
     ],
   },
   {
     title: "Administration",
     items: [
-      { key: "users",        label: "Users & Security",    to: "/users",        icon: Lock },
-      { key: "settings",     label: "System Settings",     to: "/settings",     icon: Settings },
+      { key: "users", label: "Users & Security", to: "/users", icon: Lock },
+      { key: "settings", label: "System Settings", to: "/settings", icon: Settings },
     ],
   },
 ];
@@ -248,11 +248,10 @@ export function AppShell({
                 <button
                   key={r.id}
                   onClick={() => { setRole(r.id); setRoleOpen(false); }}
-                  className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-colors ${
-                    role === r.id
+                  className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-colors ${role === r.id
                       ? "bg-[#56B4D3]/15 text-[#56B4D3] font-semibold"
                       : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
-                  }`}
+                    }`}
                 >
                   <span>{r.label}</span>
                   {role === r.id && <span className="h-1.5 w-1.5 rounded-full bg-[#56B4D3]" />}
@@ -269,15 +268,6 @@ export function AppShell({
             </div>
           )}
         </div>
-
-        {/* Bottom Sidebar Brand Tag */}
-        <div className="pt-2 flex items-center justify-between px-2 text-[10px] font-mono text-slate-400 dark:text-slate-500 border-t border-slate-200/60 dark:border-slate-800/60 mt-1">
-          <div className="flex items-center gap-1.5 opacity-85 hover:opacity-100 transition-opacity">
-            <img src="/insight-navigator-logo.png" alt="Insight Navigator" className="h-3.5 w-3.5 object-contain filter drop-shadow-xs" />
-            <span className="font-semibold text-slate-600 dark:text-slate-400">Insight Navigator</span>
-          </div>
-          <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 font-bold border border-emerald-500/20">LIVE</span>
-        </div>
       </aside>
 
       {/* Mobile nav overlay */}
@@ -293,7 +283,7 @@ export function AppShell({
 
         {/* ─── TOP UTILITY HEADER BAR ─── */}
         <header className="flex items-center justify-between gap-3 h-11 shrink-0">
-          
+
           {/* Mobile menu button */}
           <button
             onClick={() => setMobileNavOpen(true)}
@@ -308,48 +298,33 @@ export function AppShell({
             <input
               type="search"
               placeholder="Search client portal..."
-              className={`w-full h-full pl-11 pr-5 rounded-full ${
-                isDark
+              className={`w-full h-full pl-11 pr-5 rounded-full ${isDark
                   ? 'bg-slate-800/80 text-white placeholder:text-slate-400 border-slate-700'
                   : 'bg-[#DAE2E7] hover:bg-[#D6E0E6] text-[#1E293B] placeholder:text-[#7A8E9C] border-white/60'
-              } focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-[#56B4D3]/40 text-sm font-medium transition-all border shadow-inner outline-none`}
+                } focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-[#56B4D3]/40 text-sm font-medium transition-all border shadow-inner outline-none`}
             />
           </div>
 
           {/* Right Top Bar Utilities */}
           <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-            
+
             {/* Dark/Light mode toggle button */}
             <button
               onClick={toggleDarkMode}
               aria-label="Toggle theme"
-              className={`h-11 w-11 rounded-full ${
-                isDark ? 'bg-slate-800 text-amber-400 border-slate-700' : 'bg-[#DAE2E7] text-[#526678] border-white/60'
-              } hover:bg-white dark:hover:bg-slate-700 flex items-center justify-center border shadow-sm transition-all`}
+              className={`h-11 w-11 rounded-full ${isDark ? 'bg-slate-800 text-amber-400 border-slate-700' : 'bg-[#DAE2E7] text-[#526678] border-white/60'
+                } hover:bg-white dark:hover:bg-slate-700 flex items-center justify-center border shadow-sm transition-all`}
             >
               {isDark ? <Sun className="h-4.5 w-4.5" /> : <Moon className="h-4.5 w-4.5" />}
             </button>
-
-            {/* Currency / Scope Pill */}
-            <div
-              onClick={() => setRoleOpen(!roleOpen)}
-              className={`h-11 px-4 rounded-full ${
-                isDark ? 'bg-slate-800 text-slate-200 border-slate-700' : 'bg-[#DAE2E7] text-[#3B4C5A] border-white/60'
-              } hover:bg-white dark:hover:bg-slate-700 flex items-center gap-2 text-xs font-semibold border shadow-sm transition-all cursor-pointer`}
-            >
-              <DollarSign className="h-3.5 w-3.5 text-[#56B4D3]" />
-              <span>USD</span>
-              <ChevronDown className="h-3.5 w-3.5 text-[#7A8E9C]" />
-            </div>
 
             {/* Notifications Bell Button */}
             <div className="relative">
               <button
                 onClick={() => setNotifOpen(!notifOpen)}
                 aria-label="View notifications"
-                className={`h-11 px-4 rounded-full ${
-                  isDark ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-[#DAE2E7] text-[#526678] border-white/60'
-                } hover:bg-white dark:hover:bg-slate-700 flex items-center gap-2 text-xs font-mono border shadow-sm transition-all relative cursor-pointer`}
+                className={`h-11 px-4 rounded-full ${isDark ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-[#DAE2E7] text-[#526678] border-white/60'
+                  } hover:bg-white dark:hover:bg-slate-700 flex items-center gap-2 text-xs font-mono border shadow-sm transition-all relative cursor-pointer`}
               >
                 <Bell className="h-4 w-4 text-[#56B4D3]" />
                 <span>{new Date().toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" })}</span>
@@ -365,9 +340,8 @@ export function AppShell({
               {/* Notification Popover Modal (§5.12) */}
               {notifOpen && (
                 <div
-                  className={`absolute right-0 top-full mt-2 w-80 sm:w-96 rounded-2xl border shadow-2xl p-4 z-50 ${
-                    isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'
-                  }`}
+                  className={`absolute right-0 top-full mt-2 w-80 sm:w-96 rounded-2xl border shadow-2xl p-4 z-50 ${isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'
+                    }`}
                 >
                   <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
                     <div className="flex items-center gap-2">
@@ -389,20 +363,18 @@ export function AppShell({
                       <div
                         key={n.id}
                         onClick={() => toggleRead(n.id)}
-                        className={`pt-2 flex items-start gap-2.5 cursor-pointer p-2 rounded-xl transition-colors ${
-                          !n.read
+                        className={`pt-2 flex items-start gap-2.5 cursor-pointer p-2 rounded-xl transition-colors ${!n.read
                             ? isDark ? 'bg-slate-800/80' : 'bg-blue-50/70'
                             : 'hover:bg-slate-100 dark:hover:bg-slate-800/50'
-                        }`}
+                          }`}
                       >
                         <span
-                          className={`h-2 w-2 rounded-full shrink-0 mt-1.5 ${
-                            n.type === "alert"
+                          className={`h-2 w-2 rounded-full shrink-0 mt-1.5 ${n.type === "alert"
                               ? "bg-red-500"
                               : n.type === "warning"
-                              ? "bg-amber-500"
-                              : "bg-blue-500"
-                          }`}
+                                ? "bg-amber-500"
+                                : "bg-blue-500"
+                            }`}
                         />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between">
@@ -433,7 +405,7 @@ export function AppShell({
         {/* ─── MAIN CONTENT FRAME (Double curved floating sheet) ─── */}
         <div className={`relative flex-1 ${isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-[#DCE4E9]/90 border-white/60'} rounded-[34px] p-2.5 lg:p-3 flex flex-col overflow-hidden border shadow-sm`}>
           <div className={`w-full h-full ${isDark ? 'bg-[#17222B] border-slate-800' : 'bg-[#F4F7F9] border-white/90'} rounded-[28px] flex flex-col overflow-hidden border shadow-[0_10px_35px_rgba(0,0,0,0.03)]`}>
-            
+
             {/* Header bar inside main panel */}
             <div className={`px-6 py-4 border-b ${isDark ? 'border-slate-800 bg-slate-900/50' : 'border-[#E3EAEE] bg-white/60'} backdrop-blur-sm flex flex-wrap items-center justify-between gap-4 shrink-0`}>
               <div className="min-w-0">
