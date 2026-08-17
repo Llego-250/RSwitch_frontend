@@ -161,7 +161,7 @@ const PROGRESS_COLOR: Record<string, string> = {
   queued: "var(--neutral-200)",
 }
 
-export default function PipelineMonitor() {
+function PipelineMonitor() {
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [expandedId, setExpandedId] = useState<string | null>(null)
