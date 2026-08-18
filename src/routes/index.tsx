@@ -97,7 +97,8 @@ function Dashboard() {
 
   return (
     <AppShell
-      title={`${roleLabel} Operational Dashboard`}
+      title="Operations Dashboard"
+      subtitle="Integration, ingestion & participant monitoring"
       breadcrumb="RDIP › DASHBOARD"
       scope={scope}
       primaryAction={
@@ -134,14 +135,14 @@ function Dashboard() {
           <div className="ml-auto flex items-center gap-2">
             <button
               onClick={() => setAutoRefresh((v) => !v)}
-              className={`px-3 py-1.5 rounded-full border transition-all flex items-center gap-1.5 text-xs font-mono cursor-pointer shadow-2xs ${
+              className={`px-3 py-1.5 rounded-xl border transition-all flex items-center gap-1.5 text-xs font-sans font-medium cursor-pointer shadow-2xs ${
                 autoRefresh
-                  ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 font-bold"
-                  : "bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700"
+                  ? "bg-[#E8F7F1] text-[#16A979] border-[#16A979]/30 font-semibold"
+                  : "bg-white dark:bg-slate-800 text-[#526174] dark:text-slate-300 border-[#DCE3E8] dark:border-slate-700"
               }`}
               aria-label={autoRefresh ? "Pause 5m auto-refresh" : "Enable 5m auto-refresh"}
             >
-              <RefreshCw className={`h-3.5 w-3.5 ${autoRefresh ? "animate-spin text-emerald-500" : ""}`} />
+              <RefreshCw className={`h-3.5 w-3.5 ${autoRefresh ? "animate-spin text-[#16A979]" : ""}`} />
               <span>{autoRefresh ? "5m Refresh Active" : "Auto-Refresh Off"}</span>
             </button>
           </div>
@@ -153,7 +154,7 @@ function Dashboard() {
         {role === "compliance" ? (
           <>
             <KpiCard
-              label="Overdue Submissions"
+              label="Overdue submissions"
               value="2"
               delta={{ dir: "up", text: "+1", tone: "bad" }}
               source="compliance-reg"
@@ -161,21 +162,21 @@ function Dashboard() {
               updated="12:00"
             />
             <KpiCard
-              label="Upcoming Deadlines (30d)"
+              label="Upcoming deadlines (30d)"
               value="5"
               context="Next: Jul 15"
               source="calendar"
               freshness="live"
             />
             <KpiCard
-              label="Open Incidents"
+              label="Open incidents"
               value="3"
               context="1 Critical, 2 Medium"
               source="incidents-db"
               freshness="live"
             />
             <KpiCard
-              label="Compliance Rate (30d)"
+              label="Compliance rate (30d)"
               value="94.2%"
               delta={{ dir: "up", text: "+1.5pp", tone: "good" }}
               source="audit-engine"
@@ -185,28 +186,28 @@ function Dashboard() {
         ) : role === "business" ? (
           <>
             <KpiCard
-              label="Integration Health"
+              label="Integration health"
               value="7 / 8"
               context="1 Failed (Inkomoko)"
               source="integrations"
               freshness="live"
             />
             <KpiCard
-              label="Unacknowledged AI Alerts"
+              label="Unacknowledged AI alerts"
               value="2"
               delta={{ dir: "up", text: "+1", tone: "bad" }}
               source="ai-engine"
               freshness="live"
             />
             <KpiCard
-              label="Active Inclusion Accounts"
+              label="Active inclusion accounts"
               value="4.2M"
               delta={{ dir: "up", text: "+8.4%", tone: "good" }}
               source="inclusion-agg"
               freshness="live"
             />
             <KpiCard
-              label="Avg Composite Risk Score"
+              label="Avg composite risk score"
               value="34.8"
               context="Low-Medium Risk"
               source="p360-score"
@@ -216,28 +217,28 @@ function Dashboard() {
         ) : (
           <>
             <KpiCard
-              label="Active Pipelines"
+              label="Active pipelines"
               value="6 / 7"
-              context="1 Failed today"
+              context="● 1 failed today"
               source="pipeline-mon"
               freshness="live"
             />
             <KpiCard
-              label="Failed Integrations"
+              label="Failed integrations"
               value="1"
               delta={{ dir: "up", text: "+1", tone: "bad" }}
               source="catalog"
               freshness="live"
             />
             <KpiCard
-              label="System Uptime (30d)"
+              label="System uptime (30d)"
               value="99.82%"
               delta={{ dir: "up", text: "+0.02pp", tone: "good" }}
               source="uptime-mon"
               freshness="live"
             />
             <KpiCard
-              label="Pending Mappings"
+              label="Pending mappings"
               value="2"
               context="Draft v1.0"
               source="standards-map"
@@ -254,12 +255,12 @@ function Dashboard() {
           <SectionCard
             title={
               <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-[#56B4D3]" />
+                <Sparkles className="h-4.5 w-4.5 text-[#168FA8]" />
                 <span>Participant Operational & Ingestion Trend (60 days)</span>
               </div>
             }
             action={
-              <span className="text-[12px] font-mono text-slate-700 dark:text-slate-200 font-bold">
+              <span className="text-xs font-sans text-[#7B8798] dark:text-slate-400 font-medium">
                 Filtered: {instType} ({selectedRegion})
               </span>
             }
@@ -268,51 +269,51 @@ function Dashboard() {
               <AreaChart data={riskTrendData} margin={{ top: 15, right: 15, left: -15, bottom: 20 }}>
                 <defs>
                   <linearGradient id="colorArea" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#56B4D3" stopOpacity={0.45}/>
-                    <stop offset="95%" stopColor="#56B4D3" stopOpacity={0.02}/>
+                    <stop offset="5%" stopColor="#168FA8" stopOpacity={0.25}/>
+                    <stop offset="95%" stopColor="#E7F5F8" stopOpacity={0.0}/>
                   </linearGradient>
                 </defs>
                 <XAxis
                   dataKey="d"
-                  tick={{ fontSize: 11, fontFamily: "monospace", fill: "#334155", fontWeight: 700 }}
+                  tick={{ fontSize: 11, fontFamily: "Inter, sans-serif", fill: "#7B8798", fontWeight: 500 }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <YAxis
                   domain={[0, 60]}
-                  tick={{ fontSize: 11, fontFamily: "monospace", fill: "#334155", fontWeight: 700 }}
+                  tick={{ fontSize: 11, fontFamily: "Inter, sans-serif", fill: "#7B8798", fontWeight: 500 }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: "rgba(15, 23, 42, 0.95)",
-                    borderColor: "rgba(51, 65, 85, 0.9)",
-                    borderRadius: "12px",
+                    backgroundColor: "#172033",
+                    borderColor: "#0F6F83",
+                    borderRadius: "10px",
                     fontSize: "12px",
-                    fontFamily: "monospace",
-                    color: "#F8FAFC",
-                    boxShadow: "0 10px 25px rgba(0,0,0,0.3)",
+                    fontFamily: "Inter, sans-serif",
+                    color: "#FFFFFF",
+                    boxShadow: "0 8px 20px rgba(0,0,0,0.15)",
                   }}
-                  cursor={{ stroke: "#56B4D3", strokeWidth: 1.5, strokeDasharray: "4 4" }}
+                  cursor={{ stroke: "#168FA8", strokeWidth: 1.5, strokeDasharray: "4 4" }}
                 />
                 <Area
                   type="monotone"
                   dataKey="v"
-                  stroke="#267A99"
-                  strokeWidth={3.5}
+                  stroke="#168FA8"
+                  strokeWidth={3}
                   fillOpacity={1}
                   fill="url(#colorArea)"
-                  activeDot={{ r: 7, fill: "#267A99", stroke: "#FFFFFF", strokeWidth: 2.5 }}
+                  activeDot={{ r: 6, fill: "#168FA8", stroke: "#FFFFFF", strokeWidth: 2 }}
                 />
               </AreaChart>
             </ResponsiveContainer>
-            <div className="mt-3 font-mono text-xs text-slate-600 dark:text-slate-300 flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800">
-              <span className="flex items-center gap-2 font-bold">
-                <span className="h-2.5 w-2.5 rounded-full bg-[#56B4D3] animate-pulse" />
+            <div className="mt-3 font-sans text-xs text-[#526174] dark:text-slate-300 flex items-center justify-between pt-3 border-t border-[#DCE3E8] dark:border-slate-800">
+              <span className="flex items-center gap-2 font-medium">
+                <span className="h-2 w-2 rounded-full bg-[#16A979] animate-pulse" />
                 RDIP Ingestion Monitor · 8 Participants Active
               </span>
-              <span className="text-[#267A99] dark:text-[#56B4D3] font-black">Volume Average: 217k tx/day</span>
+              <span className="text-[#168FA8] dark:text-sky-400 font-semibold">Volume Average: 217k tx/day</span>
             </div>
           </SectionCard>
         </div>
@@ -322,49 +323,45 @@ function Dashboard() {
           <SectionCard
             title={
               <div className="flex items-center gap-2">
-                <Bell className="h-4 w-4 text-amber-500" />
+                <Bell className="h-4.5 w-4.5 text-[#D97706]" />
                 <span>Attention Queue</span>
               </div>
             }
             action={
-              <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-800 dark:text-amber-300 font-black border border-amber-500/40">
+              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#FFF3DF] text-[#D97706] border border-[#D97706]/30">
                 {visibleAlerts.length} Active
               </span>
             }
           >
-            <div className="flex flex-col gap-2.5">
+            <div className="flex flex-col gap-3">
               {visibleAlerts.length === 0 && (
-                <div className="text-sm py-10 text-center text-slate-500 font-semibold">
+                <div className="text-sm py-10 text-center text-[#7B8798] font-medium">
                   All attention items dismissed for current session.
                 </div>
               )}
               {visibleAlerts.map((alert) => (
                 <div
                   key={alert.id}
-                  className="flex items-start gap-3 rounded-2xl p-3.5 transition-all border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xs hover:shadow-md group"
-                  style={{
-                    borderLeftWidth: "5px",
-                    borderLeftColor: SEV_BORDER[alert.sev],
-                  }}
+                  className="flex items-start gap-3 rounded-xl p-3.5 transition-all border border-[#DCE3E8] dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs hover:shadow-md group"
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1 mb-1.5">
                       <StatusBadge status={alert.sev} />
-                      <span className="text-xs font-mono text-slate-700 dark:text-slate-200 font-bold truncate">{alert.institution}</span>
+                      <span className="text-xs font-semibold text-[#172033] dark:text-slate-100 font-sans truncate">{alert.institution}</span>
                     </div>
-                    <p className="text-xs font-black text-slate-900 dark:text-slate-100 leading-snug">
+                    <p className="text-xs font-semibold text-[#172033] dark:text-slate-100 leading-snug">
                       {alert.title}
                     </p>
-                    <div className="flex items-center gap-4 mt-2.5 pt-2 border-t border-slate-200 dark:border-slate-800">
+                    <div className="flex items-center gap-4 mt-2.5 pt-2 border-t border-[#DCE3E8] dark:border-slate-800">
                       <Link
                         to={alert.to}
-                        className="text-xs font-mono text-[#267A99] dark:text-[#56B4D3] font-black hover:underline inline-flex items-center gap-1"
+                        className="text-xs font-semibold text-[#168FA8] hover:text-[#0F6F83] hover:underline inline-flex items-center gap-1"
                       >
                         Investigate <ArrowUpRight className="h-3.5 w-3.5" />
                       </Link>
                       <button
                         onClick={() => dismiss(alert.id)}
-                        className="text-xs font-mono text-slate-500 hover:text-slate-800 dark:hover:text-slate-100 transition-colors cursor-pointer font-bold"
+                        className="text-xs text-[#7B8798] hover:text-[#172033] dark:hover:text-slate-100 transition-colors cursor-pointer font-medium"
                       >
                         Dismiss
                       </button>
