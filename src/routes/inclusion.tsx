@@ -72,6 +72,7 @@ function Inclusion() {
   return (
     <AppShell
       title="Financial Inclusion Analytics"
+      subtitle="Demographic coverage, unbanked metrics, and alt-data scoring"
       breadcrumb="DECIDE › INCLUSION"
       scope="all-regions"
       primaryAction={
@@ -90,7 +91,7 @@ function Inclusion() {
       {/* ── ROW 1: KPI cards ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
         <KpiCard
-          label="Total Unbanked Population"
+          label="Total unbanked population"
           value="2.1M"
           delta={{ dir: "down", text: "−8%", tone: "good" }}
           context="Reduction vs prior period"
@@ -98,7 +99,7 @@ function Inclusion() {
           updated="12:00"
         />
         <KpiCard
-          label="Financial Access Rate"
+          label="Financial access rate"
           value="67.3%"
           delta={{ dir: "up", text: "+4.2 pp", tone: "good" }}
           context="Share of adult population"
@@ -106,7 +107,7 @@ function Inclusion() {
           updated="12:00"
         />
         <KpiCard
-          label="Mobile Money Users"
+          label="Mobile money users"
           value="1.4M"
           delta={{ dir: "up", text: "+12%", tone: "good" }}
           context="Active wallets, last 30 d"
@@ -114,7 +115,7 @@ function Inclusion() {
           updated="11:50"
         />
         <KpiCard
-          label="Approval Rate (Thin-file)"
+          label="Approval rate (Thin-file)"
           value="38%"
           delta={{ dir: "up", text: "+5 pp", tone: "good" }}
           context="Alt-data scoring enabled"
