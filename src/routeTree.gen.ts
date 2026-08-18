@@ -14,13 +14,13 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as PipelinesRouteImport } from './routes/pipelines'
 import { Route as Participant360RouteImport } from './routes/participant-360'
+import { Route as ParticipantRouteImport } from './routes/participant'
 import { Route as MappingRouteImport } from './routes/mapping'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IntegrationsRouteImport } from './routes/integrations'
 import { Route as InclusionRouteImport } from './routes/inclusion'
 import { Route as GovernanceRouteImport } from './routes/governance'
 import { Route as FraudRouteImport } from './routes/fraud'
-import { Route as Customer360RouteImport } from './routes/customer-360'
 import { Route as CreditRiskRouteImport } from './routes/credit-risk'
 import { Route as ComplianceRouteImport } from './routes/compliance'
 import { Route as AiRouteImport } from './routes/ai'
@@ -49,6 +49,11 @@ const PipelinesRoute = PipelinesRouteImport.update({
 const Participant360Route = Participant360RouteImport.update({
   id: '/participant-360',
   path: '/participant-360',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ParticipantRoute = ParticipantRouteImport.update({
+  id: '/participant',
+  path: '/participant',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MappingRoute = MappingRouteImport.update({
@@ -81,11 +86,6 @@ const FraudRoute = FraudRouteImport.update({
   path: '/fraud',
   getParentRoute: () => rootRouteImport,
 } as any)
-const Customer360Route = Customer360RouteImport.update({
-  id: '/customer-360',
-  path: '/customer-360',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const CreditRiskRoute = CreditRiskRouteImport.update({
   id: '/credit-risk',
   path: '/credit-risk',
@@ -112,13 +112,13 @@ export interface FileRoutesByFullPath {
   '/ai': typeof AiRoute
   '/compliance': typeof ComplianceRoute
   '/credit-risk': typeof CreditRiskRoute
-  '/customer-360': typeof Customer360Route
   '/fraud': typeof FraudRoute
   '/governance': typeof GovernanceRoute
   '/inclusion': typeof InclusionRoute
   '/integrations': typeof IntegrationsRoute
   '/login': typeof LoginRoute
   '/mapping': typeof MappingRoute
+  '/participant': typeof ParticipantRoute
   '/participant-360': typeof Participant360Route
   '/pipelines': typeof PipelinesRoute
   '/reports': typeof ReportsRoute
@@ -130,13 +130,13 @@ export interface FileRoutesByTo {
   '/ai': typeof AiRoute
   '/compliance': typeof ComplianceRoute
   '/credit-risk': typeof CreditRiskRoute
-  '/customer-360': typeof Customer360Route
   '/fraud': typeof FraudRoute
   '/governance': typeof GovernanceRoute
   '/inclusion': typeof InclusionRoute
   '/integrations': typeof IntegrationsRoute
   '/login': typeof LoginRoute
   '/mapping': typeof MappingRoute
+  '/participant': typeof ParticipantRoute
   '/participant-360': typeof Participant360Route
   '/pipelines': typeof PipelinesRoute
   '/reports': typeof ReportsRoute
@@ -149,13 +149,13 @@ export interface FileRoutesById {
   '/ai': typeof AiRoute
   '/compliance': typeof ComplianceRoute
   '/credit-risk': typeof CreditRiskRoute
-  '/customer-360': typeof Customer360Route
   '/fraud': typeof FraudRoute
   '/governance': typeof GovernanceRoute
   '/inclusion': typeof InclusionRoute
   '/integrations': typeof IntegrationsRoute
   '/login': typeof LoginRoute
   '/mapping': typeof MappingRoute
+  '/participant': typeof ParticipantRoute
   '/participant-360': typeof Participant360Route
   '/pipelines': typeof PipelinesRoute
   '/reports': typeof ReportsRoute
@@ -169,13 +169,13 @@ export interface FileRouteTypes {
     | '/ai'
     | '/compliance'
     | '/credit-risk'
-    | '/customer-360'
     | '/fraud'
     | '/governance'
     | '/inclusion'
     | '/integrations'
     | '/login'
     | '/mapping'
+    | '/participant'
     | '/participant-360'
     | '/pipelines'
     | '/reports'
@@ -187,13 +187,13 @@ export interface FileRouteTypes {
     | '/ai'
     | '/compliance'
     | '/credit-risk'
-    | '/customer-360'
     | '/fraud'
     | '/governance'
     | '/inclusion'
     | '/integrations'
     | '/login'
     | '/mapping'
+    | '/participant'
     | '/participant-360'
     | '/pipelines'
     | '/reports'
@@ -205,13 +205,13 @@ export interface FileRouteTypes {
     | '/ai'
     | '/compliance'
     | '/credit-risk'
-    | '/customer-360'
     | '/fraud'
     | '/governance'
     | '/inclusion'
     | '/integrations'
     | '/login'
     | '/mapping'
+    | '/participant'
     | '/participant-360'
     | '/pipelines'
     | '/reports'
@@ -224,13 +224,13 @@ export interface RootRouteChildren {
   AiRoute: typeof AiRoute
   ComplianceRoute: typeof ComplianceRoute
   CreditRiskRoute: typeof CreditRiskRoute
-  Customer360Route: typeof Customer360Route
   FraudRoute: typeof FraudRoute
   GovernanceRoute: typeof GovernanceRoute
   InclusionRoute: typeof InclusionRoute
   IntegrationsRoute: typeof IntegrationsRoute
   LoginRoute: typeof LoginRoute
   MappingRoute: typeof MappingRoute
+  ParticipantRoute: typeof ParticipantRoute
   Participant360Route: typeof Participant360Route
   PipelinesRoute: typeof PipelinesRoute
   ReportsRoute: typeof ReportsRoute
@@ -275,6 +275,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Participant360RouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/participant': {
+      id: '/participant'
+      path: '/participant'
+      fullPath: '/participant'
+      preLoaderRoute: typeof ParticipantRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/mapping': {
       id: '/mapping'
       path: '/mapping'
@@ -317,13 +324,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FraudRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/customer-360': {
-      id: '/customer-360'
-      path: '/customer-360'
-      fullPath: '/customer-360'
-      preLoaderRoute: typeof Customer360RouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/credit-risk': {
       id: '/credit-risk'
       path: '/credit-risk'
@@ -360,13 +360,13 @@ const rootRouteChildren: RootRouteChildren = {
   AiRoute: AiRoute,
   ComplianceRoute: ComplianceRoute,
   CreditRiskRoute: CreditRiskRoute,
-  Customer360Route: Customer360Route,
   FraudRoute: FraudRoute,
   GovernanceRoute: GovernanceRoute,
   InclusionRoute: InclusionRoute,
   IntegrationsRoute: IntegrationsRoute,
   LoginRoute: LoginRoute,
   MappingRoute: MappingRoute,
+  ParticipantRoute: ParticipantRoute,
   Participant360Route: Participant360Route,
   PipelinesRoute: PipelinesRoute,
   ReportsRoute: ReportsRoute,
