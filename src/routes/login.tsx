@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useRef } from "react";
 import { Shield, Eye, EyeOff, ArrowRight, KeyRound } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 export const Route = createFileRoute("/login")({
   component: Login,
@@ -44,23 +45,31 @@ function Login() {
     inputRefs.current[lastFilled]?.focus();
   }
 
-  function handleSignIn() {
+  const { login: authLogin, verifyMfa: authVerifyMfa } = useAuth();
+
+  async function handleSignIn() {
     if (!email.trim() || !pwd.trim()) {
       setErrorMsg("Enter your email and password to continue.");
       return;
     }
     setErrorMsg(null);
+    await authLogin(email, pwd);
     setStep("mfa");
   }
 
-  function handleVerify() {
+  async function handleVerify() {
     const joined = code.join("");
     if (joined.length < 6) {
       setErrorMsg("Enter all 6 digits of your authentication code.");
       return;
     }
     setErrorMsg(null);
-    navigate({ to: "/" });
+    const success = await authVerifyMfa(joined, trustDevice);
+    if (success) {
+      navigate({ to: "/" });
+    } else {
+      setErrorMsg("Invalid MFA code. Try 123456.");
+    }
   }
 
   const inputStyle: React.CSSProperties = {
