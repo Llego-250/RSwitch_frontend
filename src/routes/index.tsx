@@ -7,8 +7,9 @@ import { useState, useMemo } from "react";
 import {
   BarChart, Bar, LineChart, Line,
   ResponsiveContainer, Tooltip, XAxis, YAxis,
+  Area, AreaChart
 } from "recharts";
-import { Plus, RefreshCw, Download, X, Building2, AlertCircle, Calendar, ShieldCheck, CheckCircle } from "lucide-react";
+import { Plus, RefreshCw, Download, ShieldCheck, ArrowUpRight, Bell, Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   component: Dashboard,
@@ -17,21 +18,21 @@ export const Route = createFileRoute("/")({
 /* ─── Static Data ─── */
 
 const riskTrendData = [
-  { d: "Week 1",  v: 22 },
-  { d: "Week 2",  v: 28 },
-  { d: "Week 3",  v: 35 },
-  { d: "Week 4",  v: 31 },
-  { d: "Week 5",  v: 42 },
-  { d: "Week 6",  v: 38 },
-  { d: "Week 7",  v: 47 },
+  { d: "Week 1",  v: 22, volume: 140 },
+  { d: "Week 2",  v: 28, volume: 185 },
+  { d: "Week 3",  v: 35, volume: 210 },
+  { d: "Week 4",  v: 31, volume: 195 },
+  { d: "Week 5",  v: 42, volume: 260 },
+  { d: "Week 6",  v: 38, volume: 240 },
+  { d: "Week 7",  v: 47, volume: 290 },
 ];
 
 const freshnessData = [
-  { n: "Bank of Kigali",   v: 98 },
-  { n: "MTN Mobile Money", v: 94 },
-  { n: "Equity Bank",      v: 87 },
-  { n: "Inkomoko MFI",     v: 72 },
-  { n: "Zigama SACCO",     v: 65 },
+  { n: "Bank of Kigali",   v: 98, status: "healthy" as const },
+  { n: "MTN Mobile Money", v: 94, status: "healthy" as const },
+  { n: "Equity Bank",      v: 87, status: "healthy" as const },
+  { n: "Inkomoko MFI",     v: 72, status: "warning" as const },
+  { n: "Zigama SACCO",     v: 65, status: "failed" as const },
 ];
 
 type AlertSev = "failed" | "warning" | "draft" | "completed";
@@ -50,8 +51,8 @@ const ALERT_ITEMS: {
 ];
 
 const SEV_BORDER: Record<AlertSev, string> = {
-  failed:    "#E11D48",
-  warning:   "#D97706",
+  failed:    "#EF4444",
+  warning:   "#F59E0B",
   draft:     "#64748B",
   completed: "#10B981",
 };
@@ -133,22 +134,22 @@ function Dashboard() {
           <div className="ml-auto flex items-center gap-2">
             <button
               onClick={() => setAutoRefresh((v) => !v)}
-              className={`p-1.5 rounded-lg border transition-colors flex items-center gap-1 text-xs font-mono cursor-pointer ${
+              className={`px-3 py-1.5 rounded-full border transition-all flex items-center gap-1.5 text-xs font-mono cursor-pointer shadow-2xs ${
                 autoRefresh
-                  ? "bg-emerald-50 text-emerald-600 border-emerald-300 dark:bg-emerald-950/50 dark:border-emerald-700"
-                  : "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:border-slate-700"
+                  ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 font-bold"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700"
               }`}
               aria-label={autoRefresh ? "Pause 5m auto-refresh" : "Enable 5m auto-refresh"}
             >
-              <RefreshCw className={`h-3.5 w-3.5 ${autoRefresh ? "animate-spin" : ""}`} />
+              <RefreshCw className={`h-3.5 w-3.5 ${autoRefresh ? "animate-spin text-emerald-500" : ""}`} />
               <span>{autoRefresh ? "5m Refresh Active" : "Auto-Refresh Off"}</span>
             </button>
           </div>
         </>
       }
     >
-      {/* ROW 1 — Dynamic Role-Aware KPI Widgets (§15) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* ROW 1 — Dynamic Role-Aware KPI Widgets */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {role === "compliance" ? (
           <>
             <KpiCard
@@ -247,95 +248,123 @@ function Dashboard() {
       </div>
 
       {/* ROW 2 — Operational Trend + Attention Queue */}
-      <div className="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="mt-5 grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Left col-span-2: Participant Risk & Ingestion Trend */}
         <div className="lg:col-span-2">
-          <SectionCard title="Participant Operational & Ingestion Trend — 60 days">
-            <ResponsiveContainer width="100%" height={210}>
-              <LineChart data={riskTrendData} margin={{ top: 4, right: 8, left: -24, bottom: 0 }}>
+          <SectionCard
+            title={
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-[#56B4D3]" />
+                <span>Participant Operational & Ingestion Trend (60 days)</span>
+              </div>
+            }
+            action={
+              <span className="text-[12px] font-mono text-slate-700 dark:text-slate-200 font-bold">
+                Filtered: {instType} ({selectedRegion})
+              </span>
+            }
+          >
+            <ResponsiveContainer width="100%" height={260}>
+              <AreaChart data={riskTrendData} margin={{ top: 15, right: 15, left: -15, bottom: 20 }}>
+                <defs>
+                  <linearGradient id="colorArea" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#56B4D3" stopOpacity={0.45}/>
+                    <stop offset="95%" stopColor="#56B4D3" stopOpacity={0.02}/>
+                  </linearGradient>
+                </defs>
                 <XAxis
                   dataKey="d"
-                  tick={{ fontSize: 11, fontFamily: "monospace", fill: "var(--neutral-400)" }}
+                  tick={{ fontSize: 11, fontFamily: "monospace", fill: "#334155", fontWeight: 700 }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <YAxis
                   domain={[0, 60]}
-                  tick={{ fontSize: 11, fontFamily: "monospace", fill: "var(--neutral-400)" }}
+                  tick={{ fontSize: 11, fontFamily: "monospace", fill: "#334155", fontWeight: 700 }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: "var(--card)",
-                    border: "1px solid var(--border)",
-                    borderRadius: "6px",
+                    backgroundColor: "rgba(15, 23, 42, 0.95)",
+                    borderColor: "rgba(51, 65, 85, 0.9)",
+                    borderRadius: "12px",
                     fontSize: "12px",
                     fontFamily: "monospace",
-                    color: "var(--neutral-700)",
+                    color: "#F8FAFC",
+                    boxShadow: "0 10px 25px rgba(0,0,0,0.3)",
                   }}
-                  cursor={{ stroke: "var(--neutral-200)", strokeWidth: 1 }}
+                  cursor={{ stroke: "#56B4D3", strokeWidth: 1.5, strokeDasharray: "4 4" }}
                 />
-                <Line
+                <Area
                   type="monotone"
                   dataKey="v"
-                  stroke="#56B4D3"
-                  strokeWidth={2.5}
-                  dot={false}
-                  activeDot={{ r: 5, fill: "#56B4D3", stroke: "#fff", strokeWidth: 2 }}
+                  stroke="#267A99"
+                  strokeWidth={3.5}
+                  fillOpacity={1}
+                  fill="url(#colorArea)"
+                  activeDot={{ r: 7, fill: "#267A99", stroke: "#FFFFFF", strokeWidth: 2.5 }}
                 />
-              </LineChart>
+              </AreaChart>
             </ResponsiveContainer>
-            <div className="mt-2 font-mono text-[11px] text-slate-400 flex items-center justify-between">
-              <span>RDIP Ingestion Monitor · 8 Participants Active</span>
-              <span className="text-[#56B4D3]">Filtered by: {instType} ({selectedRegion})</span>
+            <div className="mt-3 font-mono text-xs text-slate-600 dark:text-slate-300 flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800">
+              <span className="flex items-center gap-2 font-bold">
+                <span className="h-2.5 w-2.5 rounded-full bg-[#56B4D3] animate-pulse" />
+                RDIP Ingestion Monitor · 8 Participants Active
+              </span>
+              <span className="text-[#267A99] dark:text-[#56B4D3] font-black">Volume Average: 217k tx/day</span>
             </div>
           </SectionCard>
         </div>
 
-        {/* Right col-span-1: Attention Queue (REQ-DASH-003, REQ-DASH-007) */}
+        {/* Right col-span-1: Attention Queue */}
         <div className="lg:col-span-1">
           <SectionCard
-            title="Attention Queue"
+            title={
+              <div className="flex items-center gap-2">
+                <Bell className="h-4 w-4 text-amber-500" />
+                <span>Attention Queue</span>
+              </div>
+            }
             action={
-              <span className="text-[11px] font-mono text-slate-400">
+              <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-800 dark:text-amber-300 font-black border border-amber-500/40">
                 {visibleAlerts.length} Active
               </span>
             }
           >
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2.5">
               {visibleAlerts.length === 0 && (
-                <p className="text-sm py-6 text-center text-slate-400">
+                <div className="text-sm py-10 text-center text-slate-500 font-semibold">
                   All attention items dismissed for current session.
-                </p>
+                </div>
               )}
               {visibleAlerts.map((alert) => (
                 <div
                   key={alert.id}
-                  className="flex items-start gap-2.5 rounded-xl p-3 transition-all border border-slate-200/80 dark:border-slate-700/60 bg-white/70 dark:bg-slate-800/60 shadow-xs"
+                  className="flex items-start gap-3 rounded-2xl p-3.5 transition-all border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xs hover:shadow-md group"
                   style={{
-                    borderLeftWidth: "4px",
+                    borderLeftWidth: "5px",
                     borderLeftColor: SEV_BORDER[alert.sev],
                   }}
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-1 mb-1">
+                    <div className="flex items-center justify-between gap-1 mb-1.5">
                       <StatusBadge status={alert.sev} />
-                      <span className="text-[10px] font-mono text-slate-400 truncate">{alert.institution}</span>
+                      <span className="text-xs font-mono text-slate-700 dark:text-slate-200 font-bold truncate">{alert.institution}</span>
                     </div>
-                    <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 leading-snug">
+                    <p className="text-xs font-black text-slate-900 dark:text-slate-100 leading-snug">
                       {alert.title}
                     </p>
-                    <div className="flex items-center gap-3 mt-2">
+                    <div className="flex items-center gap-4 mt-2.5 pt-2 border-t border-slate-200 dark:border-slate-800">
                       <Link
                         to={alert.to}
-                        className="text-[11px] font-mono text-[#56B4D3] font-semibold hover:underline"
+                        className="text-xs font-mono text-[#267A99] dark:text-[#56B4D3] font-black hover:underline inline-flex items-center gap-1"
                       >
-                        Investigate →
+                        Investigate <ArrowUpRight className="h-3.5 w-3.5" />
                       </Link>
                       <button
                         onClick={() => dismiss(alert.id)}
-                        className="text-[11px] font-mono text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                        className="text-xs font-mono text-slate-500 hover:text-slate-800 dark:hover:text-slate-100 transition-colors cursor-pointer font-bold"
                       >
                         Dismiss
                       </button>
@@ -349,48 +378,48 @@ function Dashboard() {
       </div>
 
       {/* ROW 3 — Data Freshness + Recent Activity */}
-      <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Left: Data Freshness by Participant */}
         <SectionCard title="Data Ingestion Freshness by Institution">
-          <ResponsiveContainer width="100%" height={208}>
-            <BarChart data={freshnessData} margin={{ top: 4, right: 8, left: -24, bottom: 0 }}>
+          <ResponsiveContainer width="100%" height={210}>
+            <BarChart data={freshnessData} margin={{ top: 10, right: 8, left: -20, bottom: 0 }}>
               <XAxis
                 dataKey="n"
-                tick={{ fontSize: 11, fontFamily: "monospace", fill: "var(--neutral-400)" }}
+                tick={{ fontSize: 11, fontFamily: "monospace", fill: "#718596" }}
                 axisLine={false}
                 tickLine={false}
               />
               <YAxis
                 domain={[0, 100]}
-                tick={{ fontSize: 11, fontFamily: "monospace", fill: "var(--neutral-400)" }}
+                tick={{ fontSize: 11, fontFamily: "monospace", fill: "#718596" }}
                 axisLine={false}
                 tickLine={false}
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "var(--card)",
-                  border: "1px solid var(--border)",
-                  borderRadius: "6px",
+                  backgroundColor: "rgba(15, 23, 42, 0.9)",
+                  borderColor: "rgba(51, 65, 85, 0.8)",
+                  borderRadius: "12px",
                   fontSize: "12px",
                   fontFamily: "monospace",
-                  color: "var(--neutral-700)",
+                  color: "#F8FAFC",
                 }}
-                cursor={{ fill: "rgba(0,0,0,0.03)" }}
+                cursor={{ fill: "rgba(86, 180, 211, 0.08)" }}
                 formatter={(v: number) => [`${v}%`, "Freshness Score"]}
               />
-              <Bar dataKey="v" fill="#56B4D3" radius={[4, 4, 0, 0]} barSize={26} />
+              <Bar dataKey="v" fill="#56B4D3" radius={[8, 8, 0, 0]} barSize={28} />
             </BarChart>
           </ResponsiveContainer>
         </SectionCard>
 
         {/* Right: Recent Activity Log */}
         <SectionCard title="Recent Audit Activity Log (Last 10 Events)">
-          <div className="flex flex-col gap-0 divide-y divide-slate-100 dark:divide-slate-800">
+          <div className="flex flex-col gap-0 divide-y divide-slate-100 dark:divide-slate-800/80">
             {ACTIVITY_LOG.map((entry, i) => (
-              <div key={i} className="flex items-center gap-3 py-2.5 text-xs">
-                <span className="font-mono text-slate-400 tabular-nums w-12 shrink-0">{entry.t}</span>
-                <span className="font-medium text-slate-800 dark:text-slate-200 flex-1 truncate">{entry.a}</span>
-                <span className="font-mono text-[11px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 shrink-0">
+              <div key={i} className="flex items-center gap-3 py-2.5 text-xs hover:bg-slate-50/60 dark:hover:bg-slate-800/40 px-2 rounded-xl transition-colors">
+                <span className="font-mono text-slate-400 font-bold tabular-nums w-12 shrink-0">{entry.t}</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200 flex-1 truncate">{entry.a}</span>
+                <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 shrink-0 border border-slate-200 dark:border-slate-700">
                   {entry.u}
                 </span>
               </div>
@@ -400,14 +429,14 @@ function Dashboard() {
       </div>
 
       {/* ROW 4 — Recent Generated Reports */}
-      <div className="mt-4">
+      <div className="mt-5">
         <SectionCard title="Generated System Reports" noPad>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-100/60 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-700">
+              <thead className="bg-slate-100/70 dark:bg-slate-800/70 border-b border-slate-200/80 dark:border-slate-700">
                 <tr>
                   {["Report Name", "Module Type", "Generated Date", "Status", "Actions"].map((col) => (
-                    <th key={col} className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                    <th key={col} className="text-left px-5 py-3 text.5 text-[11px] font-bold uppercase tracking-wider text-slate-500 font-mono">
                       {col}
                     </th>
                   ))}
@@ -415,25 +444,25 @@ function Dashboard() {
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {RECENT_REPORTS.map((r) => (
-                  <tr key={r.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="font-semibold text-xs text-slate-800 dark:text-slate-200">{r.name}</div>
-                      <div className="font-mono text-[10px] text-slate-400">{r.id}</div>
+                  <tr key={r.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                    <td className="px-5 py-3.5">
+                      <div className="font-bold text-xs text-slate-900 dark:text-slate-100">{r.name}</div>
+                      <div className="font-mono text-[10px] text-slate-400 font-semibold">{r.id}</div>
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs text-slate-600 dark:text-slate-300">{r.type}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-slate-500">{r.gen}</td>
-                    <td className="px-4 py-3"><StatusBadge status={r.status} /></td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
+                    <td className="px-5 py-3.5 font-mono text-xs font-semibold text-slate-600 dark:text-slate-300">{r.type}</td>
+                    <td className="px-5 py-3.5 font-mono text-xs text-slate-500">{r.gen}</td>
+                    <td className="px-5 py-3.5"><StatusBadge status={r.status} /></td>
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-4">
                         <button
                           onClick={() => alert(`Simulated download for ${r.name}`)}
-                          className="inline-flex items-center gap-1 text-xs font-semibold text-[#56B4D3] hover:underline cursor-pointer"
+                          className="inline-flex items-center gap-1.5 text-xs font-bold text-[#56B4D3] hover:text-[#267A99] hover:underline cursor-pointer"
                         >
                           <Download className="h-3.5 w-3.5" />
                           Download PDF
                         </button>
-                        <Link to="/reports" className="text-xs text-slate-400 hover:text-slate-700">
-                          View Details
+                        <Link to="/reports" className="text-xs font-semibold text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+                          Details →
                         </Link>
                       </div>
                     </td>
