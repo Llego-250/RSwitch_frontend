@@ -257,25 +257,41 @@ export function AppShell({
       >
         {/* Top Logo & Header */}
         <div className="flex items-center justify-between px-1 pt-1 pb-3 border-b border-white/20">
-          <Link to="/" className="flex items-center gap-3 group min-w-0">
-            <div className="h-10 w-10 rounded-xl bg-white p-1.5 shadow-sm flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-105">
+          <div className="flex items-center gap-3 min-w-0">
+            {/* Clickable Logo Box with Hover Collapse Icon Swap */}
+            <button
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              title={isCollapsed ? "Click to expand sidebar" : "Click to collapse sidebar"}
+              className="relative h-10 w-10 rounded-xl bg-white p-1.5 shadow-sm flex items-center justify-center shrink-0 cursor-pointer group transition-all duration-300 hover:scale-105 hover:bg-sky-50"
+            >
+              {/* Logo Image (visible by default, scales down & fades on hover) */}
               <img
                 src="/insight-navigator-logo.png"
                 alt="RDIP logo"
-                className="h-full w-full object-contain filter drop-shadow-xs"
+                className="h-full w-full object-contain filter drop-shadow-xs transition-all duration-200 group-hover:opacity-0 group-hover:scale-75"
               />
-            </div>
+              {/* Collapse/Expand Sidebar Icon (appears on hover) */}
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 text-[#168FA8]">
+                {isCollapsed ? (
+                  <PanelLeftOpen className="h-5 w-5 stroke-[2.5]" />
+                ) : (
+                  <PanelLeftClose className="h-5 w-5 stroke-[2.5]" />
+                )}
+              </div>
+            </button>
+
             {!isCollapsed && (
-              <div className="min-w-0 overflow-hidden transition-opacity duration-200">
-                <div className="font-bold text-[15px] leading-tight tracking-wide text-white transition-colors truncate">
+              <Link to="/" className="min-w-0 overflow-hidden transition-opacity duration-200">
+                <div className="font-bold text-[15px] leading-tight tracking-wide text-white transition-colors truncate hover:text-[#D5EEF2]">
                   RDIP PLATFORM
                 </div>
                 <div className="text-[10px] font-semibold tracking-widest uppercase text-[#D5EEF2] leading-none mt-0.5 flex items-center gap-1">
                   <span className="truncate">RSWITCH INTELLIGENCE</span>
                 </div>
-              </div>
+              </Link>
             )}
-          </Link>
+          </div>
           <button
             onClick={() => setMobileNavOpen(false)}
             className="lg:hidden p-1.5 rounded-full hover:bg-white/20 text-white shrink-0"
