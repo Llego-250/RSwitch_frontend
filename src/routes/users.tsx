@@ -129,8 +129,8 @@ function Users() {
 
   return (
     <AppShell
-      title="User Management"
-      subtitle="Access control, RBAC roles, MFA enforcement, and system audit logs"
+      title="Users & Security"
+      subtitle="Access Control & Audit Logs"
       breadcrumb="ADMIN › USERS & SECURITY"
       scope="Technical Administration"
       primaryAction={
@@ -169,7 +169,7 @@ function Users() {
       {activeTab === "users" ? (
         <div className="space-y-6">
           {/* User Table (§5.13 REQ-USR-005) */}
-          <SectionCard title="Registered User Accounts (§5.13 REQ-USR-005)" noPad>
+          <SectionCard title="User Accounts" noPad>
             <div className="p-3 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
               <div className="relative max-w-xs w-full">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
@@ -241,7 +241,7 @@ function Users() {
           </SectionCard>
 
           {/* Password Validation Rules Display (§11.1) */}
-          <SectionCard title="Password Complexity Security Policies (§11.1)">
+          <SectionCard title="Security Policies">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono">
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 space-y-1">
                 <span className="font-bold text-slate-800 dark:text-slate-200 block">Minimum Length</span>
@@ -260,7 +260,7 @@ function Users() {
         </div>
       ) : (
         /* Audit Log Register Tab (§5.13 REQ-USR-006) */
-        <SectionCard title="User Management & System Audit Log Register (REQ-USR-006)" noPad>
+        <SectionCard title="Audit Logs" noPad>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead className="bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
