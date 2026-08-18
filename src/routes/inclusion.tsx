@@ -71,8 +71,8 @@ function fairnessColor(val: string) {
 function Inclusion() {
   return (
     <AppShell
-      title="Financial Inclusion Analytics"
-      subtitle="Demographic coverage, unbanked metrics, and alt-data scoring"
+      title="Financial Inclusion"
+      subtitle="Coverage & Demographics"
       breadcrumb="DECIDE › INCLUSION"
       scope="all-regions"
       primaryAction={
