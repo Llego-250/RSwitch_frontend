@@ -234,9 +234,9 @@ function AIPage() {
 
       {/* Main Grid: Priority List + Anomaly Alerts */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 mb-6">
-        {/* Left 5 cols: Participant Priority Ranking (§5.9 REQ-AI-005) */}
-        <div className="lg:col-span-5 space-y-4">
-          <SectionCard title="AI Participant Priority Ranking (REQ-AI-005)" noPad>
+        {/* Left 6 cols: Risk-based Priority Ranking (REQ-AI-005) */}
+        <div className="lg:col-span-6">
+          <SectionCard title="Priority Ranking" noPad>
             <div className="p-3 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 font-mono">
               Ranked by composite operational risk signal strength
             </div>
@@ -264,7 +264,7 @@ function AIPage() {
           </SectionCard>
 
           {/* Operational Trend Summary */}
-          <SectionCard title="3-Month Compliance & Error Trend Summary (§5.9 REQ-AI-007)">
+          <SectionCard title="Compliance Trends">
             <ResponsiveContainer width="100%" height={160}>
               <LineChart data={TREND_DATA}>
                 <XAxis dataKey="month" tick={{ fontSize: 10, fontFamily: "monospace" }} />
@@ -276,9 +276,9 @@ function AIPage() {
           </SectionCard>
         </div>
 
-        {/* Right 7 cols: AI Alerts Feed & Strict Lifecycle (§5.9 REQ-AI-004, REQ-AI-006) */}
-        <div className="lg:col-span-7 space-y-4">
-          <SectionCard title="AI-Generated Anomaly Feed & Lifecycle Manager (§5.9 REQ-AI-006)" noPad>
+      {/* Main Bottom Section: Anomaly Feed & Action Workflow (REQ-AI-006) */}
+      <div className="mt-6">
+        <SectionCard title="Anomaly Feed" noPad>
             <div className="divide-y divide-slate-100 dark:divide-slate-800">
               {alerts.map((alt) => {
                 const isSelected = selectedAlert?.id === alt.id;
