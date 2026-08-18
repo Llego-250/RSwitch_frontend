@@ -152,7 +152,7 @@ const PARTICIPANTS: Participant[] = [
   },
 ];
 
-function Participant360() {
+export function Participant360() {
   const { role } = useRole();
   const canAddNote = role === "compliance";
 
