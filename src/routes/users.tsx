@@ -262,33 +262,7 @@ function Users() {
         </div>
       ) : (
         /* Audit Log Register Tab (§5.13 REQ-USR-006) */
-        <SectionCard title="Audit Logs" noPad>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead className="bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
-                <tr>
-                  {["Event ID", "Timestamp", "Actor User", "Action Type", "Object Reference", "IP Address"].map((col) => (
-                    <th key={col} className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                      {col}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono">
-                {AUDIT_LOGS.map((evt) => (
-                  <tr key={evt.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                    <td className="px-4 py-3 font-bold text-[#56B4D3]">{evt.id}</td>
-                    <td className="px-4 py-3 text-slate-500">{evt.ts}</td>
-                    <td className="px-4 py-3 text-slate-800 dark:text-slate-200 font-sans font-medium">{evt.actor}</td>
-                    <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">{evt.action}</td>
-                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{evt.object}</td>
-                    <td className="px-4 py-3 text-slate-400">{evt.ip}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </SectionCard>
+        <AuditLogTable />
       )}
 
       {/* Invite User Modal (§5.13 REQ-USR-001, REQ-USR-002) */}
