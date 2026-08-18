@@ -600,11 +600,11 @@ export function AppShell({
 
           <div className={`w-full h-full ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-[#F4F7F9]/80 border-white'} rounded-[24px] flex flex-col overflow-hidden relative z-10`}>
 
-            {/* ─── COLLAPSIBLE LIQUID GLASS PAGE HEADER CARD (Frosted Blur) ─── */}
-            <div className={`mx-4 mt-4 lg:mx-6 lg:mt-6 rounded-2xl border backdrop-blur-2xl backdrop-saturate-180 transition-all duration-300 ${
+            {/* ─── COLLAPSIBLE LIQUID GLASS PAGE HEADER CARD (High Frosted Blur) ─── */}
+            <div className={`mx-4 mt-4 lg:mx-6 lg:mt-6 rounded-2xl border backdrop-blur-3xl backdrop-saturate-200 transition-all duration-300 ${
               isDark
-                ? 'bg-slate-900/60 border-white/15 text-white shadow-[0_12px_36px_0_rgba(0,0,0,0.35),_inset_0_1px_1px_0_rgba(255,255,255,0.15)]'
-                : 'bg-white/55 border-white/90 text-slate-900 shadow-[0_12px_36px_0_rgba(31,38,135,0.07),_inset_0_1px_1.5px_0_rgba(255,255,255,0.9)]'
+                ? 'bg-slate-900/35 border-white/20 text-white shadow-[0_12px_40px_0_rgba(0,0,0,0.45),_inset_0_1px_1px_0_rgba(255,255,255,0.2)]'
+                : 'bg-white/35 border-white/80 text-slate-900 shadow-[0_12px_40px_0_rgba(31,38,135,0.12),_inset_0_1.5px_2px_0_rgba(255,255,255,0.95)]'
             } overflow-hidden shrink-0`}>
               
               <div className={`px-6 transition-all duration-300 ${headerCollapsed ? "py-3" : "py-4.5"} flex flex-wrap items-center justify-between gap-4`}>
