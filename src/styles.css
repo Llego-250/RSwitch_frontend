@@ -45,117 +45,93 @@
   --color-input:               var(--input);
   --color-ring:                var(--ring);
 
-  /* Semantic design tokens */
-  --color-brand:            var(--brand);
-  --color-brand-foreground: var(--brand-foreground);
-  --color-topbar:           var(--topbar);
-  --color-topbar-fg:        var(--topbar-fg);
-  --color-signal:           var(--signal);
-  --color-ink:              var(--ink);
-  --color-paper:            var(--paper);
-  --color-surface:          var(--surface);
+  /* RDIP Design System Custom Theme Tokens */
+  --color-rdip-teal:         #168FA8;
+  --color-rdip-teal-dark:    #0F6F83;
+  --color-rdip-teal-light:   #E7F5F8;
+  --color-rdip-navy:         #172033;
+  --color-rdip-slate:        #526174;
+  --color-rdip-muted:        #7B8798;
+  --color-rdip-bg:           #F4F7F9;
+  --color-rdip-card:         #FFFFFF;
+  --color-rdip-border:       #DCE3E8;
 
-  /* Status colors */
-  --color-ok:         var(--ok);
-  --color-ok-bg:      var(--ok-bg);
-  --color-info:       var(--info);
-  --color-info-bg:    var(--info-bg);
-  --color-warn:       var(--warn);
-  --color-warn-bg:    var(--warn-bg);
-  --color-fail:       var(--fail);
-  --color-fail-bg:    var(--fail-bg);
-  --color-neutral:    var(--neutral);
-  --color-neutral-bg: var(--neutral-bg);
-  --color-ai:         var(--ai);
-  --color-ai-bg:      var(--ai-bg);
+  --color-rdip-success:      #16A979;
+  --color-rdip-success-bg:   #E8F7F1;
+  --color-rdip-warning:      #D97706;
+  --color-rdip-warning-bg:   #FFF3DF;
+  --color-rdip-danger:       #DC3154;
+  --color-rdip-danger-bg:    #FDECEF;
 }
 
 /* ===========================
-   DESIGN SPEC COLOR SYSTEM
-   (Financial Data Interoperability Framework — v1.0)
+   RDIP DESIGN SYSTEM (SPEC v2.0)
+   Financial Intelligence Platform Design System
    =========================== */
 :root {
-  /* Primary palette — Soft cyan & light slate */
-  --primary-50:  #F2F8FB;
-  --primary-100: #E2F0F7;
-  --primary-300: #87C6E4;
-  --primary-500: #56B4D3;
-  --primary-700: #267A99;
-  --primary-900: #092E3D;
+  /* Primary Teal Palette */
+  --primary-50:  #E7F5F8;
+  --primary-100: #CDECF1;
+  --primary-500: #168FA8;
+  --primary-700: #0F6F83;
+  --primary-900: #073B4C;
 
-  /* Neutral palette */
-  --neutral-50:  #F4F7F9;
-  --neutral-100: #EBF0F3;
-  --neutral-200: #E1E7EA;
-  --neutral-400: #9CA8B3;
-  --neutral-500: #718596;
-  --neutral-700: #3B4C5A;
-  --neutral-900: #1E293B;
+  /* Text Colors */
+  --ink:         #172033; /* Deep Navy */
+  --ink-sec:     #526174; /* Slate */
+  --ink-muted:   #7B8798; /* Muted Text */
 
-  /* Semantic status */
-  --ok:         #10B981;   /* Emerald */
-  --ok-bg:      #D1FAE5;   
-  --warn:       #F59E0B;   /* Amber */
-  --warn-bg:    #FEF3C7;   
-  --fail:       #EF4444;   /* Red */
-  --fail-bg:    #FEE2E2;   
-  --ai:         #8B5CF6;   /* Violet */
-  --ai-bg:      #EDE9FE;   
-  --info:       #56B4D3;   
-  --info-bg:    #E2F0F7;   
-  --neutral:    #718596;   
-  --neutral-bg: #EBF0F3;   
+  /* Surface & Background */
+  --paper:       #F4F7F9; /* Cool Gray Application BG */
+  --surface:     #FFFFFF; /* Pure White Card */
+  --border:      #DCE3E8; /* Soft Border */
 
-  /* Component aliases */
-  --brand:            #56B4D3;
-  --brand-foreground: #092E3D;
-  --topbar:           #DAE2E7;
-  --topbar-fg:        #1E293B;
-  --signal:           #10B981;
-  --surface:          #F4F7F9;
-  --paper:            #E4EAEE;
-  --ink:              #1E293B;
-  --muted-ink:        #718596;
+  /* Status Colors */
+  --ok:          #16A979;
+  --ok-bg:       #E8F7F1;
+  --warn:        #D97706;
+  --warn-bg:     #FFF3DF;
+  --fail:        #DC3154;
+  --fail-bg:     #FDECEF;
+  --info:        #168FA8;
+  --info-bg:     #E7F5F8;
 
-  /* shadcn / Radix mappings */
-  --background:              #E4EAEE;
-  --foreground:              #1E293B;
+  /* Component Mappings */
+  --background:              #F4F7F9;
+  --foreground:              #172033;
   --card:                    #FFFFFF;
-  --card-foreground:         #1E293B;
+  --card-foreground:         #172033;
   --popover:                 #FFFFFF;
-  --popover-foreground:      #1E293B;
-  --primary:                 #56B4D3;
-  --primary-foreground:      #092E3D;
-  --secondary:               #EBF0F3;
-  --secondary-foreground:    #1E293B;
-  --muted:                   #EBF0F3;
-  --muted-foreground:        #718596;
-  --accent:                  #E2F0F7;
-  --accent-foreground:       #092E3D;
-  --destructive:             #EF4444;
+  --popover-foreground:      #172033;
+  --primary:                 #168FA8;
+  --primary-foreground:      #FFFFFF;
+  --secondary:               #E7F5F8;
+  --secondary-foreground:    #172033;
+  --muted:                   #F4F7F9;
+  --muted-foreground:        #7B8798;
+  --destructive:             #DC3154;
   --destructive-foreground:  #FFFFFF;
-  --border:                  #E1E7EA;
-  --input:                   #DAE2E7;
-  --ring:                    #56B4D3;
-  --radius:                  1rem;
+  --ring:                    #168FA8;
+  --radius:                  0.75rem;
 }
 
 @layer base {
-  * { border-color: var(--color-border); }
+  * { border-color: var(--border); }
 
   html, body {
-    background-color: var(--color-paper);
-    color: var(--color-ink);
+    background-color: var(--paper);
+    color: var(--ink);
     font-family: var(--font-sans);
     font-size: 14px;
-    line-height: 1.6;
+    line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
   h1, h2, h3, h4 {
     font-family: var(--font-sans);
-    letter-spacing: -0.01em;
+    letter-spacing: -0.015em;
+    color: var(--ink);
   }
 
   .font-mono, code, kbd {
@@ -172,14 +148,9 @@
   .tabular { font-variant-numeric: tabular-nums; }
 }
 
-/* Auth page gradient background (spec §6 SCREEN 1) */
-@utility blueprint-grid {
-  background: linear-gradient(160deg, #0A2540 0%, #1A3A5C 100%);
-}
-
 /* Data visualization color utilities */
-@utility chart-1 { color: #2D6A9F; }
-@utility chart-2 { color: #0D9488; }
-@utility chart-3 { color: #7C3AED; }
+@utility chart-1 { color: #168FA8; }
+@utility chart-2 { color: #16A979; }
+@utility chart-3 { color: #0F6F83; }
 @utility chart-4 { color: #D97706; }
-@utility chart-5 { color: #E11D48; }
+@utility chart-5 { color: #DC3154; }
