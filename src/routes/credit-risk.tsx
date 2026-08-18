@@ -11,8 +11,8 @@ function CreditRiskOutofScope() {
 
   return (
     <AppShell
-      title="Credit Risk Analytics — Out of Scope"
-      subtitle="SRS §2.8 Boundary Notice"
+      title="Credit Risk"
+      subtitle="Out of Scope"
       breadcrumb="RDIP › OUT OF SCOPE"
     >
       <div className="max-w-4xl mx-auto py-12">
