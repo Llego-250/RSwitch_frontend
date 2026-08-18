@@ -196,7 +196,7 @@ function Settings() {
           )}
 
           {activeSection === "apikeys" && (
-            <SectionCard title="External Integration API Keys (§5.14 REQ-SET-002)">
+            <SectionCard title="API Keys">
               <div className="space-y-4 text-xs">
                 {canManageSettings && (
                   <div className="flex gap-2">
