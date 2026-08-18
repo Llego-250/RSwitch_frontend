@@ -316,27 +316,29 @@ function AIPage() {
         </div>
       }
     >
-      {/* Hero Glassmorphic Header */}
-      <div className="mb-6 p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-sky-950 to-slate-900 text-white shadow-xl border border-sky-900/40 relative overflow-hidden">
-        <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 w-64 h-64 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
+      {/* Hero Liquid Glass Header with Frosted Blur */}
+      <div className="mb-6 p-6.5 rounded-3xl backdrop-blur-2xl backdrop-saturate-180 bg-gradient-to-r from-slate-950/90 via-sky-950/80 to-slate-950/90 text-white shadow-[0_12px_40px_0_rgba(14,165,233,0.2),_inset_0_1px_1px_0_rgba(255,255,255,0.35)] border border-sky-400/40 relative overflow-hidden transition-all">
+        <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 w-64 h-64 bg-sky-400/20 rounded-full blur-3xl pointer-events-none" />
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
-          <div className="space-y-1 max-w-2xl">
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-sky-500/20 border border-sky-400/30 text-sky-300 font-mono text-[11px] font-semibold">
-              <Sparkles className="h-3.5 w-3.5" /> Machine Intelligence Engine
+          <div className="space-y-1.5 max-w-2xl">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-500/25 border border-sky-300/40 text-sky-200 font-mono text-[11px] font-bold tracking-wider uppercase backdrop-blur-md shadow-inner">
+              <Sparkles className="h-3.5 w-3.5 text-sky-300 animate-pulse" /> Machine Intelligence Engine
             </div>
-            <h2 className="text-xl font-bold text-white tracking-tight">Real-Time Anomaly &amp; Operational Risk Monitor</h2>
-            <p className="text-xs text-sky-200/80 leading-relaxed">
+            <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight drop-shadow-sm font-sans">
+              Real-Time Anomaly &amp; Operational Risk Monitor
+            </h2>
+            <p className="text-xs sm:text-sm text-sky-100/90 leading-relaxed font-normal">
               Continuously evaluates payment telemetry against rolling 6-month historical baselines to flag metric deviations, API errors, and network latency anomalies across all connected participant institutions.
             </p>
           </div>
           <div className="flex items-center gap-3 shrink-0">
-            <div className="p-3 bg-white/10 backdrop-blur-md rounded-xl border border-white/10 text-center font-mono">
-              <div className="text-xl font-bold text-sky-400">4.4%</div>
-              <div className="text-[10px] text-sky-200/70 uppercase">Max Deviation</div>
+            <div className="p-3.5 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 text-center font-mono shadow-[inset_0_1px_1px_0_rgba(255,255,255,0.3)] min-w-[100px]">
+              <div className="text-xl font-bold text-sky-300 tracking-tight">4.4%</div>
+              <div className="text-[10px] text-sky-200/80 uppercase tracking-widest font-semibold mt-0.5">Max Deviation</div>
             </div>
-            <div className="p-3 bg-white/10 backdrop-blur-md rounded-xl border border-white/10 text-center font-mono">
-              <div className="text-xl font-bold text-emerald-400">99.8%</div>
-              <div className="text-[10px] text-sky-200/70 uppercase">Baseline Precision</div>
+            <div className="p-3.5 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 text-center font-mono shadow-[inset_0_1px_1px_0_rgba(255,255,255,0.3)] min-w-[100px]">
+              <div className="text-xl font-bold text-emerald-300 tracking-tight">99.8%</div>
+              <div className="text-[10px] text-sky-200/80 uppercase tracking-widest font-semibold mt-0.5">Baseline Precision</div>
             </div>
           </div>
         </div>
@@ -379,44 +381,44 @@ function AIPage() {
         <div className="lg:col-span-5 space-y-6">
           {/* Priority Ranking Card */}
           <SectionCard title="Priority Risk Ranking (§5.9 REQ-AI-005)" noPad>
-            <div className="p-3 bg-neutral-50/70 border-b border-neutral-200 text-[11px] text-neutral-500 font-mono flex items-center justify-between">
+            <div className="p-3 bg-neutral-50/80 dark:bg-slate-800/40 border-b border-neutral-200 dark:border-slate-800 text-[11px] text-neutral-500 font-mono flex items-center justify-between font-medium">
               <span>Ranked by signal strength &amp; failure score</span>
-              <span className="text-sky-600 font-semibold">Live Signals</span>
+              <span className="text-sky-600 dark:text-sky-400 font-bold uppercase tracking-wider">Live Signals</span>
             </div>
-            <div className="divide-y divide-neutral-100">
+            <div className="divide-y divide-neutral-100 dark:divide-slate-800">
               {PRIORITY_PARTICIPANTS.map((p) => (
                 <div
                   key={p.rank}
-                  className="p-3.5 flex items-center justify-between text-xs hover:bg-neutral-50/70 transition-colors"
+                  className="p-3.5 flex items-center justify-between text-xs hover:bg-neutral-50/70 dark:hover:bg-slate-800/50 transition-colors"
                 >
                   <div className="flex items-center gap-3">
                     <span
-                      className={`h-8 w-8 rounded-xl flex items-center justify-center font-mono font-bold text-xs shadow-sm ${
+                      className={`h-8 w-8 rounded-xl flex items-center justify-center font-mono font-bold text-xs shadow-xs ${
                         p.rank === 1
                           ? "bg-rose-500 text-white"
                           : p.rank === 2
                           ? "bg-amber-500 text-white"
-                          : "bg-neutral-200 text-neutral-700"
+                          : "bg-neutral-200 dark:bg-slate-700 text-neutral-700 dark:text-slate-200"
                       }`}
                     >
                       #{p.rank}
                     </span>
                     <div className="space-y-0.5">
-                      <h4 className="font-bold text-neutral-900">{p.name}</h4>
-                      <p className="text-[11px] text-neutral-500 font-sans">
-                        {p.type} · <span className="text-neutral-700 font-medium">{p.reason}</span>
+                      <h4 className="font-bold text-neutral-900 dark:text-white tracking-tight">{p.name}</h4>
+                      <p className="text-[11px] text-neutral-500 dark:text-slate-400 font-sans">
+                        {p.type} · <span className="text-neutral-700 dark:text-slate-300 font-semibold">{p.reason}</span>
                       </p>
                     </div>
                   </div>
                   <div className="text-right font-mono">
-                    <span className="font-bold text-neutral-900 block">{p.score}</span>
+                    <span className="font-bold text-neutral-900 dark:text-white block text-sm tracking-tight">{p.score}</span>
                     <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-block mt-0.5 ${
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-block mt-0.5 uppercase tracking-wider ${
                         p.rank === 1
-                          ? "bg-rose-50 text-rose-700 border border-rose-200"
+                          ? "bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-800"
                           : p.rank === 2
-                          ? "bg-amber-50 text-amber-700 border border-amber-200"
-                          : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          ? "bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
+                          : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
                       }`}
                     >
                       {p.status}
