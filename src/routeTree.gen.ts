@@ -13,6 +13,7 @@ import { Route as UsersRouteImport } from './routes/users'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as PipelinesRouteImport } from './routes/pipelines'
+import { Route as Participant360RouteImport } from './routes/participant-360'
 import { Route as MappingRouteImport } from './routes/mapping'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IntegrationsRouteImport } from './routes/integrations'
@@ -43,6 +44,11 @@ const ReportsRoute = ReportsRouteImport.update({
 const PipelinesRoute = PipelinesRouteImport.update({
   id: '/pipelines',
   path: '/pipelines',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Participant360Route = Participant360RouteImport.update({
+  id: '/participant-360',
+  path: '/participant-360',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MappingRoute = MappingRouteImport.update({
@@ -113,6 +119,7 @@ export interface FileRoutesByFullPath {
   '/integrations': typeof IntegrationsRoute
   '/login': typeof LoginRoute
   '/mapping': typeof MappingRoute
+  '/participant-360': typeof Participant360Route
   '/pipelines': typeof PipelinesRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
@@ -130,6 +137,7 @@ export interface FileRoutesByTo {
   '/integrations': typeof IntegrationsRoute
   '/login': typeof LoginRoute
   '/mapping': typeof MappingRoute
+  '/participant-360': typeof Participant360Route
   '/pipelines': typeof PipelinesRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
@@ -148,6 +156,7 @@ export interface FileRoutesById {
   '/integrations': typeof IntegrationsRoute
   '/login': typeof LoginRoute
   '/mapping': typeof MappingRoute
+  '/participant-360': typeof Participant360Route
   '/pipelines': typeof PipelinesRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
@@ -167,6 +176,7 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/login'
     | '/mapping'
+    | '/participant-360'
     | '/pipelines'
     | '/reports'
     | '/settings'
@@ -184,6 +194,7 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/login'
     | '/mapping'
+    | '/participant-360'
     | '/pipelines'
     | '/reports'
     | '/settings'
@@ -201,6 +212,7 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/login'
     | '/mapping'
+    | '/participant-360'
     | '/pipelines'
     | '/reports'
     | '/settings'
@@ -219,6 +231,7 @@ export interface RootRouteChildren {
   IntegrationsRoute: typeof IntegrationsRoute
   LoginRoute: typeof LoginRoute
   MappingRoute: typeof MappingRoute
+  Participant360Route: typeof Participant360Route
   PipelinesRoute: typeof PipelinesRoute
   ReportsRoute: typeof ReportsRoute
   SettingsRoute: typeof SettingsRoute
@@ -253,6 +266,13 @@ declare module '@tanstack/react-router' {
       path: '/pipelines'
       fullPath: '/pipelines'
       preLoaderRoute: typeof PipelinesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/participant-360': {
+      id: '/participant-360'
+      path: '/participant-360'
+      fullPath: '/participant-360'
+      preLoaderRoute: typeof Participant360RouteImport
       parentRoute: typeof rootRouteImport
     }
     '/mapping': {
@@ -347,6 +367,7 @@ const rootRouteChildren: RootRouteChildren = {
   IntegrationsRoute: IntegrationsRoute,
   LoginRoute: LoginRoute,
   MappingRoute: MappingRoute,
+  Participant360Route: Participant360Route,
   PipelinesRoute: PipelinesRoute,
   ReportsRoute: ReportsRoute,
   SettingsRoute: SettingsRoute,
