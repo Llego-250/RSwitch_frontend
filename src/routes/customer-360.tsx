@@ -183,7 +183,7 @@ export function Participant360() {
   return (
     <AppShell
       title="Participant 360"
-      subtitle="Consolidated financial institution profiles and compliance history"
+      subtitle="Institution Profiles & Compliance"
       breadcrumb="GOVERN › PARTICIPANT 360"
       scope="Institutional Intelligence"
       toolbar={
@@ -311,7 +311,7 @@ export function Participant360() {
           {/* Profile Sections Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Section 1: Integration Status */}
-            <SectionCard title="Connected Integration Status (§5.6 REQ-P360-003)">
+            <SectionCard title="Integration Status">
               <div className="space-y-2">
                 {currentInst.integrations.map((int, i) => (
                   <div key={i} className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex items-center justify-between text-xs font-mono">
@@ -326,7 +326,7 @@ export function Participant360() {
             </SectionCard>
 
             {/* Section 2: Technical Performance (REQ-P360-007) */}
-            <SectionCard title="Technical Performance (30d Rolling)">
+            <SectionCard title="Performance">
               <div className="grid grid-cols-3 gap-2 text-center font-mono">
                 <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800">
                   <span className="text-[10px] text-slate-400 block uppercase">Uptime</span>
@@ -345,7 +345,7 @@ export function Participant360() {
           </div>
 
           {/* Section 3: Data Submission History Log (REQ-P360-004) */}
-          <SectionCard title="Chronological Data Submission Log" noPad>
+          <SectionCard title="Submission Log" noPad>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead className="bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
@@ -379,7 +379,7 @@ export function Participant360() {
           </SectionCard>
 
           {/* Section 4: Incidents & Remediation (REQ-P360-006) */}
-          <SectionCard title="Associated Incidents & Remediation Items">
+          <SectionCard title="Incidents & Remediation">
             <div className="space-y-2">
               {currentInst.incidents.length === 0 ? (
                 <p className="text-xs text-slate-400 py-2">No open or resolved incidents recorded for this institution.</p>
@@ -403,7 +403,7 @@ export function Participant360() {
           </SectionCard>
 
           {/* Section 5: Compliance Notes & Annotations (REQ-P360-014) */}
-          <SectionCard title="Compliance Officer Notes & Annotations (§5.6 REQ-P360-014)">
+          <SectionCard title="Compliance Notes">
             <div className="space-y-3">
               {canAddNote && (
                 <div className="flex gap-2">
