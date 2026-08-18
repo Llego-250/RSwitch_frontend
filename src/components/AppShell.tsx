@@ -95,6 +95,7 @@ const INITIAL_NOTIFS: NotificationItem[] = [
 
 export function AppShell({
   title,
+  subtitle,
   breadcrumb,
   scope,
   primaryAction,
@@ -102,6 +103,7 @@ export function AppShell({
   children,
 }: {
   title: string;
+  subtitle?: string;
   breadcrumb?: string;
   scope?: string;
   primaryAction?: ReactNode;
@@ -247,30 +249,30 @@ export function AppShell({
         className={`
           fixed lg:static inset-y-3 left-3 z-40 lg:z-10
           ${isCollapsed ? "lg:w-20" : "w-64 lg:w-72"} shrink-0
-          bg-gradient-to-b from-[#48AFCE] via-[#3A9FC0] to-[#2B8FB1] border-[#399EBF]/40
-          backdrop-blur-md rounded-[28px] p-3.5 lg:p-4 flex flex-col justify-between
-          border shadow-[0_10px_35px_rgba(43,143,177,0.25)] text-white
+          bg-[#168FA8] border-[#0F6F83]/40
+          backdrop-blur-md rounded-[24px] p-3.5 lg:p-4 flex flex-col justify-between
+          border shadow-lg text-white
           transition-all duration-300 ease-in-out
           ${mobileNavOpen ? "translate-x-0 w-64" : "-translate-x-full lg:translate-x-0"}
         `}
       >
         {/* Top Logo & Header */}
-        <div className="flex items-center justify-between px-1 pt-1 pb-3 border-b border-white/25">
+        <div className="flex items-center justify-between px-1 pt-1 pb-3 border-b border-white/20">
           <Link to="/" className="flex items-center gap-3 group min-w-0">
-            <div className="h-11 w-11 rounded-2xl bg-white/95 p-1.5 shadow-md border border-white/80 flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-105">
+            <div className="h-10 w-10 rounded-xl bg-white p-1.5 shadow-sm flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-105">
               <img
                 src="/insight-navigator-logo.png"
                 alt="RDIP logo"
-                className="h-full w-full object-contain filter drop-shadow-sm"
+                className="h-full w-full object-contain filter drop-shadow-xs"
               />
             </div>
             {!isCollapsed && (
               <div className="min-w-0 overflow-hidden transition-opacity duration-200">
-                <div className="font-extrabold text-[15px] leading-tight tracking-wide text-white group-hover:text-[#092E3D] transition-colors truncate">
+                <div className="font-bold text-[15px] leading-tight tracking-wide text-white transition-colors truncate">
                   RDIP PLATFORM
                 </div>
-                <div className="text-[10px] font-bold tracking-widest uppercase text-[#072533] leading-none mt-0.5 flex items-center gap-1">
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#10B981] animate-pulse inline-block shrink-0" />
+                <div className="text-[10px] font-semibold tracking-widest uppercase text-[#D5EEF2] leading-none mt-0.5 flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#16A979] animate-pulse inline-block shrink-0" />
                   <span className="truncate">RSWITCH INTELLIGENCE</span>
                 </div>
               </div>
@@ -292,7 +294,7 @@ export function AppShell({
             return (
               <div key={c.title} className="space-y-1">
                 {!isCollapsed && (
-                  <div className="px-3 text-[11px] font-black uppercase tracking-widest text-sky-950 dark:text-sky-100 drop-shadow-2xs truncate">
+                  <div className="px-3 text-[11px] font-semibold uppercase tracking-wider text-[#D5EEF2] truncate">
                     {c.title}
                   </div>
                 )}
@@ -308,14 +310,14 @@ export function AppShell({
                       onClick={() => setMobileNavOpen(false)}
                       title={isCollapsed ? it.label : undefined}
                       className={`
-                        w-full rounded-2xl ${isCollapsed ? "px-0 justify-center h-11" : "px-3.5 py-2.5"} text-[14px] flex items-center gap-3 transition-all duration-200 relative group
+                        w-full rounded-xl ${isCollapsed ? "px-0 justify-center h-10" : "px-3.5 py-2.5"} text-[15px] flex items-center gap-3 transition-all duration-200 relative group
                         ${active
-                          ? "bg-[#092E3D] text-[#56B4D3] font-extrabold shadow-lg shadow-[#092E3D]/30"
-                          : "text-white/95 hover:bg-white/25 hover:text-white font-bold"
+                          ? "bg-[#073B4C] text-white font-semibold shadow-md"
+                          : "text-white/95 hover:bg-white/15 hover:text-white font-medium"
                         }
                       `}
                     >
-                      <Icon className={`h-5 w-5 shrink-0 ${active ? "text-[#56B4D3]" : "text-white"}`} />
+                      <Icon className={`h-5 w-5 shrink-0 ${active ? "text-[#168FA8]" : "text-white"}`} />
                       {!isCollapsed && <span className="truncate">{it.label}</span>}
                     </Link>
                   );
@@ -578,22 +580,27 @@ export function AppShell({
           </div>
         </header>
 
-        {/* ─── MAIN CONTENT FRAME (Double curved floating sheet) ─── */}
-        <div className={`relative flex-1 ${isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-[#DCE4E9]/90 border-white/60'} rounded-[34px] p-2.5 lg:p-3 flex flex-col overflow-hidden border shadow-sm`}>
-          <div className={`w-full h-full ${isDark ? 'bg-[#17222B] border-slate-800' : 'bg-[#F4F7F9] border-white/90'} rounded-[28px] flex flex-col overflow-hidden border shadow-[0_10px_35px_rgba(0,0,0,0.03)]`}>
+        {/* ─── MAIN CONTENT FRAME ─── */}
+        <div className={`relative flex-1 ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-[#F4F7F9] border-[#DCE3E8]'} rounded-[24px] flex flex-col overflow-hidden border shadow-xs`}>
+          <div className={`w-full h-full ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-[#F4F7F9] border-white'} rounded-[24px] flex flex-col overflow-hidden`}>
 
             {/* Header bar inside main panel */}
-            <div className={`px-6 py-4 border-b ${isDark ? 'border-slate-800 bg-slate-900/50' : 'border-[#E3EAEE] bg-white/60'} backdrop-blur-sm flex flex-wrap items-center justify-between gap-4 shrink-0`}>
+            <div className={`px-6 py-4 border-b ${isDark ? 'border-slate-800 bg-slate-900' : 'border-[#DCE3E8] bg-white'} flex flex-wrap items-center justify-between gap-4 shrink-0`}>
               <div className="min-w-0">
                 {breadcrumb && (
-                  <div className="text-[10px] font-mono uppercase tracking-wider text-[#718596] mb-0.5 font-bold">
+                  <div className="text-xs font-semibold tracking-wide uppercase text-[#526174] dark:text-slate-400 mb-0.5">
                     {breadcrumb}
                   </div>
                 )}
-                <div className="flex items-center gap-3 flex-wrap">
-                  <h1 className={`text-xl lg:text-2xl font-extrabold tracking-tight truncate ${isDark ? 'text-white' : 'text-[#1E293B]'}`}>
+                <div className="flex flex-col">
+                  <h1 className={`text-2xl lg:text-[28px] font-bold tracking-tight truncate ${isDark ? 'text-white' : 'text-[#172033]'}`}>
                     {title}
                   </h1>
+                  {subtitle && (
+                    <p className="text-sm font-normal text-[#526174] dark:text-slate-400 mt-0.5">
+                      {subtitle}
+                    </p>
+                  )}
                 </div>
               </div>
               {primaryAction && <div className="flex items-center gap-2 shrink-0">{primaryAction}</div>}
@@ -601,13 +608,13 @@ export function AppShell({
 
             {/* Optional toolbar */}
             {toolbar && (
-              <div className={`px-6 py-2.5 border-b ${isDark ? 'border-slate-800 bg-slate-900/30' : 'border-[#E3EAEE] bg-[#EBF0F3]/80'} flex flex-wrap items-center gap-2 text-sm shrink-0`}>
+              <div className={`px-6 py-3 border-b ${isDark ? 'border-slate-800 bg-slate-900/60' : 'border-[#DCE3E8] bg-white/70'} flex flex-wrap items-center gap-2 text-sm shrink-0`}>
                 {toolbar}
               </div>
             )}
 
             {/* Page content */}
-            <div className="flex-1 overflow-auto p-5 lg:p-7 text-[#1E293B] dark:text-slate-200">
+            <div className="flex-1 overflow-auto p-5 lg:p-7 text-[#172033] dark:text-slate-100">
               {children}
             </div>
 
@@ -618,21 +625,21 @@ export function AppShell({
 
       {/* ─── SEARCH COMMAND PALETTE OVERLAY (⌘K) ─── */}
       {searchOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-start justify-center pt-16 sm:pt-24 p-4">
-          <div className={`w-full max-w-xl rounded-2xl border shadow-2xl overflow-hidden flex flex-col ${isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'}`}>
-            <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex items-center gap-3">
-              <Search className="h-5 w-5 text-[#56B4D3] shrink-0" />
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-start justify-center pt-16 sm:pt-24 p-4">
+          <div className={`w-full max-w-xl rounded-2xl border shadow-2xl overflow-hidden flex flex-col ${isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-[#DCE3E8] text-[#172033]'}`}>
+            <div className="p-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center gap-3">
+              <Search className="h-5 w-5 text-[#168FA8] shrink-0" />
               <input
                 type="text"
                 autoFocus
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Type to search modules or navigate..."
-                className="flex-1 bg-transparent border-none outline-none text-sm font-medium placeholder:text-slate-400"
+                placeholder="Type to search portal modules..."
+                className="flex-1 bg-transparent border-none outline-none text-sm font-medium placeholder:text-[#7B8798]"
               />
               <button
                 onClick={() => setSearchOpen(false)}
-                className="px-2 py-1 rounded-md text-xs font-mono bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white"
+                className="px-2 py-1 rounded-md text-xs font-mono bg-slate-100 dark:bg-slate-800 text-[#526174] dark:text-slate-300"
               >
                 ESC
               </button>
@@ -640,7 +647,7 @@ export function AppShell({
 
             <div className="max-h-80 overflow-y-auto p-2 space-y-1">
               {filteredSearchItems.length === 0 ? (
-                <div className="p-6 text-center text-xs text-slate-400">
+                <div className="p-6 text-center text-xs text-[#7B8798]">
                   No portal modules match "<span className="font-semibold">{searchQuery}</span>"
                 </div>
               ) : (
@@ -651,24 +658,24 @@ export function AppShell({
                       key={it.key}
                       to={it.to}
                       onClick={() => setSearchOpen(false)}
-                      className="p-3 rounded-xl flex items-center justify-between hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors group cursor-pointer"
+                      className="p-3 rounded-xl flex items-center justify-between hover:bg-[#E7F5F8] dark:hover:bg-slate-800 transition-colors group cursor-pointer"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-xl bg-blue-50 dark:bg-slate-800 text-[#56B4D3] flex items-center justify-center shrink-0">
+                        <div className="h-9 w-9 rounded-xl bg-[#E7F5F8] dark:bg-slate-800 text-[#168FA8] flex items-center justify-center shrink-0">
                           <Icon className="h-5 w-5" />
                         </div>
                         <div>
-                          <div className="font-bold text-sm text-slate-900 dark:text-slate-100 group-hover:text-[#56B4D3] transition-colors">
+                          <div className="font-bold text-sm text-[#172033] dark:text-slate-100 group-hover:text-[#168FA8] transition-colors">
                             {it.label}
                           </div>
                           {it.desc && (
-                            <div className="text-xs text-slate-400 font-normal">
+                            <div className="text-xs text-[#526174] font-normal">
                               {it.desc}
                             </div>
                           )}
                         </div>
                       </div>
-                      <span className="text-[11px] font-mono text-[#56B4D3] opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span className="text-xs font-semibold text-[#168FA8] opacity-0 group-hover:opacity-100 transition-opacity">
                         Go →
                       </span>
                     </Link>
@@ -701,7 +708,7 @@ export function PrimaryButton({
     <button
       onClick={onClick}
       disabled={disabled}
-      className="h-10 px-5 rounded-full text-sm font-bold bg-gradient-to-r from-[#56B4D3] via-[#48A6C5] to-[#3B9AB9] hover:from-[#48A6C5] hover:to-[#2F8CA9] text-[#092E3D] shadow-md shadow-[#56B4D3]/20 hover:shadow-lg hover:shadow-[#56B4D3]/30 transition-all duration-200 disabled:opacity-50 inline-flex items-center gap-2 cursor-pointer active:scale-95 border border-white/30"
+      className="h-10 px-4 rounded-xl text-sm font-semibold bg-[#168FA8] hover:bg-[#0F6F83] text-white shadow-xs transition-all duration-200 disabled:opacity-50 inline-flex items-center gap-2 cursor-pointer active:scale-98"
     >
       {icon}
       {children}
@@ -721,7 +728,7 @@ export function SecondaryButton({
   return (
     <button
       onClick={onClick}
-      className="h-10 px-5 rounded-full text-sm font-semibold bg-white/80 dark:bg-slate-800/90 hover:bg-white dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border border-slate-200/80 dark:border-slate-700 shadow-2xs hover:shadow-xs transition-all duration-200 inline-flex items-center gap-2 cursor-pointer active:scale-95"
+      className="h-10 px-4 rounded-xl text-sm font-semibold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-[#172033] dark:text-slate-100 border border-[#DCE3E8] dark:border-slate-700 shadow-2xs transition-all duration-200 inline-flex items-center gap-2 cursor-pointer active:scale-98"
     >
       {icon}
       {children}
@@ -741,13 +748,13 @@ export function FilterChip({
   return (
     <button
       onClick={onClick}
-      className="h-9 px-4 rounded-full bg-white/80 dark:bg-slate-800/90 hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700 shadow-2xs transition-all inline-flex items-center gap-2 text-xs font-semibold cursor-pointer active:scale-95"
+      className="h-9 px-3.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-[#526174] dark:text-slate-200 border border-[#DCE3E8] dark:border-slate-700 shadow-2xs transition-all inline-flex items-center gap-2 text-xs font-semibold cursor-pointer active:scale-98 font-sans"
     >
-      <span className="font-mono text-[10px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
+      <span className="text-xs font-normal text-[#526174] dark:text-slate-400">
         {label}
       </span>
-      <span className="font-bold text-[#56B4D3]">{value}</span>
-      <ChevronDown className="h-3 w-3 opacity-60" />
+      <span className="font-semibold text-[#168FA8]">{value}</span>
+      <ChevronDown className="h-3.5 w-3.5 opacity-70 text-[#526174]" />
     </button>
   );
 }
@@ -764,10 +771,10 @@ export function SectionCard({
   noPad?: boolean;
 }) {
   return (
-    <div className="rounded-2xl bg-white/95 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 shadow-xs hover:shadow-md transition-all duration-300 overflow-hidden">
+    <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[#DCE3E8] dark:border-slate-800 shadow-2xs overflow-hidden">
       {title && (
-        <div className="px-6 py-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/50 backdrop-blur-xs">
-          <div className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+        <div className="px-6 py-4 flex items-center justify-between border-b border-[#DCE3E8] dark:border-slate-800 bg-white dark:bg-slate-900">
+          <div className="font-bold text-[17px] text-[#172033] dark:text-white flex items-center gap-2 font-sans">
             {title}
           </div>
           {action && <div>{action}</div>}
