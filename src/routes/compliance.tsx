@@ -143,7 +143,8 @@ function Compliance() {
 
   return (
     <AppShell
-      title="Participant Compliance Register & Incident Management (§5.8)"
+      title="Compliance Register"
+      subtitle="Participant regulatory deadlines, submission returns, and incidents"
       breadcrumb="GOVERN › COMPLIANCE"
       scope="All Institutions"
       primaryAction={
@@ -155,15 +156,15 @@ function Compliance() {
       }
       toolbar={
         <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-500 font-mono">Submission Status:</span>
+          <span className="text-xs text-[#526174] font-sans font-medium">Submission Status:</span>
           {["All Status", "Pending", "Submitted", "Under Review", "Approved", "Rejected", "Overdue"].map((st) => (
             <button
               key={st}
               onClick={() => setStatusFilter(st)}
-              className={`h-7 px-3 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
+              className={`h-7 px-3 rounded-lg text-xs font-sans font-medium border transition-colors cursor-pointer ${
                 statusFilter === st
-                  ? "bg-[#56B4D3] text-[#092E3D] font-bold border-[#56B4D3]"
-                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700"
+                  ? "bg-[#168FA8] text-white font-semibold border-[#168FA8]"
+                  : "bg-white dark:bg-slate-800 text-[#526174] dark:text-slate-300 border-[#DCE3E8] dark:border-slate-700"
               }`}
             >
               {st}
