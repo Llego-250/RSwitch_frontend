@@ -593,20 +593,25 @@ export function AppShell({
         </header>
 
         {/* ─── MAIN CONTENT FRAME ─── */}
-        <div className={`relative flex-1 ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-gradient-to-br from-[#DCE6ED] via-[#F4F7F9] to-[#D5E1E8] border-[#DCE3E8]'} rounded-[24px] flex flex-col overflow-hidden border shadow-xs relative`}>
-          {/* Ambient background glow for frosted glass blur effect */}
-          <div className="absolute top-4 left-10 w-96 h-48 bg-sky-400/15 dark:bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute top-20 right-10 w-80 h-40 bg-teal-400/15 dark:bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className={`relative flex-1 ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-gradient-to-br from-[#E2ECF2] via-[#F4F7F9] to-[#DCE6ED] border-[#DCE3E8]'} rounded-[24px] flex flex-col overflow-hidden border shadow-xs relative`}>
+          {/* Ambient glowing background shapes to highlight frosted glass blur */}
+          <div className="absolute top-2 left-12 w-96 h-40 bg-sky-400/20 dark:bg-sky-500/15 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute top-16 right-12 w-80 h-36 bg-teal-400/20 dark:bg-teal-500/15 rounded-full blur-3xl pointer-events-none" />
 
-          <div className={`w-full h-full ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-[#F4F7F9]/80 border-white'} rounded-[24px] flex flex-col overflow-hidden relative z-10`}>
+          <div className={`w-full h-full ${isDark ? 'bg-slate-900/75 border-slate-800' : 'bg-[#F4F7F9]/75 border-white'} rounded-[24px] flex flex-col overflow-hidden relative z-10`}>
 
-            {/* ─── COLLAPSIBLE LIQUID GLASS PAGE HEADER CARD (High Frosted Blur) ─── */}
-            <div className={`mx-4 mt-4 lg:mx-6 lg:mt-6 rounded-2xl border backdrop-blur-3xl backdrop-saturate-200 transition-all duration-300 ${
-              isDark
-                ? 'bg-slate-900/35 border-white/20 text-white shadow-[0_12px_40px_0_rgba(0,0,0,0.45),_inset_0_1px_1px_0_rgba(255,255,255,0.2)]'
-                : 'bg-white/35 border-white/80 text-slate-900 shadow-[0_12px_40px_0_rgba(31,38,135,0.12),_inset_0_1.5px_2px_0_rgba(255,255,255,0.95)]'
-            } overflow-hidden shrink-0`}>
-              
+            {/* ─── LIQUID FROSTED GLASS PAGE HEADER CARD ─── */}
+            <div
+              className={`mx-4 mt-4 lg:mx-6 lg:mt-6 rounded-2xl border transition-all duration-300 ${
+                isDark
+                  ? 'bg-slate-900/65 border-white/10 text-white shadow-xl'
+                  : 'bg-white/65 border-white/80 text-slate-900 shadow-[0_8px_32px_0_rgba(31,38,135,0.08),_inset_0_1px_1px_rgba(255,255,255,0.8)]'
+              } overflow-hidden shrink-0`}
+              style={{
+                backdropFilter: "blur(20px) saturate(180%)",
+                WebkitBackdropFilter: "blur(20px) saturate(180%)",
+              }}
+            >
               <div className={`px-6 transition-all duration-300 ${headerCollapsed ? "py-3" : "py-4.5"} flex flex-wrap items-center justify-between gap-4`}>
                 <div className="min-w-0">
                   {breadcrumb && (
@@ -640,17 +645,16 @@ export function AppShell({
                     onClick={() => setHeaderCollapsed(!headerCollapsed)}
                     aria-label={headerCollapsed ? "Expand page header" : "Collapse page header"}
                     title={headerCollapsed ? "Expand header to view details" : "Collapse header to expand content view"}
-                    className={`h-9 px-3 rounded-xl border font-mono text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ${
+                    className={`h-9 w-9 rounded-xl border flex items-center justify-center transition-all cursor-pointer shadow-xs ${
                       isDark
                         ? "bg-slate-800/80 hover:bg-slate-700 text-slate-200 border-slate-700"
-                        : "bg-white/80 hover:bg-white text-slate-700 border-white/80"
+                        : "bg-white/80 hover:bg-white text-slate-700 border-slate-200"
                     }`}
                   >
-                    {/* <span>{headerCollapsed ? "Expand" : "Collapse"}</span> */}
                     {headerCollapsed ? (
-                      <ChevronDown className="h-4 w-4 text-sky-600 dark:text-sky-400 stroke-[2.5]" />
+                      <ChevronDown className="h-4.5 w-4.5 text-sky-600 dark:text-sky-400 stroke-[2.5]" />
                     ) : (
-                      <ChevronUp className="h-4 w-4 text-slate-500 stroke-[2.5]" />
+                      <ChevronUp className="h-4.5 w-4.5 text-slate-500 stroke-[2.5]" />
                     )}
                   </button>
                 </div>
@@ -658,9 +662,15 @@ export function AppShell({
 
               {/* Integrated Toolbar inside liquid glass header card (Hidden when collapsed) */}
               {!headerCollapsed && toolbar && (
-                <div className={`px-6 py-2.5 border-t ${
-                  isDark ? 'border-white/10 bg-slate-950/40' : 'border-white/60 bg-white/45'
-                } backdrop-blur-md flex flex-wrap items-center gap-2 text-xs transition-all`}>
+                <div
+                  className={`px-6 py-2.5 border-t ${
+                    isDark ? 'border-white/10 bg-slate-950/40' : 'border-white/60 bg-white/45'
+                  } flex flex-wrap items-center gap-2 text-xs transition-all`}
+                  style={{
+                    backdropFilter: "blur(16px)",
+                    WebkitBackdropFilter: "blur(16px)",
+                  }}
+                >
                   {toolbar}
                 </div>
               )}
