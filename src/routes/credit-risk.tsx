@@ -443,6 +443,7 @@ function CreditRiskDashboard() {
   return (
     <AppShell
       title="Credit Risk Dashboard"
+      subtitle="Portfolio concentration, probability of default (PD) scoring, and borrower watchlist"
       breadcrumb="DECIDE › CREDIT RISK"
       primaryAction={
         <PrimaryButton icon={<Download style={{ height: "15px", width: "15px" }} />}>
@@ -465,9 +466,9 @@ function CreditRiskDashboard() {
             />
             <span
               style={{
-                fontFamily: "monospace",
-                fontSize: "11px",
-                color: "var(--neutral-500)",
+                fontFamily: "Inter, sans-serif",
+                fontSize: "12px",
+                color: "#526174",
               }}
             >
               live · model v2.3
@@ -479,28 +480,28 @@ function CreditRiskDashboard() {
       {/* KPI Row */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px", marginBottom: "20px" }}>
         <KpiCard
-          label="Total Portfolio Exposure"
+          label="Total portfolio exposure"
           value="$2.84B"
           delta={{ dir: "up", text: "+$120M", tone: "bad" }}
           context="vs. prior quarter"
           freshness="live"
         />
         <KpiCard
-          label="Weighted Average PD"
+          label="Weighted average PD"
           value="1.9%"
           delta={{ dir: "down", text: "-0.1pp", tone: "good" }}
           context="probability of default"
           freshness="live"
         />
         <KpiCard
-          label="Watchlist Borrowers"
+          label="Watchlist borrowers"
           value="47"
           delta={{ dir: "up", text: "+3", tone: "bad" }}
           context="requiring review"
           freshness="live"
         />
         <KpiCard
-          label="Stress Test Pass Rate"
+          label="Stress test pass rate"
           value="92%"
           delta={{ dir: "up", text: "+2%", tone: "good" }}
           context="Basel III scenario"
