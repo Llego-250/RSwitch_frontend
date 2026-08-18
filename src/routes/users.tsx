@@ -129,7 +129,8 @@ function Users() {
 
   return (
     <AppShell
-      title="User Management & Audit Trail (§5.13)"
+      title="User Management"
+      subtitle="Access control, RBAC roles, MFA enforcement, and system audit logs"
       breadcrumb="ADMIN › USERS & SECURITY"
       scope="Technical Administration"
       primaryAction={
@@ -144,16 +145,16 @@ function Users() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setActiveTab("users")}
-              className={`h-8 px-4 rounded-lg text-xs font-semibold border cursor-pointer ${
-                activeTab === "users" ? "bg-[#56B4D3] text-[#092E3D] border-[#56B4D3]" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700"
+              className={`h-8 px-4 rounded-xl text-xs font-sans font-semibold border cursor-pointer ${
+                activeTab === "users" ? "bg-[#168FA8] text-white border-[#168FA8]" : "bg-white dark:bg-slate-800 text-[#526174] dark:text-slate-300 border-[#DCE3E8] dark:border-slate-700"
               }`}
             >
               Users Directory ({users.length})
             </button>
             <button
               onClick={() => setActiveTab("audit")}
-              className={`h-8 px-4 rounded-lg text-xs font-semibold border cursor-pointer ${
-                activeTab === "audit" ? "bg-[#56B4D3] text-[#092E3D] border-[#56B4D3]" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700"
+              className={`h-8 px-4 rounded-xl text-xs font-sans font-semibold border cursor-pointer ${
+                activeTab === "audit" ? "bg-[#168FA8] text-white border-[#168FA8]" : "bg-white dark:bg-slate-800 text-[#526174] dark:text-slate-300 border-[#DCE3E8] dark:border-slate-700"
               }`}
             >
               Audit Log Register ({AUDIT_LOGS.length})
