@@ -204,7 +204,8 @@ function AIPage() {
 
   return (
     <AppShell
-      title="AI Decision Support & Anomaly Detection (§5.9)"
+      title="AI Decision Support"
+      subtitle="Anomaly detection, automated baseline triggers, and advisory intelligence"
       breadcrumb="DECIDE › AI DECISION SUPPORT"
       scope="Advisory Operational Intelligence"
       primaryAction={
@@ -214,9 +215,9 @@ function AIPage() {
       }
       toolbar={
         <div className="flex items-center gap-3 text-xs">
-          <span className="font-mono text-slate-500">Filter Baseline:</span>
-          <FilterChip label="Engine" value="Model-Agnostic Analytical Engine (§5.9 REQ-AI-010)" />
-          <div className="ml-auto inline-flex items-center gap-1.5 font-mono text-[11px] text-amber-600 bg-amber-50 dark:bg-amber-950/50 px-3 py-1 rounded-full border border-amber-200 dark:border-amber-900">
+          <span className="font-sans text-[#526174] font-medium">Filter Baseline:</span>
+          <FilterChip label="Engine" value="Model-Agnostic Analytical Engine" />
+          <div className="ml-auto inline-flex items-center gap-1.5 font-sans text-xs text-[#D97706] bg-[#FFF3DF] dark:bg-amber-950/50 px-3 py-1 rounded-full border border-[#D97706]/30 font-medium">
             <AlertTriangle className="h-3.5 w-3.5" />
             <span>REQ-AI-002: AI Outputs are Advisory & Explainable (No Automated Decisions)</span>
           </div>
