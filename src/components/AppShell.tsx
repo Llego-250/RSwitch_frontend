@@ -232,9 +232,9 @@ export function AppShell({
   const filteredSearchItems = searchQuery.trim() === ""
     ? allNavItems
     : allNavItems.filter((i) =>
-        i.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (i.desc && i.desc.toLowerCase().includes(searchQuery.toLowerCase()))
-      );
+      i.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (i.desc && i.desc.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
 
   const filteredNotifs = notifFilter === "all"
     ? notifs
@@ -365,8 +365,8 @@ export function AppShell({
                   key={r.id}
                   onClick={() => { setRole(r.id); setRoleOpen(false); }}
                   className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-colors ${role === r.id
-                      ? "bg-[#56B4D3]/15 text-[#56B4D3] font-bold"
-                      : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
+                    ? "bg-[#56B4D3]/15 text-[#56B4D3] font-bold"
+                    : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
                     }`}
                 >
                   <div className="flex flex-col">
@@ -440,8 +440,8 @@ export function AppShell({
               readOnly
               placeholder="Search portal modules, reports, governance... (Press ⌘K)"
               className={`w-full h-full pl-11 pr-16 rounded-full ${isDark
-                  ? 'bg-slate-800/80 text-slate-200 placeholder:text-slate-400 border-slate-700'
-                  : 'bg-[#DAE2E7] hover:bg-[#D6E0E6] text-[#1E293B] placeholder:text-[#7A8E9C] border-white/60'
+                ? 'bg-slate-800/80 text-slate-200 placeholder:text-slate-400 border-slate-700'
+                : 'bg-[#DAE2E7] hover:bg-[#D6E0E6] text-[#1E293B] placeholder:text-[#7A8E9C] border-white/60'
                 } text-xs sm:text-sm font-medium transition-all border shadow-inner outline-none cursor-pointer`}
             />
             <div className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-1 px-2 py-1 rounded-md bg-white/60 dark:bg-slate-700/80 border border-slate-200 dark:border-slate-600 text-[10px] font-mono text-slate-500 dark:text-slate-300">
@@ -525,8 +525,8 @@ export function AppShell({
                         key={tab}
                         onClick={() => setNotifFilter(tab)}
                         className={`flex-1 py-1 rounded-lg capitalize transition-colors ${notifFilter === tab
-                            ? "bg-white dark:bg-slate-700 text-[#56B4D3] shadow-xs font-bold"
-                            : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
+                          ? "bg-white dark:bg-slate-700 text-[#56B4D3] shadow-xs font-bold"
+                          : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
                           }`}
                       >
                         {tab}
@@ -546,16 +546,16 @@ export function AppShell({
                           key={n.id}
                           onClick={() => toggleRead(n.id)}
                           className={`pt-2 flex items-start gap-2.5 cursor-pointer p-2 rounded-xl transition-colors ${!n.read
-                              ? isDark ? 'bg-slate-800/80' : 'bg-blue-50/70'
-                              : 'hover:bg-slate-100 dark:hover:bg-slate-800/50'
+                            ? isDark ? 'bg-slate-800/80' : 'bg-blue-50/70'
+                            : 'hover:bg-slate-100 dark:hover:bg-slate-800/50'
                             }`}
                         >
                           <span
                             className={`h-2 w-2 rounded-full shrink-0 mt-1.5 ${n.type === "alert"
-                                ? "bg-red-500"
-                                : n.type === "warning"
-                                  ? "bg-amber-500"
-                                  : "bg-blue-500"
+                              ? "bg-red-500"
+                              : n.type === "warning"
+                                ? "bg-amber-500"
+                                : "bg-blue-500"
                               }`}
                           />
                           <div className="flex-1 min-w-0">
