@@ -1,5 +1,5 @@
+import React, { Fragment, useState, useMemo } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useMemo } from "react";
 import {
   AppShell,
   PrimaryButton,
@@ -10,6 +10,16 @@ import { KpiCard } from "@/components/KpiCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useRole } from "@/context/RoleContext";
 import { canManage } from "@/lib/roles";
+import { useAppStore } from "@/store/useAppStore";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  useReactTable,
+  getCoreRowModel,
+  getSortedRowModel,
+  flexRender,
+  createColumnHelper,
+  SortingState,
+} from "@tanstack/react-table";
 import {
   Play,
   Pause,
@@ -24,6 +34,7 @@ import {
   ShieldCheck,
   RotateCcw,
   StopCircle,
+  ArrowUpDown,
 } from "lucide-react";
 
 export const Route = createFileRoute("/pipelines")({
@@ -101,71 +112,59 @@ const INITIAL_JOBS: Job[] = [
   },
   {
     id: "j4",
-    name: "inkomoko-mfi-ingest",
+    name: "inkomoko-loan-ledger",
     institution: "Inkomoko MFI",
-    source: "Manual CSV Upload",
+    source: "Loan Mgmt System DB",
     status: "failed",
-    progress: 23,
-    start: "09:30:00",
-    duration: "1m 44s",
-    records: "2,100",
-    errors: 3,
+    progress: 32,
+    start: "11:30:00",
+    duration: "1m 45s",
+    records: "12,100",
+    errors: 4,
     logs: [
-      "09:30:00 [INFO] Ingestion job started for file Inkomoko_Q2_Portfolio.csv",
-      "09:30:45 [WARN] Schema warning: missing optional tax identifier in row 14",
-      "09:31:12 [ERROR] Schema validation failed: Row 42 negative value in PAR_30d",
-      "09:31:44 [FATAL] Job failed per §6.4 rule (no partial ingestion permitted).",
+      "11:30:00 [INFO] ETL process initiated",
+      "11:31:12 [WARN] Unmapped field encountered: borrower_alt_id_2",
+      "11:31:45 [ERROR] Schema validation exception: Record 3,890 failed strict type validation",
+      "11:31:45 [FATAL] Job halted due to high error threshold. 4 validation errors.",
     ],
   },
   {
     id: "j5",
-    name: "zigama-[#56B4D3]-sync",
+    name: "zigama-css-payroll-batch",
     institution: "Zigama CSS SACCO",
-    source: "Manual XML Feed",
-    status: "running",
-    progress: 45,
-    start: "12:09:00",
-    duration: "1m 02s",
-    records: "12,300",
-    errors: 0,
-    logs: [
-      "12:09:00 [INFO] XML Schema parser started",
-      "12:09:30 [INFO] Normalizing 12,300 records to JSON Canonical format (45%)",
-    ],
-  },
-  {
-    id: "j6",
-    name: "umwalimu-sacco-api-pull",
-    institution: "Umwalimu SACCO",
-    source: "Automated API",
+    source: "Batch SFTP Server",
     status: "queued",
     progress: 0,
     start: "—",
     duration: "—",
-    records: "—",
+    records: "0",
     errors: 0,
-    logs: ["12:10:00 [QUEUED] Waiting in worker queue slot 2..."],
+    logs: ["12:10:00 [INFO] Job queued. Waiting for worker pool availability..."],
   },
 ];
 
 type StatusFilter = "all" | "running" | "completed" | "failed" | "queued" | "paused";
 
+const columnHelper = createColumnHelper<Job>();
+
 function PipelineMonitor() {
   const { role } = useRole();
   const canManagePipelines = canManage(role, "pipelines");
+  const { addNotification } = useAppStore();
 
-  const [jobs, setJobs]                   = useState<Job[]>(INITIAL_JOBS);
-  const [search, setSearch]               = useState("");
-  const [statusFilter, setStatusFilter]   = useState<StatusFilter>("all");
-  const [expandedId, setExpandedId]       = useState<string | null>(null);
+  const [jobs, setJobs] = useState<Job[]>(INITIAL_JOBS);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [sorting, setSorting] = useState<SortingState>([]);
 
-  // New Config State (§5.4 REQ-PIPE-008)
-  const [newInst, setNewInst]         = useState("Bank of Kigali");
-  const [newName, setNewName]         = useState("");
-  const [newSource, setNewSource]     = useState("Core Banking");
-  const [newCron, setNewCron]         = useState("0 */4 * * *");
-  const [newMapping, setNewMapping]   = useState("ISO 20022 Canonical v3.1");
+  // New Config State
+  const [newInst, setNewInst] = useState("Bank of Kigali");
+  const [newName, setNewName] = useState("");
+  const [newSource, setNewSource] = useState("Core Banking");
+  const [newCron, setNewCron] = useState("0 */4 * * *");
+  const [newMapping, setNewMapping] = useState("ISO 20022 Canonical v3.1");
 
   const filtered = useMemo(() => {
     return jobs.filter((j) => {
@@ -189,11 +188,21 @@ function PipelineMonitor() {
               status: "running",
               progress: 10,
               errors: 0,
-              logs: [...j.logs, `${new Date().toLocaleTimeString()} [REPROCESS] Job restarted by ${role}`],
+              logs: [
+                ...j.logs,
+                `${new Date().toLocaleTimeString()} [REPROCESS] Job restarted by ${role}`,
+              ],
             }
           : j
       )
     );
+    addNotification({
+      id: `notif-${Date.now()}`,
+      title: "Pipeline Restarted",
+      message: `Job ${id} reprocess request triggered successfully.`,
+      timestamp: "Just now",
+      severity: "info",
+    });
   }
 
   function handleStopJob(id: string) {
@@ -203,11 +212,21 @@ function PipelineMonitor() {
           ? {
               ...j,
               status: "paused",
-              logs: [...j.logs, `${new Date().toLocaleTimeString()} [STOP] Execution manually stopped by Technical User`],
+              logs: [
+                ...j.logs,
+                `${new Date().toLocaleTimeString()} [STOP] Execution manually stopped by ${role}`,
+              ],
             }
           : j
       )
     );
+    addNotification({
+      id: `notif-${Date.now()}`,
+      title: "Pipeline Paused",
+      message: `Job ${id} manually stopped by user.`,
+      timestamp: "Just now",
+      severity: "warning",
+    });
   }
 
   function handleCreatePipeline() {
@@ -223,22 +242,175 @@ function PipelineMonitor() {
       duration: "—",
       records: "0",
       errors: 0,
-      logs: [`${new Date().toLocaleTimeString()} Pipeline config created. Schedule: ${newCron}, Target: ${newMapping}`],
+      logs: [
+        `${new Date().toLocaleTimeString()} Pipeline config created. Schedule: ${newCron}, Target: ${newMapping}`,
+      ],
     };
     setJobs([created, ...jobs]);
     setShowCreateModal(false);
     setNewName("");
   }
 
+  // TanStack Table setup
+  const columns = useMemo(
+    () => [
+      columnHelper.display({
+        id: "expander",
+        cell: ({ row }) => (
+          <span className="text-slate-400">
+            {expandedId === row.original.id ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+          </span>
+        ),
+      }),
+      columnHelper.accessor("name", {
+        header: ({ column }) => (
+          <button
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="flex items-center gap-1 hover:text-slate-900 dark:hover:text-white"
+          >
+            Job Name
+            <ArrowUpDown className="h-3 w-3" />
+          </button>
+        ),
+        cell: (info) => (
+          <div>
+            <div className="font-mono font-bold text-xs text-slate-900 dark:text-white">
+              {info.getValue()}
+            </div>
+            <div className="text-[11px] text-slate-400">
+              {info.row.original.source}
+            </div>
+          </div>
+        ),
+      }),
+      columnHelper.accessor("institution", {
+        header: "Institution",
+        cell: (info) => (
+          <span className="text-xs font-semibold text-[#56B4D3]">
+            {info.getValue()}
+          </span>
+        ),
+      }),
+      columnHelper.accessor("status", {
+        header: "Status",
+        cell: (info) => <StatusBadge status={info.getValue()} />,
+      }),
+      columnHelper.accessor("progress", {
+        header: "Progress",
+        cell: (info) => {
+          const status = info.row.original.status;
+          const val = info.getValue();
+          return (
+            <div className="flex items-center gap-2 w-36 font-mono text-xs">
+              <div className="flex-1 h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                <div
+                  className={`h-full rounded-full ${
+                    status === "completed"
+                      ? "bg-emerald-500"
+                      : status === "failed"
+                      ? "bg-red-500"
+                      : "bg-[#56B4D3]"
+                  }`}
+                  style={{ width: `${val}%` }}
+                />
+              </div>
+              <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 w-8">
+                {val}%
+              </span>
+            </div>
+          );
+        },
+      }),
+      columnHelper.accessor("start", {
+        header: "Start Time",
+        cell: (info) => (
+          <span className="font-mono text-xs text-slate-500">
+            {info.getValue()}
+          </span>
+        ),
+      }),
+      columnHelper.accessor("duration", {
+        header: "Duration",
+        cell: (info) => (
+          <span className="font-mono text-xs text-slate-500">
+            {info.getValue()}
+          </span>
+        ),
+      }),
+      columnHelper.accessor("records", {
+        header: "Records",
+        cell: (info) => (
+          <span className="font-mono text-xs font-semibold text-slate-800 dark:text-slate-200">
+            {info.getValue()}
+          </span>
+        ),
+      }),
+      columnHelper.display({
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => {
+          const job = row.original;
+          return (
+            <div
+              className="flex items-center gap-2"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {job.status === "failed" && canManagePipelines && (
+                <button
+                  onClick={() => handleReprocess(job.id)}
+                  className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-50 text-red-600 dark:bg-red-950/60 dark:text-red-300 hover:bg-red-100 flex items-center gap-1 cursor-pointer"
+                  title="Reprocess Failed Job"
+                >
+                  <RotateCcw className="h-3 w-3" />
+                  Reprocess
+                </button>
+              )}
+              {job.status === "running" && canManagePipelines && (
+                <button
+                  onClick={() => handleStopJob(job.id)}
+                  className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-300 hover:bg-amber-100 flex items-center gap-1 cursor-pointer"
+                  title="Stop Running Job"
+                >
+                  <StopCircle className="h-3 w-3" />
+                  Stop Job
+                </button>
+              )}
+            </div>
+          );
+        },
+      }),
+    ],
+    [expandedId, canManagePipelines]
+  );
+
+  const table = useReactTable({
+    data: filtered,
+    columns,
+    state: { sorting },
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  });
+
+  const activeCount = jobs.filter((j) => j.status === "running").length;
+  const failedCount = jobs.filter((j) => j.status === "failed").length;
+
   return (
     <AppShell
-      title="Pipeline Monitor"
-      subtitle="Real-time ETL execution, automated scheduling, and job logs"
+      title="Pipelines"
+      subtitle="ETL Execution & Status"
       breadcrumb="CONNECT › PIPELINES"
       scope="Ingestion Jobs"
       primaryAction={
         canManagePipelines ? (
-          <PrimaryButton icon={<Plus className="h-4 w-4" />} onClick={() => setShowCreateModal(true)}>
+          <PrimaryButton
+            icon={<Plus className="h-4 w-4" />}
+            onClick={() => setShowCreateModal(true)}
+          >
             New Pipeline Config
           </PrimaryButton>
         ) : undefined
@@ -248,142 +420,154 @@ function PipelineMonitor() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#7B8798]" />
             <input
-              type="search"
+              type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search pipelines or institution…"
-              className="h-8 pl-8 pr-3 rounded-xl text-xs w-60 bg-white dark:bg-slate-800 border border-[#DCE3E8] dark:border-slate-700 text-[#172033] dark:text-white focus:outline-none font-sans"
+              placeholder="Search pipelines or institutions..."
+              className="h-9 w-64 pl-8 pr-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-xs border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-1 focus:ring-[#56B4D3]"
             />
           </div>
-
-          <div className="flex items-center gap-1">
-            {(["all", "running", "completed", "failed", "queued", "paused"] as StatusFilter[]).map((st) => (
-              <button
-                key={st}
-                onClick={() => setStatusFilter(st)}
-                className={`h-8 px-3 rounded-xl text-xs font-sans font-medium border capitalize transition-colors cursor-pointer ${
-                  statusFilter === st
-                    ? "bg-[#168FA8] text-white font-semibold border-[#168FA8]"
-                    : "bg-white dark:bg-slate-800 text-[#526174] dark:text-slate-300 border-[#DCE3E8] dark:border-slate-700"
-                }`}
-              >
-                {st}
-              </button>
-            ))}
-          </div>
-
-          <div className="ml-auto inline-flex items-center gap-1.5 text-[11px] font-mono text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/60 px-3 py-1 rounded-full border border-slate-200 dark:border-slate-700">
-            <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
-            <span>REQ-PIPE-010: Aggregate Metadata Only (No Customer Records)</span>
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">
+            {(["all", "running", "completed", "failed"] as StatusFilter[]).map(
+              (f) => (
+                <button
+                  key={f}
+                  onClick={() => setStatusFilter(f)}
+                  className={`px-3 py-1 rounded-lg capitalize font-medium transition-all ${
+                    statusFilter === f
+                      ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs font-semibold"
+                      : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                  }`}
+                >
+                  {f}
+                </button>
+              )
+            )}
           </div>
         </>
       }
     >
-      {/* KPI Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-        <KpiCard label="Active Ingestion Jobs" value={jobs.filter(j => j.status === "running").length.toString()} source="pipeline-engine" freshness="live" />
-        <KpiCard label="Completed Today" value={jobs.filter(j => j.status === "completed").length.toString()} source="pipeline-engine" freshness="live" />
-        <KpiCard label="Failed Pipeline Jobs" value={jobs.filter(j => j.status === "failed").length.toString()} delta={{ dir: "up", text: "+1", tone: "bad" }} source="pipeline-engine" freshness="live" />
-        <KpiCard label="Queued Jobs" value={jobs.filter(j => j.status === "queued").length.toString()} source="queue-manager" freshness="live" />
+      {/* Top Metrics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <KpiCard
+          label="Active Streams"
+          value={activeCount}
+          delta={{ dir: "up", text: "+2 vs avg", tone: "good" }}
+          source="Kafka / Switch Feed"
+        />
+        <KpiCard
+          label="Failed Ingestions"
+          value={failedCount}
+          delta={
+            failedCount > 0
+              ? { dir: "up", text: "Requires Attention", tone: "bad" }
+              : { dir: "down", text: "0 active errors", tone: "good" }
+          }
+          source="DLQ Monitor"
+        />
+        <KpiCard
+          label="Total Volume (Today)"
+          value="242,600"
+          delta={{ dir: "up", text: "+14%", tone: "good" }}
+          source="Ingestion Engine"
+        />
+        <KpiCard
+          label="Average Pipeline Latency"
+          value="42ms"
+          delta={{ dir: "down", text: "-5ms optimal", tone: "good" }}
+          source="Worker Pool"
+        />
       </div>
 
-      {/* Main Jobs Table */}
-      <SectionCard title="Active & Recent Data Ingestion Pipelines (§5.4)" noPad>
+      {/* TanStack Table Data Table */}
+      <SectionCard title="Active Pipelines" noPad>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-slate-100/70 dark:bg-slate-800/70 border-b border-slate-200 dark:border-slate-700">
-              <tr>
-                {["", "Job Name", "Institution", "Status", "Progress", "Start Time", "Duration", "Records", "Actions"].map((col) => (
-                  <th key={col} className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                    {col}
-                  </th>
-                ))}
-              </tr>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <tr key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <th
+                      key={header.id}
+                      className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500"
+                    >
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                    </th>
+                  ))}
+                </tr>
+              ))}
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {filtered.map((job) => {
+              {table.getRowModel().rows.map((row) => {
+                const job = row.original;
                 const isExpanded = expandedId === job.id;
                 return (
-                  <tbody key={job.id}>
+                  <React.Fragment key={job.id}>
                     <tr
                       onClick={() => setExpandedId(isExpanded ? null : job.id)}
                       className="hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors"
                     >
-                      <td className="px-3 py-3 w-8 text-center text-slate-400">
-                        {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="font-mono font-bold text-xs text-slate-900 dark:text-white">{job.name}</div>
-                        <div className="text-[11px] text-slate-400">{job.source}</div>
-                      </td>
-                      <td className="px-4 py-3 text-xs font-semibold text-[#56B4D3]">{job.institution}</td>
-                      <td className="px-4 py-3">
-                        <StatusBadge status={job.status} />
-                      </td>
-                      <td className="px-4 py-3 w-36 font-mono text-xs">
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
-                            <div
-                              className={`h-full rounded-full ${
-                                job.status === "completed" ? "bg-emerald-500" : job.status === "failed" ? "bg-red-500" : "bg-[#56B4D3]"
-                              }`}
-                              style={{ width: `${job.progress}%` }}
-                            />
-                          </div>
-                          <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 w-8">{job.progress}%</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 font-mono text-xs text-slate-500">{job.start}</td>
-                      <td className="px-4 py-3 font-mono text-xs text-slate-500">{job.duration}</td>
-                      <td className="px-4 py-3 font-mono text-xs font-semibold text-slate-800 dark:text-slate-200">{job.records}</td>
-                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center gap-2">
-                          {job.status === "failed" && canManagePipelines && (
-                            <button
-                              onClick={() => handleReprocess(job.id)}
-                              className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-50 text-red-600 dark:bg-red-950/60 dark:text-red-300 hover:bg-red-100 flex items-center gap-1 cursor-pointer"
-                              title="Reprocess Failed Job (REQ-PIPE-005)"
-                            >
-                              <RotateCcw className="h-3 w-3" />
-                              Reprocess
-                            </button>
+                      {row.getVisibleCells().map((cell) => (
+                        <td key={cell.id} className="px-4 py-3">
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
                           )}
-                          {job.status === "running" && canManagePipelines && (
-                            <button
-                              onClick={() => handleStopJob(job.id)}
-                              className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-300 hover:bg-amber-100 flex items-center gap-1 cursor-pointer"
-                              title="Stop Running Job (REQ-PIPE-006)"
-                            >
-                              <StopCircle className="h-3 w-3" />
-                              Stop Job
-                            </button>
-                          )}
-                        </div>
-                      </td>
+                        </td>
+                      ))}
                     </tr>
 
-                    {/* Step-by-Step Execution Log Drawer (REQ-PIPE-004) */}
+                    {/* Step-by-Step Execution Log Drawer with Framer Motion */}
                     {isExpanded && (
                       <tr className="bg-slate-900 text-slate-100">
-                        <td colSpan={9} className="p-4 font-mono text-xs leading-relaxed space-y-2">
-                          <div className="flex items-center justify-between pb-2 border-b border-slate-800 text-[#56B4D3] font-bold">
-                            <span>Step-by-Step Execution Log — {job.name}</span>
-                            <span>Retained for 90 Days (REQ-PIPE-009)</span>
-                          </div>
-                          <div className="space-y-1">
-                            {job.logs.map((logLine, idx) => (
-                              <div key={idx} className="flex items-start gap-2">
-                                <span className="text-slate-500 font-bold shrink-0">#{idx + 1}</span>
-                                <span className={logLine.includes("ERROR") || logLine.includes("FATAL") ? "text-red-400 font-bold" : logLine.includes("SUCCESS") ? "text-emerald-400 font-bold" : "text-slate-300"}>
-                                  {logLine}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
+                        <td
+                          colSpan={columns.length}
+                          className="p-0 border-b border-slate-800"
+                        >
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="p-4 font-mono text-xs leading-relaxed space-y-2"
+                          >
+                            <div className="flex items-center justify-between pb-2 border-b border-slate-800 text-[#56B4D3] font-bold">
+                              <span>Step-by-Step Execution Log — {job.name}</span>
+                              <span>Retained for 90 Days (REQ-PIPE-009)</span>
+                            </div>
+                            <div className="space-y-1">
+                              {job.logs.map((logLine, idx) => (
+                                <div
+                                  key={idx}
+                                  className="flex items-start gap-2"
+                                >
+                                  <span className="text-slate-500 font-bold shrink-0">
+                                    #{idx + 1}
+                                  </span>
+                                  <span
+                                    className={
+                                      logLine.includes("ERROR") ||
+                                      logLine.includes("FATAL")
+                                        ? "text-red-400 font-bold"
+                                        : logLine.includes("SUCCESS")
+                                        ? "text-emerald-400 font-bold"
+                                        : "text-slate-300"
+                                    }
+                                  >
+                                    {logLine}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </motion.div>
                         </td>
                       </tr>
                     )}
-                  </tbody>
+                  </React.Fragment>
                 );
               })}
             </tbody>
@@ -391,87 +575,116 @@ function PipelineMonitor() {
         </div>
       </SectionCard>
 
-      {/* Create Pipeline Config Modal (§5.4 REQ-PIPE-008) */}
-      {showCreateModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
-              <h2 className="font-bold text-base text-slate-900 dark:text-white">Create New Pipeline Configuration</h2>
-              <button onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-slate-600">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Source Institution</label>
-                <select
-                  value={newInst}
-                  onChange={(e) => setNewInst(e.target.value)}
-                  className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
+      {/* Create Pipeline Config Modal with Framer Motion */}
+      <AnimatePresence>
+        {showCreateModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-6 shadow-2xl space-y-4"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+                <h2 className="font-bold text-base text-slate-900 dark:text-white">
+                  New Pipeline
+                </h2>
+                <button
+                  onClick={() => setShowCreateModal(false)}
+                  className="text-slate-400 hover:text-slate-600"
                 >
-                  <option value="Bank of Kigali">Bank of Kigali</option>
-                  <option value="MTN Mobile Money">MTN Mobile Money</option>
-                  <option value="Equity Bank Rwanda">Equity Bank Rwanda</option>
-                  <option value="Inkomoko MFI">Inkomoko MFI</option>
-                  <option value="Zigama CSS SACCO">Zigama CSS SACCO</option>
-                  <option value="Umwalimu SACCO">Umwalimu SACCO</option>
-                </select>
+                  <X className="h-5 w-5" />
+                </button>
               </div>
 
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Pipeline Name</label>
-                <input
-                  type="text"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  placeholder="e.g. bk-liquidity-nightly-sync"
-                  className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono focus:outline-none"
-                />
+              <div className="space-y-3 text-xs">
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Source Institution
+                  </label>
+                  <select
+                    value={newInst}
+                    onChange={(e) => setNewInst(e.target.value)}
+                    className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
+                  >
+                    <option value="Bank of Kigali">Bank of Kigali</option>
+                    <option value="MTN Mobile Money">MTN Mobile Money</option>
+                    <option value="Equity Bank Rwanda">Equity Bank Rwanda</option>
+                    <option value="Inkomoko MFI">Inkomoko MFI</option>
+                    <option value="Zigama CSS SACCO">Zigama CSS SACCO</option>
+                    <option value="Umwalimu SACCO">Umwalimu SACCO</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Pipeline Name
+                  </label>
+                  <input
+                    type="text"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    placeholder="e.g. bk-liquidity-nightly-sync"
+                    className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Source System Type
+                  </label>
+                  <input
+                    type="text"
+                    value={newSource}
+                    onChange={(e) => setNewSource(e.target.value)}
+                    placeholder="e.g. Core Banking / Mobile Money"
+                    className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Schedule (Cron Expression)
+                  </label>
+                  <input
+                    type="text"
+                    value={newCron}
+                    onChange={(e) => setNewCron(e.target.value)}
+                    placeholder="0 */4 * * *"
+                    className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Canonical Data Mapping Target
+                  </label>
+                  <input
+                    type="text"
+                    value={newMapping}
+                    onChange={(e) => setNewMapping(e.target.value)}
+                    className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono focus:outline-none"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Source System Type</label>
-                <input
-                  type="text"
-                  value={newSource}
-                  onChange={(e) => setNewSource(e.target.value)}
-                  placeholder="e.g. Core Banking / Mobile Money"
-                  className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
-                />
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+                <SecondaryButton onClick={() => setShowCreateModal(false)}>
+                  Cancel
+                </SecondaryButton>
+                <PrimaryButton onClick={handleCreatePipeline}>
+                  Save & Deploy Config
+                </PrimaryButton>
               </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Schedule (Cron Expression)</label>
-                <input
-                  type="text"
-                  value={newCron}
-                  onChange={(e) => setNewCron(e.target.value)}
-                  placeholder="0 */4 * * *"
-                  className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Target Mapping Version</label>
-                <select
-                  value={newMapping}
-                  onChange={(e) => setNewMapping(e.target.value)}
-                  className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
-                >
-                  <option value="ISO 20022 Canonical v3.1">ISO 20022 Canonical v3.1 (Published)</option>
-                  <option value="JSON Canonical v2.0">JSON Canonical v2.0 (Published)</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
-              <SecondaryButton onClick={() => setShowCreateModal(false)}>Cancel</SecondaryButton>
-              <PrimaryButton onClick={handleCreatePipeline}>Save Pipeline Config</PrimaryButton>
-            </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </AppShell>
   );
 }
