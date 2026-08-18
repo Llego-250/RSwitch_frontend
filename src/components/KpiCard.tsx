@@ -1,5 +1,6 @@
 import { TrendingUp, TrendingDown, Info } from "lucide-react";
 import type { ReactNode } from "react";
+import { motion } from "framer-motion";
 
 type Delta = {
   dir: "up" | "down";
@@ -34,10 +35,14 @@ export function KpiCard({
   const isBad  = delta?.tone === "bad";
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={onClick ? { y: -2, scale: 1.01 } : { y: -1 }}
+      transition={{ duration: 0.2 }}
       onClick={onClick}
       className={`rounded-2xl p-5 flex flex-col justify-between bg-white dark:bg-slate-900 border border-[#DCE3E8] dark:border-slate-800 shadow-2xs hover:shadow-md transition-all duration-200 select-none group ${
-        onClick ? "cursor-pointer hover:-translate-y-0.5" : "cursor-default"
+        onClick ? "cursor-pointer" : "cursor-default"
       }`}
     >
       {/* Top row: label + trend */}
@@ -90,6 +95,6 @@ export function KpiCard({
           {updated && ` · ${updated}`}
         </span>
       </div>
-    </div>
+    </motion.div>
   );
 }
