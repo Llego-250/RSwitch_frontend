@@ -113,8 +113,8 @@ function Settings() {
 
   return (
     <AppShell
-      title="System Settings"
-      subtitle="Security policies, API keys, notification triggers, and platform parameters"
+      title="Settings"
+      subtitle="Security, APIs & Parameters"
       breadcrumb="ADMIN › SETTINGS"
       scope="System Level"
       primaryAction={
@@ -240,7 +240,7 @@ function Settings() {
           )}
 
           {activeSection === "security" && (
-            <SectionCard title="Security Policies & MFA Enforcement (§5.14 REQ-SET-003)">
+            <SectionCard title="Security & MFA">
               <div className="space-y-4 text-xs">
                 <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800">
                   <div>
@@ -270,7 +270,7 @@ function Settings() {
           )}
 
           {activeSection === "compliance" && (
-            <SectionCard title="Compliance Deadline Reminder Lead Times (§5.14 REQ-SET-004)">
+            <SectionCard title="Reminders">
               <div className="space-y-3 text-xs">
                 <p className="text-slate-500">Configure automated email and in-app reminder trigger lead times before compliance due dates:</p>
                 <div className="space-y-2">
@@ -292,7 +292,7 @@ function Settings() {
           )}
 
           {activeSection === "riskScore" && (
-            <SectionCard title="Participant Risk Score Weights Configuration (§5.6 REQ-P360-011)">
+            <SectionCard title="Risk Weights">
               <div className="space-y-3 text-xs">
                 <p className="text-slate-500">
                   Configure indicator category weights for the Participant 360 Risk Assessment composite score (MUST total 100%):
