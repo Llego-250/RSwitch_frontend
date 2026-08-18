@@ -34,6 +34,8 @@ export type ModuleKey =
   | "customer360"
   | "governance"
   | "compliance"
+  | "fraud"
+  | "creditrisk"
   | "ai"
   | "inclusion"
   | "reports"
@@ -49,6 +51,8 @@ export const CAPS: Record<ModuleKey, Record<Role, Capability>> = {
   customer360:  { compliance: "V", business: "V", technical: "V" },
   governance:   { compliance: "M", business: "V", technical: "V" },
   compliance:   { compliance: "M", business: "V", technical: "V" },
+  fraud:        { compliance: "M", business: "V", technical: "V" },
+  creditrisk:   { compliance: "V", business: "M", technical: "V" },
   ai:           { compliance: "V", business: "M", technical: "V" },
   inclusion:    { compliance: "V", business: "M", technical: "V" },
   reports:      { compliance: "M", business: "M", technical: "V" },
