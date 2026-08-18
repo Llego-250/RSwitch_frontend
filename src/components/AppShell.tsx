@@ -595,34 +595,43 @@ export function AppShell({
         <div className={`relative flex-1 ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-[#F4F7F9] border-[#DCE3E8]'} rounded-[24px] flex flex-col overflow-hidden border shadow-xs`}>
           <div className={`w-full h-full ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-[#F4F7F9] border-white'} rounded-[24px] flex flex-col overflow-hidden`}>
 
-            {/* Header bar inside main panel */}
-            <div className={`px-6 py-4 border-b ${isDark ? 'border-slate-800 bg-slate-900' : 'border-[#DCE3E8] bg-white'} flex flex-wrap items-center justify-between gap-4 shrink-0`}>
-              <div className="min-w-0">
-                {breadcrumb && (
-                  <div className="text-xs font-semibold tracking-wide uppercase text-[#526174] dark:text-slate-400 mb-0.5">
-                    {breadcrumb}
-                  </div>
-                )}
-                <div className="flex flex-col">
-                  <h1 className={`text-2xl lg:text-[28px] font-bold tracking-tight truncate ${isDark ? 'text-white' : 'text-[#172033]'}`}>
-                    {title}
-                  </h1>
-                  {subtitle && (
-                    <p className="text-sm font-normal text-[#526174] dark:text-slate-400 mt-0.5">
-                      {subtitle}
-                    </p>
+            {/* ─── LIQUID GLASS PAGE HEADER CARD (Title, Description & Actions) ─── */}
+            <div className={`mx-4 mt-4 lg:mx-6 lg:mt-6 rounded-2xl border backdrop-blur-2xl backdrop-saturate-180 transition-all duration-300 ${
+              isDark
+                ? 'bg-gradient-to-r from-slate-900/90 via-sky-950/60 to-slate-900/90 border-white/15 text-white shadow-[0_12px_40px_0_rgba(0,0,0,0.4),_inset_0_1px_1px_0_rgba(255,255,255,0.15)]'
+                : 'bg-gradient-to-r from-white/85 via-sky-50/50 to-white/85 border-white/90 text-slate-900 shadow-[0_12px_40px_0_rgba(31,38,135,0.08),_inset_0_1px_1.5px_0_rgba(255,255,255,0.95)]'
+            } overflow-hidden shrink-0`}>
+              <div className="px-6 py-5 flex flex-wrap items-center justify-between gap-4">
+                <div className="min-w-0">
+                  {breadcrumb && (
+                    <div className="text-[11px] font-mono font-bold tracking-wider uppercase text-sky-600 dark:text-sky-400 mb-1 flex items-center gap-1.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-sky-500 animate-pulse" />
+                      {breadcrumb}
+                    </div>
                   )}
+                  <div className="flex flex-col">
+                    <h1 className={`text-2xl lg:text-[30px] font-bold tracking-tight truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      {title}
+                    </h1>
+                    {subtitle && (
+                      <p className="text-xs sm:text-sm font-normal text-slate-500 dark:text-slate-300 mt-1 leading-relaxed">
+                        {subtitle}
+                      </p>
+                    )}
+                  </div>
                 </div>
+                {primaryAction && <div className="flex items-center gap-2 shrink-0">{primaryAction}</div>}
               </div>
-              {primaryAction && <div className="flex items-center gap-2 shrink-0">{primaryAction}</div>}
-            </div>
 
-            {/* Optional toolbar */}
-            {toolbar && (
-              <div className={`px-6 py-3 border-b ${isDark ? 'border-slate-800 bg-slate-900/60' : 'border-[#DCE3E8] bg-white/70'} flex flex-wrap items-center gap-2 text-sm shrink-0`}>
-                {toolbar}
-              </div>
-            )}
+              {/* Toolbar integrated inside liquid glass header card */}
+              {toolbar && (
+                <div className={`px-6 py-3 border-t ${
+                  isDark ? 'border-white/10 bg-slate-950/40' : 'border-white/60 bg-white/40'
+                } backdrop-blur-md flex flex-wrap items-center gap-2 text-xs`}>
+                  {toolbar}
+                </div>
+              )}
+            </div>
 
             {/* Page content */}
             <div className="flex-1 overflow-auto p-5 lg:p-7 text-[#172033] dark:text-slate-100">
