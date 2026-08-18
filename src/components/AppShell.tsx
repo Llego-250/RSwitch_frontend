@@ -25,26 +25,24 @@ const CLUSTERS: { title: string; items: Item[] }[] = [
   {
     title: "Govern & Comply",
     items: [
-      { key: "customer360", label: "Participant 360", to: "/customer-360", icon: Users2, desc: "Unified institution profile & data" },
-      { key: "governance", label: "Governance Center", to: "/governance", icon: Scale, desc: "Data steward controls & audit trail" },
-      { key: "compliance", label: "Compliance Register", to: "/compliance", icon: FileCheck2, desc: "Regulatory compliance & submissions" },
-      { key: "fraud", label: "Fraud & AML Monitor", to: "/fraud", icon: ShieldAlert, desc: "Transaction velocity & fraud detection" },
+      { key: "participant360", label: "Participant 360", to: "/participant-360", icon: Users2, desc: "Unified institution profile & risk data" },
+      { key: "governance", label: "Governance Center", to: "/governance", icon: Scale, desc: "Board documents & action tracking" },
+      { key: "compliance", label: "Compliance Register", to: "/compliance", icon: FileCheck2, desc: "Regulatory deadlines & incident tracking" },
     ],
   },
   {
     title: "Intelligence & Reports",
     items: [
-      { key: "ai", label: "AI Decision Support", to: "/ai", icon: Brain, desc: "Predictive analytics & AI insights" },
-      { key: "inclusion", label: "Financial Inclusion", to: "/inclusion", icon: Sparkles, desc: "National reach & inclusion telemetry" },
-      { key: "creditrisk", label: "Credit Risk Analytics", to: "/credit-risk", icon: TrendingUp, desc: "Participant credit scoring & exposure" },
-      { key: "reports", label: "Report Generator", to: "/reports", icon: FileText, desc: "Automated regulatory & operational reports" },
+      { key: "ai", label: "AI Decision Support", to: "/ai", icon: Brain, desc: "Anomaly alerts & operational risk ranking" },
+      { key: "inclusion", label: "Financial Inclusion", to: "/inclusion", icon: Sparkles, desc: "National reach & telemetry reports" },
+      { key: "reports", label: "Report Generator", to: "/reports", icon: FileText, desc: "Automated regulatory & operational export" },
     ],
   },
   {
     title: "Administration",
     items: [
-      { key: "users", label: "Users & Security", to: "/users", icon: Lock, desc: "Role permissions & security audit" },
-      { key: "settings", label: "System Settings", to: "/settings", icon: Settings, desc: "Global configuration & environment" },
+      { key: "users", label: "Users & Security", to: "/users", icon: Lock, desc: "Role permissions & security audit log" },
+      { key: "settings", label: "System Settings", to: "/settings", icon: Settings, desc: "Global configuration & API policies" },
     ],
   },
 ];
@@ -763,14 +761,16 @@ export function SectionCard({
   action,
   children,
   noPad,
+  className,
 }: {
   title?: ReactNode;
   action?: ReactNode;
   children: ReactNode;
   noPad?: boolean;
+  className?: string;
 }) {
   return (
-    <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[#DCE3E8] dark:border-slate-800 shadow-2xs overflow-hidden">
+    <div className={`rounded-2xl bg-white dark:bg-slate-900 border border-[#DCE3E8] dark:border-slate-800 shadow-2xs overflow-hidden ${className || ""}`}>
       {title && (
         <div className="px-6 py-4 flex items-center justify-between border-b border-[#DCE3E8] dark:border-slate-800 bg-white dark:bg-slate-900">
           <div className="font-bold text-[17px] text-[#172033] dark:text-white flex items-center gap-2 font-sans">
