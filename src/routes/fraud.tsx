@@ -185,6 +185,7 @@ function Fraud() {
   return (
     <AppShell
       title="Fraud Detection"
+      subtitle="Real-time transaction monitoring, behavioral patterns, and investigation queue"
       breadcrumb="DECIDE › FRAUD DETECTION"
       scope="card-stream · mobile-banking · core-banking"
       primaryAction={
@@ -203,25 +204,25 @@ function Fraud() {
       {/* ── ROW 1 — KPI cards ── */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
         <KpiCard
-          label="Active Alerts"
+          label="Active alerts"
           value="3"
           delta={{ dir: "up", text: "+1", tone: "bad" }}
           freshness="live"
         />
         <KpiCard
-          label="Investigation Queue"
+          label="Investigation queue"
           value="7"
           context="avg age 4h"
           freshness="live"
         />
         <KpiCard
-          label="False Positive Rate"
+          label="False positive rate"
           value="12%"
           delta={{ dir: "down", text: "-3%", tone: "good" }}
           freshness="live"
         />
         <KpiCard
-          label="Cases Resolved (24h)"
+          label="Cases resolved (24h)"
           value="14"
           delta={{ dir: "up", text: "+2", tone: "good" }}
           freshness="live"
