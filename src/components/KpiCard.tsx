@@ -36,81 +36,58 @@ export function KpiCard({
   masked,
   onClick,
 }: Props) {
-  const dotColor = FRESHNESS_COLOR[freshness] ?? "#0D9488";
-
-  const deltaColor =
-    delta?.tone === "good"
-      ? "#0D9488"
-      : delta?.tone === "bad"
-      ? "#E11D48"
-      : "#6B7280";
+  const isGood = delta?.tone === "good";
+  const isBad  = delta?.tone === "bad";
 
   return (
     <div
-      className="rounded-lg p-5 flex flex-col gap-0 transition-shadow cursor-default select-none"
-      style={{
-        backgroundColor: "var(--card)",
-        border: "1px solid var(--border)",
-        borderRadius: "8px",
-      }}
       onClick={onClick}
-      onMouseEnter={e => {
-        if (onClick) {
-          (e.currentTarget as HTMLElement).style.boxShadow =
-            "0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)";
-          (e.currentTarget as HTMLElement).style.cursor = "pointer";
-        }
-      }}
-      onMouseLeave={e => {
-        (e.currentTarget as HTMLElement).style.boxShadow = "none";
-      }}
+      className={`rounded-2xl p-5 flex flex-col justify-between bg-white/95 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 shadow-xs hover:shadow-md transition-all duration-200 select-none ${
+        onClick ? "cursor-pointer hover:-translate-y-0.5" : "cursor-default"
+      }`}
     >
       {/* Top row: label + trend */}
-      <div className="flex items-center justify-between">
-        <span
-          className="text-[12px] font-medium tracking-wide"
-          style={{ color: "var(--neutral-500)" }}
-        >
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-semibold tracking-wide text-slate-500 dark:text-slate-400">
           {label}
         </span>
         {delta ? (
           <span
-            className="inline-flex items-center gap-0.5 text-[11px] font-medium font-mono"
-            style={{ color: deltaColor }}
+            className={`inline-flex items-center gap-1 text-[11px] font-bold font-mono px-2 py-0.5 rounded-full border ${
+              isGood
+                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                : isBad
+                ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
+                : "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20"
+            }`}
           >
             {delta.dir === "up" ? (
-              <TrendingUp className="h-3.5 w-3.5" />
+              <TrendingUp className="h-3 w-3" />
             ) : (
-              <TrendingDown className="h-3.5 w-3.5" />
+              <TrendingDown className="h-3 w-3" />
             )}
             {delta.text}
           </span>
         ) : (
-          <Info className="h-3.5 w-3.5" style={{ color: "var(--neutral-400)" }} />
+          <Info className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
         )}
       </div>
 
       {/* Middle: value */}
-      <div className="mt-3 flex items-baseline gap-1.5">
-        <div
-          className="font-mono tabular leading-none"
-          style={{
-            fontSize: "28px",
-            fontWeight: 700,
-            color: masked ? "var(--neutral-400)" : "var(--neutral-900)",
-            letterSpacing: "-0.02em",
-          }}
-        >
+      <div className="my-3 flex items-baseline gap-1.5">
+        <div className="font-mono font-extrabold text-2xl lg:text-3xl tracking-tight text-slate-900 dark:text-white leading-none">
           {masked ? "••••••" : value}
         </div>
       </div>
 
       {/* Bottom: context / source / freshness */}
-      <div className="mt-3 flex items-center gap-1.5 font-mono text-[11px]"
-        style={{ color: "var(--neutral-400)" }}>
+      <div className="flex items-center gap-1.5 font-mono text-[11px] text-slate-400 dark:text-slate-500 truncate">
         <span
-          className="h-1.5 w-1.5 rounded-full shrink-0"
-          style={{ backgroundColor: dotColor }}
+          className={`h-1.5 w-1.5 rounded-full shrink-0 ${
+            freshness === "live"
+              ? "bg-emerald-500 animate-pulse"
+              : "bg-amber-500"
+          }`}
         />
         <span className="truncate">
           {context ?? (source ? `${freshness} · ${source}` : freshness)}
