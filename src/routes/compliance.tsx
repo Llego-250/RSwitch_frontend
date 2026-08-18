@@ -144,7 +144,7 @@ function Compliance() {
   return (
     <AppShell
       title="Compliance Register"
-      subtitle="Participant regulatory deadlines, submission returns, and incidents"
+      subtitle="Regulatory Deadlines & Incidents"
       breadcrumb="GOVERN › COMPLIANCE"
       scope="All Institutions"
       primaryAction={
@@ -182,7 +182,7 @@ function Compliance() {
       </div>
 
       {/* Main Table: Compliance Register (§5.8 REQ-COMP-001, REQ-COMP-002) */}
-      <SectionCard title="Participant Compliance Register & Regulatory Directives" noPad>
+      <SectionCard title="Compliance Register" noPad>
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead className="bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
@@ -251,9 +251,8 @@ function Compliance() {
         </div>
       </SectionCard>
 
-      {/* Incidents & Remediation Register (§5.8 REQ-COMP-006, REQ-COMP-007, §6.2) */}
       <div className="mt-6">
-        <SectionCard title="Incident Register & Remediation Management (§6.2)" noPad>
+        <SectionCard title="Incidents & Remediation" noPad>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead className="bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
