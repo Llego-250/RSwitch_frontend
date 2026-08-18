@@ -214,8 +214,8 @@ function MappingPage() {
 
   return (
     <AppShell
-      title="Standards & Mapping"
-      subtitle="ISO 20022 schema definitions, field transformations, and versioning"
+      title="Mapping & Schemas"
+      subtitle="ISO 20022 Field Transformations"
       breadcrumb="CONNECT › STANDARDS & MAPPING"
       scope="Technical Configuration"
       primaryAction={
