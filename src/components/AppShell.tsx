@@ -3,7 +3,7 @@ import { useRole } from "@/context/RoleContext";
 import { ROLES, visible, type ModuleKey } from "@/lib/roles";
 import {
   LayoutDashboard, Plug, GitBranch, Workflow, Users2, Brain,
-  AlertTriangle, Sparkles, FileCheck2, FileText, Lock, Settings,
+  AlertTriangle, Sparkles, FileCheck2, FileText, Lock, Settings, UserPlus,
   Search, Bell, ChevronUp, LogOut, Moon, Sun, Menu, X, ShieldAlert,
   TrendingUp, PanelLeftClose, PanelLeftOpen, Command, CheckCheck,
   Trash2, Filter, Scale, ChevronDown
@@ -42,6 +42,7 @@ const CLUSTERS: { title: string; items: Item[] }[] = [
     title: "Administration",
     items: [
       { key: "users", label: "Users & Security", to: "/users", icon: Lock, desc: "Role permissions & security audit log" },
+      { key: "users", label: "Onboarding Wizard", to: "/onboarding", icon: UserPlus, desc: "5-step participant registration" },
       { key: "settings", label: "Settings", to: "/settings", icon: Settings, desc: "Global configuration & API policies" },
     ],
   },
