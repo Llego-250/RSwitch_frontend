@@ -160,7 +160,7 @@ function Settings() {
         {/* Right 8 cols: Active Section Settings Form */}
         <div className="lg:col-span-8 space-y-5">
           {activeSection === "org" && (
-            <SectionCard title="Organization & Platform Branding (§5.14 REQ-SET-001)">
+            <SectionCard title="Branding">
               <div className="space-y-4 text-xs">
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Organization Full Name</label>
