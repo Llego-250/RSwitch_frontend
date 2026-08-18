@@ -17,32 +17,32 @@ const CLUSTERS: { title: string; items: Item[] }[] = [
     title: "Connect & Ingest",
     items: [
       { key: "dashboard", label: "Dashboard", to: "/", icon: LayoutDashboard, desc: "System performance overview & key KPIs" },
-      { key: "integrations", label: "Integrations Catalog", to: "/integrations", icon: Plug, desc: "Manage participant connections & APIs" },
-      { key: "mapping", label: "Standards & Mapping", to: "/mapping", icon: GitBranch, desc: "ISO 20022 schemas & transformations" },
-      { key: "pipelines", label: "Pipeline Monitor", to: "/pipelines", icon: Workflow, desc: "Real-time ETL execution & status" },
+      { key: "integrations", label: "Integrations", to: "/integrations", icon: Plug, desc: "Manage participant connections & APIs" },
+      { key: "mapping", label: "Mapping & Schemas", to: "/mapping", icon: GitBranch, desc: "ISO 20022 schemas & transformations" },
+      { key: "pipelines", label: "Pipelines", to: "/pipelines", icon: Workflow, desc: "Real-time ETL execution & status" },
     ],
   },
   {
     title: "Govern & Comply",
     items: [
       { key: "participant360", label: "Participant 360", to: "/participant-360", icon: Users2, desc: "Unified institution profile & risk data" },
-      { key: "governance", label: "Governance Center", to: "/governance", icon: Scale, desc: "Board documents & action tracking" },
-      { key: "compliance", label: "Compliance Register", to: "/compliance", icon: FileCheck2, desc: "Regulatory deadlines & incident tracking" },
+      { key: "governance", label: "Governance", to: "/governance", icon: Scale, desc: "Board documents & action tracking" },
+      { key: "compliance", label: "Compliance", to: "/compliance", icon: FileCheck2, desc: "Regulatory deadlines & incident tracking" },
     ],
   },
   {
     title: "Intelligence & Reports",
     items: [
-      { key: "ai", label: "AI Decision Support", to: "/ai", icon: Brain, desc: "Anomaly alerts & operational risk ranking" },
+      { key: "ai", label: "AI Intelligence", to: "/ai", icon: Brain, desc: "Anomaly alerts & operational risk ranking" },
       { key: "inclusion", label: "Financial Inclusion", to: "/inclusion", icon: Sparkles, desc: "National reach & telemetry reports" },
-      { key: "reports", label: "Report Generator", to: "/reports", icon: FileText, desc: "Automated regulatory & operational export" },
+      { key: "reports", label: "Reports", to: "/reports", icon: FileText, desc: "Automated regulatory & operational export" },
     ],
   },
   {
     title: "Administration",
     items: [
       { key: "users", label: "Users & Security", to: "/users", icon: Lock, desc: "Role permissions & security audit log" },
-      { key: "settings", label: "System Settings", to: "/settings", icon: Settings, desc: "Global configuration & API policies" },
+      { key: "settings", label: "Settings", to: "/settings", icon: Settings, desc: "Global configuration & API policies" },
     ],
   },
 ];
