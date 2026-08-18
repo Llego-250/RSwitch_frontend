@@ -145,7 +145,7 @@ function Governance() {
   return (
     <AppShell
       title="Governance Center"
-      subtitle="Board management, committee minutes, and decision tracking"
+      subtitle="Board & Committee Management"
       breadcrumb="GOVERN › GOVERNANCE"
       scope="Board & Working Groups"
       primaryAction={
@@ -204,7 +204,7 @@ function Governance() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 mb-6">
         {/* Left 7 cols: Document Repository (§5.7 REQ-GOV-002, REQ-GOV-003) */}
         <div className="lg:col-span-7 space-y-4">
-          <SectionCard title="Central Governance Document Repository" noPad>
+          <SectionCard title="Documents" noPad>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead className="bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
@@ -247,7 +247,7 @@ function Governance() {
 
         {/* Right 5 cols: Scheduled Meetings & Calendar (§5.7 REQ-GOV-004) */}
         <div className="lg:col-span-5 space-y-4">
-          <SectionCard title="Meeting Calendar & Records (REQ-GOV-004)">
+          <SectionCard title="Meetings">
             <div className="space-y-3">
               {MEETINGS.map((mtg) => (
                 <div key={mtg.id} className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 space-y-2 text-xs">
@@ -279,7 +279,7 @@ function Governance() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Action Items (7 cols REQ-GOV-006) */}
         <div className="lg:col-span-7">
-          <SectionCard title="Governance Action Items Register (REQ-GOV-006)" noPad>
+          <SectionCard title="Action Items" noPad>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead className="bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
@@ -324,7 +324,7 @@ function Governance() {
 
         {/* Working Group Register (5 cols REQ-GOV-008) */}
         <div className="lg:col-span-5">
-          <SectionCard title="Working Group Membership Register (REQ-GOV-008)">
+          <SectionCard title="Working Groups">
             <div className="space-y-3">
               {WORKING_GROUPS.map((wg, idx) => (
                 <div key={idx} className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 space-y-1 text-xs">
