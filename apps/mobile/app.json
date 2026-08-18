@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "RDIP Mobile",
+    "slug": "rdip-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "rdip",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#168FA8"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "rw.rswitch.rdip"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#168FA8"
+      },
+      "package": "rw.rswitch.rdip"
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router"
+    ]
+  }
+}
