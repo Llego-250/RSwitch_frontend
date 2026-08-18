@@ -113,7 +113,8 @@ function Settings() {
 
   return (
     <AppShell
-      title="System Settings & Security Configuration (§5.14)"
+      title="System Settings"
+      subtitle="Security policies, API keys, notification triggers, and platform parameters"
       breadcrumb="ADMIN › SETTINGS"
       scope="System Level"
       primaryAction={
