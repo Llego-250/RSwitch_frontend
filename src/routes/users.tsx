@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell, PrimaryButton, SecondaryButton, SectionCard } from "@/components/AppShell";
 import { StatusBadge } from "@/components/StatusBadge";
+import { RoleAssignmentModal } from "@/components/RoleAssignmentModal";
+import { AuditLogTable } from "@/components/AuditLogTable";
 import { useRole } from "@/context/RoleContext";
 import { canManage, type Role } from "@/lib/roles";
 import { useState } from "react";
