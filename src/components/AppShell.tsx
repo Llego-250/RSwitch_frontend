@@ -435,16 +435,6 @@ export function AppShell({
             <Menu className="h-5 w-5" />
           </button>
 
-          {/* Desktop collapse sidebar toggle button */}
-          <button
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className={`hidden lg:flex h-11 w-11 rounded-full ${isDark ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-[#DAE2E7] text-[#526678] border-white/60'} hover:bg-white dark:hover:bg-slate-700 items-center justify-center border shadow-sm shrink-0 transition-all cursor-pointer`}
-          >
-            {isCollapsed ? <PanelLeftOpen className="h-5 w-5 text-[#56B4D3]" /> : <PanelLeftClose className="h-5 w-5 text-[#526678] dark:text-slate-400" />}
-          </button>
-
           {/* Search Input Trigger Bar */}
           <div
             onClick={() => setSearchOpen(true)}
