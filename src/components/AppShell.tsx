@@ -272,7 +272,6 @@ export function AppShell({
                   RDIP PLATFORM
                 </div>
                 <div className="text-[10px] font-semibold tracking-widest uppercase text-[#D5EEF2] leading-none mt-0.5 flex items-center gap-1">
-                  {/* <span className="h-1.5 w-1.5 rounded-full bg-[#16A979] animate-pulse inline-block shrink-0" /> */}
                   <span className="truncate">RSWITCH INTELLIGENCE</span>
                 </div>
               </div>
