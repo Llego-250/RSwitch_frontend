@@ -127,6 +127,7 @@ export function AppShell({
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [notifFilter, setNotifFilter] = useState<"all" | "alert" | "warning" | "info">("all");
+  const [headerCollapsed, setHeaderCollapsed] = useState<boolean>(false);
 
   // Notifications state with localStorage persistence
   const [notifs, setNotifs] = useState<NotificationItem[]>(() => {
@@ -592,49 +593,81 @@ export function AppShell({
         </header>
 
         {/* ─── MAIN CONTENT FRAME ─── */}
-        <div className={`relative flex-1 ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-[#F4F7F9] border-[#DCE3E8]'} rounded-[24px] flex flex-col overflow-hidden border shadow-xs`}>
-          <div className={`w-full h-full ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-[#F4F7F9] border-white'} rounded-[24px] flex flex-col overflow-hidden`}>
+        <div className={`relative flex-1 ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-gradient-to-br from-[#DCE6ED] via-[#F4F7F9] to-[#D5E1E8] border-[#DCE3E8]'} rounded-[24px] flex flex-col overflow-hidden border shadow-xs relative`}>
+          {/* Ambient background glow for frosted glass blur effect */}
+          <div className="absolute top-4 left-10 w-96 h-48 bg-sky-400/15 dark:bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute top-20 right-10 w-80 h-40 bg-teal-400/15 dark:bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
 
-            {/* ─── LIQUID GLASS PAGE HEADER CARD (Title, Description & Actions) ─── */}
+          <div className={`w-full h-full ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-[#F4F7F9]/80 border-white'} rounded-[24px] flex flex-col overflow-hidden relative z-10`}>
+
+            {/* ─── COLLAPSIBLE LIQUID GLASS PAGE HEADER CARD (Frosted Blur) ─── */}
             <div className={`mx-4 mt-4 lg:mx-6 lg:mt-6 rounded-2xl border backdrop-blur-2xl backdrop-saturate-180 transition-all duration-300 ${
               isDark
-                ? 'bg-gradient-to-r from-slate-900/90 via-sky-950/60 to-slate-900/90 border-white/15 text-white shadow-[0_12px_40px_0_rgba(0,0,0,0.4),_inset_0_1px_1px_0_rgba(255,255,255,0.15)]'
-                : 'bg-gradient-to-r from-white/85 via-sky-50/50 to-white/85 border-white/90 text-slate-900 shadow-[0_12px_40px_0_rgba(31,38,135,0.08),_inset_0_1px_1.5px_0_rgba(255,255,255,0.95)]'
+                ? 'bg-slate-900/60 border-white/15 text-white shadow-[0_12px_36px_0_rgba(0,0,0,0.35),_inset_0_1px_1px_0_rgba(255,255,255,0.15)]'
+                : 'bg-white/55 border-white/90 text-slate-900 shadow-[0_12px_36px_0_rgba(31,38,135,0.07),_inset_0_1px_1.5px_0_rgba(255,255,255,0.9)]'
             } overflow-hidden shrink-0`}>
-              <div className="px-6 py-5 flex flex-wrap items-center justify-between gap-4">
+              
+              <div className={`px-6 transition-all duration-300 ${headerCollapsed ? "py-3" : "py-4.5"} flex flex-wrap items-center justify-between gap-4`}>
                 <div className="min-w-0">
                   {breadcrumb && (
-                    <div className="text-[11px] font-mono font-bold tracking-wider uppercase text-sky-600 dark:text-sky-400 mb-1 flex items-center gap-1.5">
+                    <div className="text-[11px] font-mono font-bold tracking-wider uppercase text-sky-600 dark:text-sky-400 mb-0.5 flex items-center gap-1.5">
                       <span className="h-1.5 w-1.5 rounded-full bg-sky-500 animate-pulse" />
                       {breadcrumb}
                     </div>
                   )}
-                  <div className="flex flex-col">
-                    <h1 className={`text-2xl lg:text-[30px] font-bold tracking-tight truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  <div className="flex items-center gap-3">
+                    <h1 className={`font-bold tracking-tight truncate ${headerCollapsed ? "text-lg lg:text-xl" : "text-2xl lg:text-[28px]"} ${isDark ? 'text-white' : 'text-slate-900'}`}>
                       {title}
                     </h1>
-                    {subtitle && (
-                      <p className="text-xs sm:text-sm font-normal text-slate-500 dark:text-slate-300 mt-1 leading-relaxed">
-                        {subtitle}
-                      </p>
+                    {headerCollapsed && subtitle && (
+                      <span className="hidden sm:inline-block text-xs text-slate-500 dark:text-slate-400 truncate max-w-xs font-normal">
+                        — {subtitle}
+                      </span>
                     )}
                   </div>
+                  {!headerCollapsed && subtitle && (
+                    <p className="text-xs sm:text-sm font-normal text-slate-500 dark:text-slate-300 mt-0.5 leading-relaxed">
+                      {subtitle}
+                    </p>
+                  )}
                 </div>
-                {primaryAction && <div className="flex items-center gap-2 shrink-0">{primaryAction}</div>}
+
+                <div className="flex items-center gap-2.5 shrink-0">
+                  {primaryAction && <div className="flex items-center gap-2">{primaryAction}</div>}
+                  
+                  {/* Chevron Toggle Button for Collapsing Header */}
+                  <button
+                    onClick={() => setHeaderCollapsed(!headerCollapsed)}
+                    aria-label={headerCollapsed ? "Expand page header" : "Collapse page header"}
+                    title={headerCollapsed ? "Expand header to view details" : "Collapse header to expand content view"}
+                    className={`h-9 px-3 rounded-xl border font-mono text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ${
+                      isDark
+                        ? "bg-slate-800/80 hover:bg-slate-700 text-slate-200 border-slate-700"
+                        : "bg-white/80 hover:bg-white text-slate-700 border-white/80"
+                    }`}
+                  >
+                    {/* <span>{headerCollapsed ? "Expand" : "Collapse"}</span> */}
+                    {headerCollapsed ? (
+                      <ChevronDown className="h-4 w-4 text-sky-600 dark:text-sky-400 stroke-[2.5]" />
+                    ) : (
+                      <ChevronUp className="h-4 w-4 text-slate-500 stroke-[2.5]" />
+                    )}
+                  </button>
+                </div>
               </div>
 
-              {/* Toolbar integrated inside liquid glass header card */}
-              {toolbar && (
-                <div className={`px-6 py-3 border-t ${
-                  isDark ? 'border-white/10 bg-slate-950/40' : 'border-white/60 bg-white/40'
-                } backdrop-blur-md flex flex-wrap items-center gap-2 text-xs`}>
+              {/* Integrated Toolbar inside liquid glass header card (Hidden when collapsed) */}
+              {!headerCollapsed && toolbar && (
+                <div className={`px-6 py-2.5 border-t ${
+                  isDark ? 'border-white/10 bg-slate-950/40' : 'border-white/60 bg-white/45'
+                } backdrop-blur-md flex flex-wrap items-center gap-2 text-xs transition-all`}>
                   {toolbar}
                 </div>
               )}
             </div>
 
             {/* Page content */}
-            <div className="flex-1 overflow-auto p-5 lg:p-7 text-[#172033] dark:text-slate-100">
+            <div className="flex-1 overflow-auto p-4 lg:p-6 text-[#172033] dark:text-slate-100">
               {children}
             </div>
 
