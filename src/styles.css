@@ -148,6 +148,73 @@
   .tabular { font-variant-numeric: tabular-nums; }
 }
 
+/* ==========================================================================
+   CUSTOM ULTRA-SLEEK SCROLLBAR DESIGN SYSTEM
+   ========================================================================== */
+
+/* Global WebKit Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(22, 143, 168, 0.35);
+  border-radius: 9999px;
+  border: 1.5px solid transparent;
+  background-clip: padding-box;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(22, 143, 168, 0.75);
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: rgba(15, 111, 131, 0.95);
+}
+
+/* Firefox Custom Scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(22, 143, 168, 0.4) transparent;
+}
+
+/* Dark Mode Scrollbar Styling */
+:is(.dark *) ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+:is(.dark *) ::-webkit-scrollbar-thumb:hover {
+  background: rgba(86, 180, 211, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+:is(.dark *) {
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+
+/* Custom Scrollbar Utility Classes */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 /* Data visualization color utilities */
 @utility chart-1 { color: #168FA8; }
 @utility chart-2 { color: #16A979; }
