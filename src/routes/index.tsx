@@ -97,8 +97,8 @@ function Dashboard() {
 
   return (
     <AppShell
-      title="Operations Dashboard"
-      subtitle="Integration, ingestion & participant monitoring"
+      title="Dashboard"
+      subtitle="Overview & System Status"
       breadcrumb="RDIP › DASHBOARD"
       scope={scope}
       primaryAction={
@@ -427,7 +427,7 @@ function Dashboard() {
 
       {/* ROW 4 — Recent Generated Reports */}
       <div className="mt-5">
-        <SectionCard title="Generated System Reports" noPad>
+        <SectionCard title="System Reports" noPad>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-100/70 dark:bg-slate-800/70 border-b border-slate-200/80 dark:border-slate-700">
