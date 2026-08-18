@@ -117,7 +117,8 @@ function Reports() {
 
   return (
     <AppShell
-      title="Structured Report Generator & History (§5.11 & §14)"
+      title="Report Generator"
+      subtitle="Automated regulatory, compliance, and financial intelligence exports"
       breadcrumb="INTELLIGENCE › REPORTS"
       scope="Official Reporting Engine"
       primaryAction={
@@ -135,13 +136,13 @@ function Reports() {
       toolbar={
         <div className="flex items-center gap-2">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#7B8798]" />
             <input
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search reports by name or category…"
-              className="h-8 pl-8 pr-3 rounded-lg text-xs w-64 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
+              className="h-8 pl-8 pr-3 rounded-xl text-xs w-64 bg-white dark:bg-slate-800 border border-[#DCE3E8] dark:border-slate-700 text-[#172033] dark:text-white focus:outline-none font-sans"
             />
           </div>
 
@@ -150,10 +151,10 @@ function Reports() {
               <button
                 key={cat}
                 onClick={() => setCategoryFilter(cat)}
-                className={`h-8 px-3 rounded-lg text-xs font-medium border transition-colors whitespace-nowrap cursor-pointer ${
+                className={`h-8 px-3 rounded-xl text-xs font-sans font-medium border transition-colors whitespace-nowrap cursor-pointer ${
                   categoryFilter === cat
-                    ? "bg-[#56B4D3] text-[#092E3D] font-bold border-[#56B4D3]"
-                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700"
+                    ? "bg-[#168FA8] text-white font-semibold border-[#168FA8]"
+                    : "bg-white dark:bg-slate-800 text-[#526174] dark:text-slate-300 border-[#DCE3E8] dark:border-slate-700"
                 }`}
               >
                 {cat}
