@@ -6,6 +6,7 @@ import {
   useRouter,
 } from "@tanstack/react-router";
 import { RoleProvider } from "../context/RoleContext";
+import { AuthProvider } from "../context/AuthContext";
 
 function NotFoundComponent() {
   return (
@@ -64,9 +65,11 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   return (
     <QueryClientProvider client={queryClient}>
-      <RoleProvider>
-        <Outlet />
-      </RoleProvider>
+      <AuthProvider>
+        <RoleProvider>
+          <Outlet />
+        </RoleProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
