@@ -204,8 +204,8 @@ function AIPage() {
 
   return (
     <AppShell
-      title="AI Decision Support"
-      subtitle="Anomaly detection, automated baseline triggers, and advisory intelligence"
+      title="AI Intelligence"
+      subtitle="Anomaly Detection & Insights"
       breadcrumb="DECIDE › AI DECISION SUPPORT"
       scope="Advisory Operational Intelligence"
       primaryAction={
