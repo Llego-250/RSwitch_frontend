@@ -136,33 +136,33 @@ export function AppShell({
   return (
     <div className={`h-screen max-h-screen overflow-hidden ${isDark ? 'bg-[#121B22] text-[#E2E8F0]' : 'bg-[#E4EAEE] text-[#1E293B]'} p-3 md:p-4 lg:p-5 flex gap-4 lg:gap-5 relative font-sans transition-colors duration-200`}>
 
-      {/* ─── LEFT SIDEBAR PANEL (Floating neumorphic card) ─── */}
+      {/* ─── LEFT SIDEBAR PANEL (Solid Sky-Blue Gradient Card) ─── */}
       <aside
         className={`
           fixed lg:static inset-y-3 left-3 z-40 lg:z-10
           w-64 lg:w-72 shrink-0
-          ${isDark ? 'bg-[#1A2630]/90 border-slate-700/60' : 'bg-[#F4F7F9]/90 border-white/80'}
+          bg-gradient-to-b from-[#48AFCE] via-[#3A9FC0] to-[#2B8FB1] border-[#399EBF]/40
           backdrop-blur-md rounded-[28px] p-4 flex flex-col justify-between
-          border shadow-[0_10px_30px_rgba(0,0,0,0.03)]
+          border shadow-[0_10px_35px_rgba(43,143,177,0.25)] text-white
           transition-transform duration-200
           ${mobileNavOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         `}
       >
         {/* Top Logo & Header */}
-        <div className="flex items-center justify-between px-1 pt-1 pb-3">
+        <div className="flex items-center justify-between px-1 pt-1 pb-3 border-b border-white/25">
           <Link to="/" className="flex items-center gap-3 group">
-            <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-[#56B4D3] via-[#3593B3] to-[#092E3D] p-1.5 shadow-md shadow-[#56B4D3]/20 border border-white/50 dark:border-slate-700/60 flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-105">
+            <div className="h-12 w-12 rounded-2xl bg-white/95 p-1.5 shadow-md border border-white/80 flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-105">
               <img
                 src="/insight-navigator-logo.png"
                 alt="RDIP logo"
-                className="h-full w-full object-contain filter drop-shadow-md"
+                className="h-full w-full object-contain filter drop-shadow-sm"
               />
             </div>
             <div>
-              <div className={`font-extrabold text-[15px] leading-tight tracking-wide ${isDark ? 'text-white' : 'text-[#1E293B]'} group-hover:text-[#56B4D3] transition-colors`}>
+              <div className="font-extrabold text-[15px] leading-tight tracking-wide text-white group-hover:text-[#092E3D] transition-colors">
                 RDIP PLATFORM
               </div>
-              <div className="text-[10px] font-semibold tracking-widest uppercase text-[#56B4D3] leading-none mt-0.5 flex items-center gap-1">
+              <div className="text-[10px] font-bold tracking-widest uppercase text-[#072533] leading-none mt-0.5 flex items-center gap-1">
                 <span className="h-1.5 w-1.5 rounded-full bg-[#10B981] animate-pulse inline-block" />
                 RSWITCH INTELLIGENCE
               </div>
@@ -170,20 +170,20 @@ export function AppShell({
           </Link>
           <button
             onClick={() => setMobileNavOpen(false)}
-            className="lg:hidden p-1.5 rounded-full hover:bg-slate-200/50 text-slate-500"
+            className="lg:hidden p-1.5 rounded-full hover:bg-white/20 text-white"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Navigation Items */}
-        <div className="flex-1 overflow-y-auto my-2 space-y-4 pr-1 scrollbar-none">
+        <div className="flex-1 overflow-y-auto my-3 space-y-4 pr-1 scrollbar-none">
           {CLUSTERS.map((c) => {
             const items = c.items.filter((i) => visible(role, i.key));
             if (items.length === 0) return null;
             return (
               <div key={c.title} className="space-y-1">
-                <div className="px-4 text-[10px] font-bold uppercase tracking-widest text-[#94A8B8]">
+                <div className="px-4 text-[10px] font-extrabold uppercase tracking-widest text-[#062230]">
                   {c.title}
                 </div>
                 {items.map((it) => {
@@ -197,16 +197,14 @@ export function AppShell({
                       to={it.to}
                       onClick={() => setMobileNavOpen(false)}
                       className={`
-                        w-full rounded-2xl px-4 py-3 text-[14px] flex items-center gap-3.5 transition-all
+                        w-full rounded-2xl px-4 py-3 text-[14px] flex items-center gap-3.5 transition-all duration-200
                         ${active
-                          ? "bg-[#56B4D3] text-[#092E3D] font-semibold shadow-md shadow-[#56B4D3]/25"
-                          : isDark
-                            ? "text-slate-300 hover:bg-slate-800/60 hover:text-white font-medium"
-                            : "text-[#526678] hover:bg-white/70 hover:text-[#1E293B] font-medium"
+                          ? "bg-[#092E3D] text-[#56B4D3] font-extrabold shadow-lg shadow-[#092E3D]/30"
+                          : "text-white/95 hover:bg-white/25 hover:text-white font-bold"
                         }
                       `}
                     >
-                      <Icon className={`h-5 w-5 shrink-0 ${active ? "text-[#092E3D]" : "text-[#718596]"}`} />
+                      <Icon className={`h-5 w-5 shrink-0 ${active ? "text-[#56B4D3]" : "text-white"}`} />
                       <span className="truncate">{it.label}</span>
                     </Link>
                   );
@@ -217,23 +215,23 @@ export function AppShell({
         </div>
 
         {/* Bottom User Profile */}
-        <div className="pt-2 relative">
+        <div className="pt-2 relative border-t border-white/25">
           <div
             onClick={() => setRoleOpen(!roleOpen)}
-            className={`p-2.5 rounded-2xl ${isDark ? 'bg-slate-800/80 border-slate-700' : 'bg-white/70 border-white/80'} border shadow-sm flex items-center justify-between gap-3 cursor-pointer hover:bg-white transition-all`}
+            className="p-2.5 rounded-2xl bg-white/90 border border-white/90 shadow-sm flex items-center justify-between gap-3 cursor-pointer hover:bg-white transition-all text-[#092E3D]"
           >
-            <div className="h-9 w-9 rounded-full bg-[#87C6E4] text-[#092E3D] font-bold text-xs flex items-center justify-center shadow-sm shrink-0">
+            <div className="h-9 w-9 rounded-full bg-[#56B4D3] text-[#092E3D] font-extrabold text-xs flex items-center justify-center shadow-sm shrink-0">
               {avatarInitial}
             </div>
             <div className="flex-1 min-w-0">
-              <div className={`text-xs font-semibold truncate ${isDark ? 'text-white' : 'text-[#1E293B]'}`}>
+              <div className="text-xs font-bold truncate text-[#092E3D]">
                 {roleLabel}
               </div>
-              <div className="text-[10px] font-mono text-[#718596] truncate">
+              <div className="text-[10px] font-mono text-[#2B8FB1] font-bold truncate">
                 {ROLES.find(r => r.id === role)?.scope}
               </div>
             </div>
-            <ChevronUp className="h-4 w-4 text-[#718596] shrink-0" />
+            <ChevronUp className="h-4 w-4 text-[#2B8FB1] shrink-0" />
           </div>
 
           {/* Role selector menu popover */}
@@ -417,12 +415,6 @@ export function AppShell({
                 <h1 className={`text-xl lg:text-2xl font-bold tracking-tight truncate ${isDark ? 'text-white' : 'text-[#1E293B]'}`}>
                   {title}
                 </h1>
-                {scope && (
-                  <div className="mt-1 inline-flex items-center gap-1.5 rounded-full px-3 py-0.5 text-[11px] font-mono bg-[#E5ECEF] dark:bg-slate-800 text-[#475569] dark:text-slate-300 border border-white/60 dark:border-slate-700">
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#10B981]" />
-                    scope: {scope}
-                  </div>
-                )}
               </div>
               {primaryAction && <div className="flex items-center gap-2 shrink-0">{primaryAction}</div>}
             </div>
@@ -465,7 +457,7 @@ export function PrimaryButton({
     <button
       onClick={onClick}
       disabled={disabled}
-      className="h-10 px-5 rounded-full text-sm font-semibold bg-[#56B4D3] hover:bg-[#47A4C3] text-[#092E3D] shadow-sm hover:shadow transition-all disabled:opacity-50 inline-flex items-center gap-2 cursor-pointer active:scale-98"
+      className="h-10 px-5 rounded-full text-sm font-bold bg-gradient-to-r from-[#56B4D3] via-[#48A6C5] to-[#3B9AB9] hover:from-[#48A6C5] hover:to-[#2F8CA9] text-[#092E3D] shadow-md shadow-[#56B4D3]/20 hover:shadow-lg hover:shadow-[#56B4D3]/30 transition-all duration-200 disabled:opacity-50 inline-flex items-center gap-2 cursor-pointer active:scale-95 border border-white/30"
     >
       {icon}
       {children}
@@ -485,7 +477,7 @@ export function SecondaryButton({
   return (
     <button
       onClick={onClick}
-      className="h-10 px-5 rounded-full text-sm font-medium bg-[#DAE2E7] hover:bg-white text-[#3B4C5A] dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 border border-white/60 dark:border-slate-700 shadow-sm transition-all inline-flex items-center gap-2 cursor-pointer active:scale-98"
+      className="h-10 px-5 rounded-full text-sm font-semibold bg-white/80 dark:bg-slate-800/90 hover:bg-white dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border border-slate-200/80 dark:border-slate-700 shadow-2xs hover:shadow-xs transition-all duration-200 inline-flex items-center gap-2 cursor-pointer active:scale-95"
     >
       {icon}
       {children}
@@ -505,12 +497,12 @@ export function FilterChip({
   return (
     <button
       onClick={onClick}
-      className="h-9 px-4 rounded-full bg-[#DAE2E7] hover:bg-white text-[#3B4C5A] dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 border border-white/60 dark:border-slate-700 shadow-sm transition-all inline-flex items-center gap-2 text-xs font-medium cursor-pointer"
+      className="h-9 px-4 rounded-full bg-white/80 dark:bg-slate-800/90 hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700 shadow-2xs transition-all inline-flex items-center gap-2 text-xs font-semibold cursor-pointer active:scale-95"
     >
-      <span className="font-mono text-[10px] uppercase tracking-wide text-[#718596]">
+      <span className="font-mono text-[10px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
         {label}
       </span>
-      <span className="font-semibold">{value}</span>
+      <span className="font-bold text-[#56B4D3]">{value}</span>
       <ChevronDown className="h-3 w-3 opacity-60" />
     </button>
   );
@@ -528,10 +520,10 @@ export function SectionCard({
   noPad?: boolean;
 }) {
   return (
-    <div className="rounded-[24px] bg-white/90 dark:bg-slate-800/80 border border-[#E3EAEE] dark:border-slate-700/80 shadow-[0_4px_20px_rgba(0,0,0,0.02)] overflow-hidden transition-all">
+    <div className="rounded-2xl bg-white/95 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 shadow-xs hover:shadow-md transition-all duration-300 overflow-hidden">
       {title && (
-        <div className="px-6 py-4 flex items-center justify-between border-b border-[#E3EAEE] dark:border-slate-700/60 bg-white/40 dark:bg-slate-800/40">
-          <div className="font-bold text-sm text-[#1E293B] dark:text-white">
+        <div className="px-6 py-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/50 backdrop-blur-xs">
+          <div className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
             {title}
           </div>
           {action && <div>{action}</div>}
