@@ -1,0 +1,10 @@
+{
+  "name": "@rdip/tokens",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/tokens.ts",
+  "scripts": {
+    "build": "node build.js"
+  }
+}
