@@ -279,8 +279,8 @@ function IntegrationCatalog() {
 
   return (
     <AppShell
-      title="Integrations Catalog"
-      subtitle="Participant connections, data sources, and automated API feeds"
+      title="Integrations"
+      subtitle="Connections & Data Feeds"
       breadcrumb="CONNECT › INTEGRATIONS"
       scope="All Institutions"
       primaryAction={
