@@ -117,8 +117,8 @@ function Reports() {
 
   return (
     <AppShell
-      title="Report Generator"
-      subtitle="Automated regulatory, compliance, and financial intelligence exports"
+      title="Reports"
+      subtitle="Export & Schedule Reports"
       breadcrumb="INTELLIGENCE › REPORTS"
       scope="Official Reporting Engine"
       primaryAction={
@@ -190,7 +190,7 @@ function Reports() {
       </div>
 
       {/* Main Table: Report History Log (§5.11 REQ-RPT-004) */}
-      <SectionCard title="Generated System Reports History Log (REQ-RPT-004)" noPad>
+      <SectionCard title="Report History" noPad>
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead className="bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
@@ -232,7 +232,7 @@ function Reports() {
 
       {/* Scheduled Recurring Reports Section (§5.11 REQ-RPT-005) */}
       <div className="mt-6">
-        <SectionCard title="Scheduled Recurring Reports (REQ-RPT-005)">
+        <SectionCard title="Scheduled Reports">
           <div className="space-y-2">
             {SCHEDULES.map((s) => (
               <div key={s.id} className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex items-center justify-between text-xs font-mono">
