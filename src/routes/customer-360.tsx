@@ -182,22 +182,23 @@ function Participant360() {
 
   return (
     <AppShell
-      title="Participant 360 — Financial Institution Profiles (§5.6)"
+      title="Participant 360"
+      subtitle="Consolidated financial institution profiles and compliance history"
       breadcrumb="GOVERN › PARTICIPANT 360"
       scope="Institutional Intelligence"
       toolbar={
         <div className="flex items-center gap-3 w-full">
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#7B8798]" />
             <input
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search participating bank, e-money issuer, MFI, SACCO…"
-              className="h-8 pl-8 pr-3 rounded-lg text-xs w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
+              className="h-8 pl-8 pr-3 rounded-xl text-xs w-full bg-white dark:bg-slate-800 border border-[#DCE3E8] dark:border-slate-700 text-[#172033] dark:text-white focus:outline-none font-sans"
             />
           </div>
-          <div className="text-xs text-slate-500 font-mono">
+          <div className="text-xs text-[#526174] font-sans">
             REQ-P360-013: Individual Customer Data Excluded (Institution Scope Only)
           </div>
         </div>
@@ -206,7 +207,7 @@ function Participant360() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Left Side: Institution Selector List */}
         <div className="lg:col-span-4 space-y-3">
-          <h2 className="font-bold text-xs uppercase tracking-wider text-slate-400">Participating Institutions</h2>
+          <h2 className="font-semibold text-xs uppercase tracking-wider text-[#526174] font-sans">Participating Institutions</h2>
           <div className="space-y-2">
             {filteredInsts.map((inst) => {
               const selected = inst.id === currentInst.id;
@@ -214,21 +215,21 @@ function Participant360() {
                 <div
                   key={inst.id}
                   onClick={() => setSelectedInstId(inst.id)}
-                  className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+                  className={`p-4 rounded-xl border transition-all cursor-pointer ${
                     selected
-                      ? "bg-[#56B4D3]/15 border-[#56B4D3] text-slate-900 dark:text-white shadow-xs"
-                      : "bg-white/80 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+                      ? "bg-[#E7F5F8] border-[#168FA8] text-[#172033] dark:bg-slate-800 dark:border-[#168FA8] shadow-2xs font-semibold"
+                      : "bg-white dark:bg-slate-900 border-[#DCE3E8] dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60"
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <span className="font-bold text-sm">{inst.name}</span>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 font-semibold text-slate-600 dark:text-slate-300">
+                    <span className="font-bold text-sm text-[#172033] dark:text-white">{inst.name}</span>
+                    <span className="text-xs font-sans px-2.5 py-0.5 rounded-full bg-[#E7F5F8] dark:bg-slate-800 font-semibold text-[#168FA8]">
                       {inst.type}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-xs text-slate-500 font-mono mt-2">
+                  <div className="flex items-center justify-between text-xs text-[#526174] font-sans mt-2">
                     <span>Contact: {inst.contactName}</span>
-                    <span>Joined: {inst.registrationDate}</span>
+                    <span className="font-mono text-[11px]">Joined: {inst.registrationDate}</span>
                   </div>
                 </div>
               );
@@ -236,20 +237,20 @@ function Participant360() {
           </div>
         </div>
 
-        {/* Right Side: Consolidated Profile View (§5.6 & §8.1) */}
+        {/* Right Side: Consolidated Profile View */}
         <div className="lg:col-span-8 space-y-5">
           {/* Institution Header Card */}
           <SectionCard noPad>
-            <div className="p-6 border-b border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-4">
+            <div className="p-6 border-b border-[#DCE3E8] dark:border-slate-800 flex flex-wrap items-center justify-between gap-4">
               <div>
                 <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-2xl bg-[#56B4D3] text-[#092E3D] font-bold text-lg flex items-center justify-center shadow-xs">
+                  <div className="h-12 w-12 rounded-xl bg-[#168FA8] text-white font-bold text-lg flex items-center justify-center shadow-2xs font-sans">
                     {currentInst.shortName.charAt(0)}
                   </div>
                   <div>
-                    <h1 className="text-xl font-bold text-slate-900 dark:text-white">{currentInst.name}</h1>
-                    <p className="text-xs text-slate-500 font-mono">
-                      {currentInst.id} · {currentInst.type} · Reg: {currentInst.registrationDate}
+                    <h1 className="text-xl font-bold text-[#172033] dark:text-white font-sans">{currentInst.name}</h1>
+                    <p className="text-xs text-[#526174] dark:text-slate-400 font-sans mt-0.5">
+                      <span className="font-mono">{currentInst.id}</span> · {currentInst.type} · Reg: <span className="font-mono">{currentInst.registrationDate}</span>
                     </p>
                   </div>
                 </div>
