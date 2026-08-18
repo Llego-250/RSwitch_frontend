@@ -11,8 +11,8 @@ function FraudOutofScope() {
 
   return (
     <AppShell
-      title="Fraud & Transaction Monitoring — Out of Scope"
-      subtitle="SRS §2.8 Boundary Notice"
+      title="Fraud Monitoring"
+      subtitle="Out of Scope"
       breadcrumb="RDIP › OUT OF SCOPE"
     >
       <div className="max-w-4xl mx-auto py-12">
