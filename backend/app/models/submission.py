@@ -24,3 +24,11 @@ class Submission(SQLModel, table=True):
     # volume trends. Never fabricated: derived from the actual parsed file.
     row_count: int = 0
     numeric_totals: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    # {"channel": {"POS": {"count": 12, "amount": 3400.0}, ...}} — per-value
+    # breakdown of categorical columns, used by inclusion analytics.
+    breakdowns: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    # Compliance review of a passed submission: Pending Review | Approved | Rejected
+    review_status: str = "Pending Review"
+    review_note: str = ""
+    reviewed_by: str = ""
+    reviewed_at: Optional[datetime] = None

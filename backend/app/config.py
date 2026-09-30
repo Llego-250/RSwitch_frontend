@@ -13,8 +13,12 @@ class Settings(BaseSettings):
     minio_secure: bool = False
     minio_bucket: str = "rdip"
 
+    # "minio" or "local" (filesystem under local_storage_dir, for dev without MinIO).
+    storage_backend: str = "minio"
+    local_storage_dir: str = "./storage"
+
     # Comma-separated list of origins allowed to call the API.
-    cors_origins: str = "http://localhost:5183"
+    cors_origins: str = "http://localhost:5173,http://localhost:5183"
 
     class Config:
         env_file = ".env"

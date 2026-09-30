@@ -45,6 +45,7 @@ function OnboardingRoute() {
     updateStep3,
     updateFieldMapping,
     submitOnboarding,
+    submitError,
     resetOnboarding,
   } = useOnboardingState();
 
@@ -190,7 +191,14 @@ function OnboardingRoute() {
                 <StepDataMapping mappings={state.fieldMappings} onChange={updateFieldMapping} />
               )}
               {state.currentStep === 5 && (
-                <StepReviewSubmit state={state} onSubmit={handleSubmit} isSubmitting={isSaving} />
+                <>
+                  {submitError && (
+                    <div className="mb-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                      Submission failed: {submitError}
+                    </div>
+                  )}
+                  <StepReviewSubmit state={state} onSubmit={handleSubmit} isSubmitting={isSaving} />
+                </>
               )}
 
               {/* Wizard Navigation Footer */}

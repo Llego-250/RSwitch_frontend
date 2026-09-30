@@ -1,12 +1,9 @@
-import io
 from datetime import date, datetime
 from typing import Optional
 
-import pandas as pd
 from dateutil.relativedelta import relativedelta
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
-from fpdf import FPDF
 from sqlmodel import Session, select
 
 from app.core.permissions import require_staff
@@ -18,7 +15,10 @@ from app.models.issue import Issue
 from app.models.participant import Participant
 from app.models.submission import Submission
 from app.models.user import User
+from app.models.admin import ReportRun, ReportSchedule
+from app.services import audit, inclusion, reporting
 from app.services.compliance import document_status
+from app.storage import get_file
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -63,18 +63,122 @@ def overview(session: Session = Depends(get_session), _: User = Depends(require_
 
 @router.get("/export")
 def export_report(
-    report: str = Query(..., description="submission_history | integration_status | compliance_status | issues"),
+    request: Request,
+    report: str = Query(..., description="submission_history | integration_status | compliance_status | issues | inclusion"),
     participant_id: Optional[int] = None,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
     format: str = Query("xlsx", pattern="^(xlsx|pdf)$"),
     session: Session = Depends(get_session),
+    user: User = Depends(require_staff),
+):
+    if report not in reporting.REPORTS:
+        raise HTTPException(status_code=422, detail="Unknown report")
+    run, data = reporting.generate(session, report, format, user.full_name or user.email, participant_id, date_from, date_to)
+    audit.record(session, "REPORT_GENERATE", f"{run.filename}", user, request)
+    return StreamingResponse(
+        iter([data]),
+        media_type=reporting.MEDIA[format],
+        headers={"Content-Disposition": f'attachment; filename="{run.filename}"', "X-Report-Run-Id": str(run.id)},
+    )
+
+
+@router.get("/history", response_model=list[ReportRun])
+def report_history(session: Session = Depends(get_session), _: User = Depends(require_staff)):
+    return session.exec(select(ReportRun).order_by(ReportRun.generated_at.desc()).limit(200)).all()
+
+
+@router.get("/history/{run_id}/download")
+def download_run(run_id: int, session: Session = Depends(get_session), _: User = Depends(require_staff)):
+    run = session.get(ReportRun, run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Report not found")
+    return StreamingResponse(
+        iter([get_file(run.storage_key)]),
+        media_type=reporting.MEDIA[run.format],
+        headers={"Content-Disposition": f'attachment; filename="{run.filename}"'},
+    )
+
+
+@router.delete("/history/{run_id}")
+def delete_run(run_id: int, request: Request, session: Session = Depends(get_session), user: User = Depends(require_staff)):
+    run = session.get(ReportRun, run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Report not found")
+    session.delete(run)
+    session.commit()
+    audit.record(session, "REPORT_DELETE", run.filename, user, request, status="WARNING")
+    return {"ok": True}
+
+
+@router.get("/schedules", response_model=list[ReportSchedule])
+def list_schedules(session: Session = Depends(get_session), _: User = Depends(require_staff)):
+    return session.exec(select(ReportSchedule).order_by(ReportSchedule.created_at)).all()
+
+
+@router.post("/schedules", response_model=ReportSchedule)
+def create_schedule(
+    request: Request,
+    name: str = Body(...),
+    report: str = Body(...),
+    format: str = Body("pdf"),
+    frequency: str = Body("Monthly"),
+    recipient: str = Body(""),
+    session: Session = Depends(get_session),
+    user: User = Depends(require_staff),
+):
+    if report not in reporting.REPORTS or format not in reporting.MEDIA or frequency not in FREQUENCIES:
+        raise HTTPException(status_code=422, detail="Invalid report, format or frequency")
+    schedule = ReportSchedule(
+        name=name.strip() or reporting.REPORTS[report], report=report, format=format,
+        frequency=frequency, recipient=recipient.strip(), created_by=user.full_name or user.email,
+    )
+    session.add(schedule)
+    session.commit()
+    session.refresh(schedule)
+    audit.record(session, "REPORT_SCHEDULE_CREATE", f"{schedule.name} ({frequency})", user, request)
+    return schedule
+
+
+@router.patch("/schedules/{schedule_id}", response_model=ReportSchedule)
+def toggle_schedule(
+    schedule_id: int,
+    active: bool = Body(..., embed=True),
+    session: Session = Depends(get_session),
     _: User = Depends(require_staff),
 ):
-    rows, columns = _report_rows(session, report, participant_id, date_from, date_to)
-    if format == "xlsx":
-        return _to_xlsx(rows, columns, report)
-    return _to_pdf(rows, columns, report)
+    schedule = session.get(ReportSchedule, schedule_id)
+    if not schedule:
+        raise HTTPException(status_code=404, detail="Schedule not found")
+    schedule.active = active
+    session.add(schedule)
+    session.commit()
+    session.refresh(schedule)
+    return schedule
+
+
+@router.post("/schedules/{schedule_id}/run", response_model=ReportRun)
+def run_schedule_now(schedule_id: int, session: Session = Depends(get_session), _: User = Depends(require_staff)):
+    schedule = session.get(ReportSchedule, schedule_id)
+    if not schedule:
+        raise HTTPException(status_code=404, detail="Schedule not found")
+    return run_schedule(session, schedule)
+
+
+@router.delete("/schedules/{schedule_id}")
+def delete_schedule(schedule_id: int, request: Request, session: Session = Depends(get_session), user: User = Depends(require_staff)):
+    schedule = session.get(ReportSchedule, schedule_id)
+    if not schedule:
+        raise HTTPException(status_code=404, detail="Schedule not found")
+    session.delete(schedule)
+    session.commit()
+    audit.record(session, "REPORT_SCHEDULE_DELETE", schedule.name, user, request)
+    return {"ok": True}
+
+
+@router.get("/inclusion")
+def inclusion_summary(months: int = 6, session: Session = Depends(get_session), _: User = Depends(require_staff)):
+    return inclusion.summary(session, months)
 
 
 @router.get("/trends")
@@ -139,62 +243,23 @@ def trends(months: int = Query(6, ge=1, le=24), session: Session = Depends(get_s
     return series
 
 
-def _report_rows(session, report, participant_id, date_from, date_to):
-    if report == "submission_history":
-        query = select(Submission)
-        if participant_id:
-            query = query.where(Submission.participant_id == participant_id)
-        if date_from:
-            query = query.where(Submission.uploaded_at >= date_from)
-        if date_to:
-            query = query.where(Submission.uploaded_at <= date_to)
-        rows = session.exec(query).all()
-        columns = ["participant_id", "period", "filename", "uploaded_at", "uploaded_by", "result", "error_count"]
-    elif report == "integration_status":
-        rows = session.exec(select(Integration)).all()
-        if participant_id:
-            rows = [r for r in rows if r.participant_id == participant_id]
-        columns = ["participant_id", "status", "note", "source", "updated_at", "updated_by"]
-    elif report == "compliance_status":
-        rows = session.exec(select(ComplianceDocument)).all()
-        if participant_id:
-            rows = [r for r in rows if r.participant_id == participant_id]
-        columns = ["participant_id", "doc_type_id", "filename", "expiry_date"]
-    else:
-        query = select(Issue)
-        if participant_id:
-            query = query.where(Issue.participant_id == participant_id)
-        rows = session.exec(query).all()
-        columns = ["participant_id", "description", "severity", "assignee", "status", "due_date"]
-    return rows, columns
+FREQUENCIES = {"Daily": relativedelta(days=1), "Weekly": relativedelta(weeks=1), "Monthly": relativedelta(months=1)}
 
 
-def _to_xlsx(rows, columns, report_name):
-    data = [{col: getattr(r, col, "") for col in columns} for r in rows]
-    df = pd.DataFrame(data, columns=columns)
-    buffer = io.BytesIO()
-    df.to_excel(buffer, index=False)
-    buffer.seek(0)
-    return StreamingResponse(
-        buffer,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f"attachment; filename={report_name}.xlsx"},
-    )
+def run_schedule(session: Session, schedule: ReportSchedule) -> ReportRun:
+    run, _ = reporting.generate(session, schedule.report, schedule.format, f"Schedule: {schedule.name}", schedule_id=schedule.id)
+    schedule.last_run_at = datetime.utcnow()
+    session.add(schedule)
+    session.commit()
+    session.refresh(run)
+    return run
 
 
-def _to_pdf(rows, columns, report_name):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Helvetica", size=10)
-    pdf.cell(0, 8, report_name.replace("_", " ").title(), ln=True)
-    pdf.set_font("Helvetica", size=8)
-    for row in rows:
-        line = " | ".join(str(getattr(row, col, "")) for col in columns)
-        pdf.multi_cell(0, 6, line)
-    buffer = io.BytesIO(pdf.output())
-    buffer.seek(0)
-    return StreamingResponse(
-        buffer,
-        media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename={report_name}.pdf"},
-    )
+def run_due_schedules(session: Session) -> int:
+    count = 0
+    for schedule in session.exec(select(ReportSchedule).where(ReportSchedule.active == True)).all():  # noqa: E712
+        due = schedule.last_run_at is None or schedule.last_run_at + FREQUENCIES[schedule.frequency] <= datetime.utcnow()
+        if due:
+            run_schedule(session, schedule)
+            count += 1
+    return count

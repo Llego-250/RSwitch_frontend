@@ -9,6 +9,11 @@ import { StatusBadge } from "@/components/StatusBadge";
 import type { Status } from "@/components/StatusBadge";
 import { useRole } from "@/context/RoleContext";
 import { canManage } from "@/lib/roles";
+import { useAuth } from "@/context/AuthContext";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { api, errorMessage } from "@/lib/api";
+import { useIntegrations, useParticipants, useSubmissionRoster, useSubmissions } from "@/lib/queries";
+import type { IntegrationRow, IntegrationStatus, Submission } from "@/lib/types";
 import {
   Building2,
   Smartphone,
@@ -33,249 +38,146 @@ export const Route = createFileRoute("/integrations")({
   component: IntegrationCatalog,
 });
 
-type IntegrationMode = "Manual Upload" | "Automated API";
-
-type Source = {
-  id: string;
-  name: string;
-  institution: string;
-  Icon: typeof Building2;
-  color: string;
-  mode: IntegrationMode;
-  status: Status;
-  sync: string;
-  records: string;
-  errors: number;
-  desc: string;
-  cron?: string;
-  endpointUrl?: string;
+const STATUS_BADGE: Record<IntegrationStatus, Status> = {
+  Connected: "healthy",
+  Degraded: "warning",
+  Disconnected: "failed",
+  Maintenance: "paused",
 };
 
-const INITIAL_SOURCES: Source[] = [
-  {
-    id: "int-001",
-    name: "Core Banking Data Exchange",
-    institution: "Bank of Kigali",
-    Icon: Building2,
-    color: "#172033",
-    mode: "Automated API",
-    status: "healthy",
-    sync: "5m ago",
-    records: "128,400",
-    errors: 0,
-    desc: "Automated transaction summary & liquidity metrics pull",
-    cron: "0 */2 * * *",
-    endpointUrl: "https://api.bk.rw/v1/rdip/feed",
-  },
-  {
-    id: "int-002",
-    name: "Mobile Money Switch Feed",
-    institution: "MTN Mobile Money",
-    Icon: Smartphone,
-    color: "#168FA8",
-    mode: "Automated API",
-    status: "warning",
-    sync: "12m ago",
-    records: "84,201",
-    errors: 14,
-    desc: "Real-time e-money wallet transaction stream",
-    cron: "0 * * * *",
-    endpointUrl: "https://momo.mtn.co.rw/api/rdip/transactions",
-  },
-  {
-    id: "int-003",
-    name: "Card Switch & POS Stream",
-    institution: "Equity Bank Rwanda",
-    Icon: CreditCard,
-    color: "#0F6F83",
-    mode: "Automated API",
-    status: "healthy",
-    sync: "1h ago",
-    records: "45,890",
-    errors: 0,
-    desc: "ATM & POS switching summary feed",
-    cron: "0 0 * * *",
-    endpointUrl: "https://api.equitybank.co.rw/rdip/v2",
-  },
-  {
-    id: "int-004",
-    name: "Quarterly Regulatory Upload",
-    institution: "Inkomoko MFI",
-    Icon: FileSpreadsheet,
-    color: "#D97706",
-    mode: "Manual Upload",
-    status: "failed",
-    sync: "3h ago",
-    records: "0",
-    errors: 3,
-    desc: "Manual CSV/XLSX submission for MFI loan portfolio return",
-  },
-  {
-    id: "int-005",
-    name: "SACCO Monthly Financial Return",
-    institution: "Zigama CSS SACCO",
-    Icon: Landmark,
-    color: "#00A3E0",
-    mode: "Manual Upload",
-    status: "healthy",
-    sync: "1d ago",
-    records: "18,900",
-    errors: 0,
-    desc: "Manual XML/CSV monthly regulatory submission",
-  },
-  {
-    id: "int-006",
-    name: "Microfinance Ingestion API",
-    institution: "Umwalimu SACCO",
-    Icon: Database,
-    color: "#374151",
-    mode: "Automated API",
-    status: "healthy",
-    sync: "2h ago",
-    records: "32,110",
-    errors: 0,
-    desc: "Automated API pull for teacher savings & credit data",
-    cron: "0 12 * * *",
-    endpointUrl: "https://api.umwalimusacco.rw/v1/ingest",
-  },
-];
-
-type SubmissionLog = {
-  id: string;
-  date: string;
-  fileName: string;
-  mode: IntegrationMode;
-  status: "Passed" | "Validation Failed" | "Rejected";
-  records: number;
-  errorsCount: number;
-  uploadedBy: string;
+const TYPE_ICON: Record<string, { Icon: typeof Building2; color: string }> = {
+  "Commercial bank": { Icon: Building2, color: "#172033" },
+  "Mobile money": { Icon: Smartphone, color: "#168FA8" },
+  Microfinance: { Icon: FileSpreadsheet, color: "#D97706" },
+  SACCO: { Icon: Landmark, color: "#00A3E0" },
 };
 
-const MOCK_HISTORY: Record<string, SubmissionLog[]> = {
-  "int-004": [
-    { id: "SUB-801", date: "2026-07-24 14:30", fileName: "Inkomoko_Q2_Portfolio.csv", mode: "Manual Upload", status: "Validation Failed", records: 0, errorsCount: 3, uploadedBy: "Compliance User" },
-    { id: "SUB-744", date: "2026-04-12 11:15", fileName: "Inkomoko_Q1_Portfolio_v2.csv", mode: "Manual Upload", status: "Passed", records: 14200, errorsCount: 0, uploadedBy: "Compliance User" },
-  ],
-  "int-001": [
-    { id: "SUB-902", date: "2026-07-24 16:00", fileName: "API_AutoSync_BK.json", mode: "Automated API", status: "Passed", records: 128400, errorsCount: 0, uploadedBy: "System Cron" },
-    { id: "SUB-881", date: "2026-07-24 14:00", fileName: "API_AutoSync_BK.json", mode: "Automated API", status: "Passed", records: 124100, errorsCount: 0, uploadedBy: "System Cron" },
-  ],
-};
+const STATUSES: IntegrationStatus[] = ["Connected", "Degraded", "Disconnected", "Maintenance"];
+
+type ValidationError = { row: number; field: string; error: string };
+
+function ago(iso: string | null | undefined) {
+  if (!iso) return "Never";
+  const mins = Math.floor((Date.now() - new Date(iso + (iso.endsWith("Z") ? "" : "Z")).getTime()) / 60_000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1440) return `${Math.floor(mins / 60)}h ago`;
+  return `${Math.floor(mins / 1440)}d ago`;
+}
 
 function IntegrationCatalog() {
   const { role } = useRole();
+  const { user } = useAuth();
   const canEdit = canManage(role, "integrations");
+  const queryClient = useQueryClient();
 
-  const [sources, setSources]             = useState<Source[]>(INITIAL_SOURCES);
+  const integrations = useIntegrations();
+  const roster = useSubmissionRoster();
+  const participants = useParticipants();
+
   const [search, setSearch]               = useState("");
-  const [modeFilter, setModeFilter]       = useState<string>("All Modes");
   const [statusFilter, setStatusFilter]   = useState<string>("All Status");
-  const [refreshing, setRefreshing]       = useState<Set<string>>(new Set());
 
   // Modals state
   const [showAddModal, setShowAddModal]     = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const [selectedSource, setSelectedSource] = useState<Source | null>(null);
-  const [historySource, setHistorySource]   = useState<Source | null>(null);
-  const [errorReport, setErrorReport]       = useState<{ row: number; field: string; error: string }[] | null>(null);
+  const [selectedSource, setSelectedSource] = useState<IntegrationRow | null>(null);
+  const [historySource, setHistorySource]   = useState<IntegrationRow | null>(null);
+  const [statusSource, setStatusSource]     = useState<IntegrationRow | null>(null);
+  const [errorReport, setErrorReport]       = useState<ValidationError[] | null>(null);
+  const [formError, setFormError]           = useState<string | null>(null);
+  const [uploadSuccess, setUploadSuccess]   = useState<string | null>(null);
 
-  // New Integration Form
+  // New participant form (POST /participants also creates its Integration row)
   const [newInst, setNewInst]       = useState("");
-  const [newName, setNewName]       = useState("");
-  const [newMode, setNewMode]       = useState<IntegrationMode>("Automated API");
-  const [newEndpoint, setNewEndpoint] = useState("");
-  const [newCron, setNewCron]       = useState("0 0 * * *");
+  const [newCode, setNewCode]       = useState("");
+  const [newType, setNewType]       = useState("Commercial bank");
+  const [newFreq, setNewFreq]       = useState(30);
+
+  // Status change form
+  const [nextStatus, setNextStatus] = useState<IntegrationStatus>("Connected");
+  const [statusNote, setStatusNote] = useState("");
 
   // Upload Form
-  const [uploadReqType, setUploadReqType] = useState("Quarterly Prudential Return");
-  const [uploadPeriod, setUploadPeriod]   = useState("Q2 2026");
+  const [uploadPeriod, setUploadPeriod]   = useState(() => new Date().toISOString().slice(0, 7));
   const [uploadFile, setUploadFile]       = useState<File | null>(null);
-  const [uploading, setUploading]         = useState(false);
+
+  const history = useSubmissions(historySource?.participant_id);
 
   const filtered = useMemo(() => {
-    return sources.filter((s) => {
+    return (integrations.data ?? []).filter((s) => {
+      const q = search.trim().toLowerCase();
       const matchSearch =
-        search.trim() === "" ||
-        s.name.toLowerCase().includes(search.toLowerCase()) ||
-        s.institution.toLowerCase().includes(search.toLowerCase()) ||
-        s.desc.toLowerCase().includes(search.toLowerCase());
-      const matchMode = modeFilter === "All Modes" || s.mode === modeFilter;
+        q === "" ||
+        s.participant_name.toLowerCase().includes(q) ||
+        s.participant_code.toLowerCase().includes(q) ||
+        s.note.toLowerCase().includes(q);
       const matchStatus = statusFilter === "All Status" || s.status === statusFilter;
-      return matchSearch && matchMode && matchStatus;
+      return matchSearch && matchStatus;
     });
-  }, [sources, search, modeFilter, statusFilter]);
+  }, [integrations.data, search, statusFilter]);
 
-  // Manual Sync Action (§5.3 REQ-INTG-006)
-  function handleSyncNow(id: string) {
-    setRefreshing((prev) => new Set([...prev, id]));
-    setTimeout(() => {
-      setRefreshing((prev) => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-      setSources((prev) =>
-        prev.map((s) =>
-          s.id === id ? { ...s, sync: "Just now", status: "healthy", errors: 0 } : s
-        )
-      );
-    }, 2000);
-  }
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ["integrations"] });
+    queryClient.invalidateQueries({ queryKey: ["submissions"] });
+    queryClient.invalidateQueries({ queryKey: ["participants"] });
+    queryClient.invalidateQueries({ queryKey: ["overview"] });
+  };
 
-  // Create New Integration (§5.3 REQ-INTG-005)
-  function handleCreateIntegration() {
-    if (!newInst || !newName) return;
-    const newEntry: Source = {
-      id: `int-00${sources.length + 1}`,
-      name: newName,
-      institution: newInst,
-      Icon: newMode === "Automated API" ? Building2 : FileSpreadsheet,
-      color: "#172033",
-      mode: newMode,
-      status: "healthy",
-      sync: "Pending first run",
-      records: "0",
-      errors: 0,
-      desc: `${newMode} for ${newInst}`,
-      cron: newMode === "Automated API" ? newCron : undefined,
-      endpointUrl: newMode === "Automated API" ? newEndpoint : undefined,
-    };
-    setSources([newEntry, ...sources]);
-    setShowAddModal(false);
-    setNewInst("");
-    setNewName("");
-  }
+  const createParticipant = useMutation({
+    mutationFn: () =>
+      api.post("/participants", {
+        name: newInst.trim(),
+        code: newCode.trim().toUpperCase(),
+        type: newType,
+        expected_frequency_days: newFreq,
+      }),
+    onSuccess: () => {
+      invalidate();
+      setShowAddModal(false);
+      setNewInst("");
+      setNewCode("");
+    },
+    onError: (e) => setFormError(errorMessage(e)),
+  });
 
-  // File Upload with Schema Validation & Error Report (§6.4, REQ-INTG-008)
-  function handleUploadSubmit() {
-    if (!selectedSource || !uploadFile) return;
-    setUploading(true);
-    setErrorReport(null);
+  const changeStatus = useMutation({
+    mutationFn: (s: IntegrationRow) =>
+      api.patch(`/integrations/${s.id}/status`, { status: nextStatus, note: statusNote }),
+    onSuccess: () => {
+      invalidate();
+      setStatusSource(null);
+      setStatusNote("");
+    },
+    onError: (e) => setFormError(errorMessage(e)),
+  });
 
-    setTimeout(() => {
-      setUploading(false);
-
-      // Simulate line-by-line validation failure for test CSV files with errors or failed institutions
-      if (selectedSource.id === "int-004" || uploadFile.name.includes("error")) {
-        setErrorReport([
-          { row: 14, field: "tax_identification_number", error: "Missing required TIN number format (MUST be 9 digits)" },
-          { row: 42, field: "portfolio_at_risk_30d", error: "Value '-5.2%' is negative; must be positive percentage" },
-          { row: 108, field: "reporting_date", error: "Date '2026-13-45' invalid ISO-8601 date string" },
-        ]);
+  const upload = useMutation({
+    mutationFn: async (s: IntegrationRow) => {
+      const form = new FormData();
+      form.append("participant_id", String(s.participant_id));
+      form.append("period", uploadPeriod);
+      form.append("file", uploadFile!);
+      return api.post<Submission>("/submissions/upload", form);
+    },
+    onSuccess: (sub) => {
+      invalidate();
+      if (sub.result === "Failed") {
+        setErrorReport(sub.errors as ValidationError[]);
       } else {
-        // Success upload
-        setSources((prev) =>
-          prev.map((s) =>
-            s.id === selectedSource.id
-              ? { ...s, sync: "Just now", status: "healthy", records: "14,800", errors: 0 }
-              : s
-          )
-        );
-        setShowUploadModal(false);
+        setUploadSuccess(`${sub.filename} accepted · ${sub.row_count.toLocaleString()} rows`);
         setUploadFile(null);
       }
-    }, 1500);
+    },
+    onError: (e) => setFormError(errorMessage(e)),
+  });
+
+  function rosterFor(participantId: number) {
+    return roster.data?.find((r) => r.participant_id === participantId);
   }
+
+  // Submissions are uploaded by the participant themselves (backend rule).
+  const canUploadFor = (s: IntegrationRow) => user?.participantId === s.participant_id;
 
   return (
     <AppShell
@@ -285,8 +187,8 @@ function IntegrationCatalog() {
       scope="All Institutions"
       primaryAction={
         canEdit ? (
-          <PrimaryButton icon={<Plus className="h-4 w-4" />} onClick={() => setShowAddModal(true)}>
-            Add Participant Integration
+          <PrimaryButton icon={<Plus className="h-4 w-4" />} onClick={() => { setFormError(null); setShowAddModal(true); }}>
+            Add Participant
           </PrimaryButton>
         ) : undefined
       }
@@ -298,29 +200,13 @@ function IntegrationCatalog() {
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search integrations or institution…"
+              placeholder="Search participant, code or note…"
               className="h-8 pl-8 pr-3 rounded-xl text-xs w-64 bg-white dark:bg-slate-800 border border-[#DCE3E8] dark:border-slate-700 text-[#172033] dark:text-white focus:outline-none font-sans"
             />
           </div>
 
           <div className="flex items-center gap-1">
-            {["All Modes", "Automated API", "Manual Upload"].map((m) => (
-              <button
-                key={m}
-                onClick={() => setModeFilter(m)}
-                className={`h-8 px-3 rounded-xl text-xs font-sans font-medium border transition-colors cursor-pointer ${
-                  modeFilter === m
-                    ? "bg-[#168FA8] text-white font-semibold border-[#168FA8]"
-                    : "bg-white dark:bg-slate-800 text-[#526174] dark:text-slate-300 border-[#DCE3E8] dark:border-slate-700"
-                }`}
-              >
-                {m}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-1">
-            {["All Status", "healthy", "warning", "failed"].map((st) => (
+            {["All Status", ...STATUSES].map((st) => (
               <button
                 key={st}
                 onClick={() => setStatusFilter(st)}
@@ -337,11 +223,18 @@ function IntegrationCatalog() {
         </>
       }
     >
+      {(integrations.error || participants.error) && (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          Couldn't load integrations: {errorMessage(integrations.error ?? participants.error)}
+        </div>
+      )}
+      {integrations.isLoading && <div className="py-10 text-center text-sm text-slate-400">Loading integrations…</div>}
       {/* Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
         {filtered.map((s) => {
-          const Icon = s.Icon;
-          const isSyncing = refreshing.has(s.id);
+          const p = participants.data?.find((x) => x.id === s.participant_id);
+          const { Icon, color } = TYPE_ICON[p?.type ?? ""] ?? { Icon: Database, color: "#374151" };
+          const r = rosterFor(s.participant_id);
           return (
             <div
               key={s.id}
@@ -352,64 +245,80 @@ function IntegrationCatalog() {
                   <div className="flex items-center gap-3">
                     <div
                       className="h-10 w-10 rounded-xl flex items-center justify-center text-white shrink-0 shadow-xs"
-                      style={{ backgroundColor: s.color }}
+                      style={{ backgroundColor: color }}
                     >
                       <Icon className="h-5 w-5" />
                     </div>
                     <div>
-                      <h3 className="font-bold text-sm text-slate-900 dark:text-white leading-tight">{s.name}</h3>
-                      <p className="text-xs font-semibold text-[#168FA8]">{s.institution}</p>
+                      <h3 className="font-bold text-sm text-slate-900 dark:text-white leading-tight">{s.participant_name}</h3>
+                      <p className="text-xs font-semibold text-[#168FA8]">{s.participant_code} · {p?.type || "Participant"}</p>
                     </div>
                   </div>
-                  <StatusBadge status={s.status} />
+                  <StatusBadge status={STATUS_BADGE[s.status]}>{s.status}</StatusBadge>
                 </div>
 
-                <p className="text-xs text-slate-600 dark:text-slate-300 mb-4 line-clamp-2">{s.desc}</p>
+                <p className="text-xs text-slate-600 dark:text-slate-300 mb-4 line-clamp-2">
+                  {s.note || "No status note."}
+                </p>
 
                 <div className="grid grid-cols-2 gap-2 text-xs font-mono py-2.5 px-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800 mb-4">
                   <div>
-                    <span className="text-[10px] text-slate-400 uppercase block">Mode</span>
-                    <span className="font-semibold text-slate-700 dark:text-slate-200">{s.mode}</span>
+                    <span className="text-[10px] text-slate-400 uppercase block">Cadence</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-200">Every {p?.expected_frequency_days ?? "–"}d</span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-400 uppercase block">Last Sync</span>
-                    <span className="font-semibold text-slate-700 dark:text-slate-200">{s.sync}</span>
+                    <span className="text-[10px] text-slate-400 uppercase block">Last Submission</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-200">{ago(r?.last_uploaded_at)}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-400 uppercase block">Records Ingested</span>
-                    <span className="font-semibold text-slate-700 dark:text-slate-200">{s.records}</span>
+                    <span className="text-[10px] text-slate-400 uppercase block">Submissions</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-200">{r?.submission_count ?? 0}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-400 uppercase block">Errors</span>
-                    <span className={`font-semibold ${s.errors > 0 ? "text-red-500" : "text-emerald-500"}`}>
-                      {s.errors} {s.errors > 0 ? "Validation Error" : "None"}
+                    <span className="text-[10px] text-slate-400 uppercase block">Last Result</span>
+                    <span className={`font-semibold ${r?.last_result === "Failed" ? "text-red-500" : "text-emerald-500"}`}>
+                      {r?.last_result ?? "–"}
+                    </span>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-[10px] text-slate-400 uppercase block">Status Set By</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-200">
+                      {s.updated_by || "—"} · {s.source} · {ago(s.updated_at)}
                     </span>
                   </div>
                 </div>
               </div>
 
               <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                {s.mode === "Automated API" ? (
-                  <button
-                    onClick={() => handleSyncNow(s.id)}
-                    disabled={isSyncing}
-                    className="flex-1 h-9 rounded-xl text-xs font-semibold bg-[#168FA8]/15 text-[#168FA8] hover:bg-[#168FA8]/25 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-                  >
-                    <RefreshCw className={`h-3.5 w-3.5 ${isSyncing ? "animate-spin" : ""}`} />
-                    {isSyncing ? "Syncing API…" : "Trigger Manual Sync"}
-                  </button>
-                ) : (
+                {canUploadFor(s) ? (
                   <button
                     onClick={() => {
                       setSelectedSource(s);
                       setShowUploadModal(true);
                       setErrorReport(null);
+                      setFormError(null);
+                      setUploadSuccess(null);
                     }}
                     className="flex-1 h-9 rounded-xl text-xs font-semibold bg-[#168FA8] text-white hover:bg-[#0F6F83] flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
                   >
                     <Upload className="h-3.5 w-3.5" />
                     Upload Data File
                   </button>
+                ) : canEdit ? (
+                  <button
+                    onClick={() => {
+                      setStatusSource(s);
+                      setNextStatus(s.status);
+                      setStatusNote("");
+                      setFormError(null);
+                    }}
+                    className="flex-1 h-9 rounded-xl text-xs font-semibold bg-[#168FA8]/15 text-[#168FA8] hover:bg-[#168FA8]/25 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    Change Status
+                  </button>
+                ) : (
+                  <div className="flex-1" />
                 )}
 
                 <button
@@ -424,14 +333,68 @@ function IntegrationCatalog() {
             </div>
           );
         })}
+        {!integrations.isLoading && filtered.length === 0 && (
+          <div className="col-span-full py-10 text-center text-sm text-slate-400">No integrations match.</div>
+        )}
       </div>
+
+      {/* ── Change Status Modal (PATCH /integrations/{id}/status) ── */}
+      {statusSource && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+              <div>
+                <h2 className="font-bold text-base text-slate-900 dark:text-white">Change Integration Status</h2>
+                <p className="text-xs text-[#168FA8] font-semibold">{statusSource.participant_name}</p>
+              </div>
+              <button onClick={() => setStatusSource(null)} className="text-slate-400 hover:text-slate-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Status</label>
+                <select
+                  value={nextStatus}
+                  onChange={(e) => setNextStatus(e.target.value as IntegrationStatus)}
+                  className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
+                >
+                  {STATUSES.map((st) => (
+                    <option key={st} value={st}>{st}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Note (required)</label>
+                <textarea
+                  value={statusNote}
+                  onChange={(e) => setStatusNote(e.target.value)}
+                  rows={3}
+                  placeholder="Why is the status changing?"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
+                />
+              </div>
+              {formError && <p className="text-red-600 font-medium">{formError}</p>}
+            </div>
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+              <SecondaryButton onClick={() => setStatusSource(null)}>Cancel</SecondaryButton>
+              <PrimaryButton
+                onClick={() => changeStatus.mutate(statusSource)}
+                disabled={!statusNote.trim() || changeStatus.isPending}
+              >
+                {changeStatus.isPending ? "Saving…" : "Save Status"}
+              </PrimaryButton>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Add Integration Modal (Technical/Admin REQ-INTG-005) ── */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
-              <h2 className="font-bold text-base text-slate-900 dark:text-white">Add Participant Integration Config</h2>
+              <h2 className="font-bold text-base text-slate-900 dark:text-white">Add Participant</h2>
               <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600">
                 <X className="h-5 w-5" />
               </button>
@@ -444,64 +407,56 @@ function IntegrationCatalog() {
                   type="text"
                   value={newInst}
                   onChange={(e) => setNewInst(e.target.value)}
-                  placeholder="e.g. Bank of Kigali / MTN Mobile Money"
+                  placeholder="e.g. Bank of Kigali"
                   className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Integration Name</label>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Participant Code</label>
                 <input
                   type="text"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  placeholder="e.g. Core Banking Data Exchange"
-                  className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
+                  value={newCode}
+                  onChange={(e) => setNewCode(e.target.value)}
+                  placeholder="e.g. BKG"
+                  className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono uppercase focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Integration Mode</label>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Institution Type</label>
                 <select
-                  value={newMode}
-                  onChange={(e) => setNewMode(e.target.value as IntegrationMode)}
+                  value={newType}
+                  onChange={(e) => setNewType(e.target.value)}
                   className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
                 >
-                  <option value="Automated API">Automated API (Scheduled Endpoint Pull)</option>
-                  <option value="Manual Upload">Manual Upload (CSV, XLSX, XML)</option>
+                  {Object.keys(TYPE_ICON).map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
                 </select>
               </div>
 
-              {newMode === "Automated API" && (
-                <>
-                  <div>
-                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Endpoint URL</label>
-                    <input
-                      type="url"
-                      value={newEndpoint}
-                      onChange={(e) => setNewEndpoint(e.target.value)}
-                      placeholder="https://api.institution.rw/v1/feed"
-                      className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Schedule Cron Expression</label>
-                    <input
-                      type="text"
-                      value={newCron}
-                      onChange={(e) => setNewCron(e.target.value)}
-                      placeholder="0 0 * * *"
-                      className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono focus:outline-none"
-                    />
-                  </div>
-                </>
-              )}
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Expected Reporting Cadence (days)</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={newFreq}
+                  onChange={(e) => setNewFreq(Number(e.target.value) || 1)}
+                  className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono focus:outline-none"
+                />
+              </div>
+              {formError && <p className="text-red-600 font-medium">{formError}</p>}
             </div>
 
             <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
               <SecondaryButton onClick={() => setShowAddModal(false)}>Cancel</SecondaryButton>
-              <PrimaryButton onClick={handleCreateIntegration}>Save Integration</PrimaryButton>
+              <PrimaryButton
+                onClick={() => { setFormError(null); createParticipant.mutate(); }}
+                disabled={!newInst.trim() || !newCode.trim() || createParticipant.isPending}
+              >
+                {createParticipant.isPending ? "Saving…" : "Save Participant"}
+              </PrimaryButton>
             </div>
           </div>
         </div>
@@ -514,7 +469,7 @@ function IntegrationCatalog() {
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
               <div>
                 <h2 className="font-bold text-base text-slate-900 dark:text-white">Manual Data File Upload</h2>
-                <p className="text-xs text-[#168FA8] font-semibold">{selectedSource.institution} · {selectedSource.name}</p>
+                <p className="text-xs text-[#168FA8] font-semibold">{selectedSource.participant_name} · {selectedSource.participant_code}</p>
               </div>
               <button onClick={() => setShowUploadModal(false)} className="text-slate-400 hover:text-slate-600">
                 <X className="h-5 w-5" />
@@ -523,38 +478,24 @@ function IntegrationCatalog() {
 
             <div className="space-y-3 text-xs">
               <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Requirement Type</label>
-                <select
-                  value={uploadReqType}
-                  onChange={(e) => setUploadReqType(e.target.value)}
-                  className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
-                >
-                  <option value="Quarterly Prudential Return">Quarterly Prudential Return (BNR Directive 07/2024)</option>
-                  <option value="AML Monthly Return">AML Monthly Transaction Return</option>
-                  <option value="Financial Inclusion Metric Feed">Financial Inclusion Metric Feed</option>
-                </select>
-              </div>
-
-              <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Reporting Period</label>
                 <input
-                  type="text"
+                  type="month"
                   value={uploadPeriod}
                   onChange={(e) => setUploadPeriod(e.target.value)}
-                  placeholder="e.g. Q2 2026 / July 2026"
                   className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
                 />
               </div>
 
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Select Data File (CSV, XLSX, XML — Max 50MB)
+                  Select Data File (CSV or XLSX)
                 </label>
                 <div className="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-6 text-center bg-slate-50 dark:bg-slate-800/40">
                   <Upload className="h-8 w-8 mx-auto text-slate-400 mb-2" />
                   <input
                     type="file"
-                    accept=".csv,.xlsx,.xml"
+                    accept=".csv,.xlsx"
                     onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
                     className="hidden"
                     id="file-upload-input"
@@ -562,10 +503,16 @@ function IntegrationCatalog() {
                   <label htmlFor="file-upload-input" className="text-xs font-semibold text-[#168FA8] hover:underline cursor-pointer">
                     {uploadFile ? uploadFile.name : "Click to select or drag and drop file"}
                   </label>
-                  <p className="text-[11px] text-slate-400 mt-1">UTF-8 required for CSV files. Max 50MB.</p>
+                  <p className="text-[11px] text-slate-400 mt-1">Validated against this participant’s ingestion template.</p>
                 </div>
               </div>
 
+              {formError && <p className="text-red-600 font-medium">{formError}</p>}
+              {uploadSuccess && (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-emerald-700 font-semibold flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4" /> {uploadSuccess}
+                </div>
+              )}
               {/* Line-by-Line Error Report Display (§6.4, REQ-INTG-008) */}
               {errorReport && (
                 <div className="rounded-xl border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 p-4 space-y-2">
@@ -574,12 +521,12 @@ function IntegrationCatalog() {
                     <span>Schema Validation Failed — Submission Rejected (No Partial Ingestion)</span>
                   </div>
                   <p className="text-[11px] text-slate-600 dark:text-slate-300">
-                    The file failed schema checks. Per RDIP Data Quality Rule §6.4, partial ingestion is not allowed. Please correct the errors below and re-upload.
+                    The file failed schema checks. Partial ingestion is not allowed. Please correct the errors below and re-upload.
                   </p>
                   <div className="divide-y divide-red-200 dark:divide-red-900/40 text-[11px] font-mono">
                     {errorReport.map((err, idx) => (
                       <div key={idx} className="py-1.5 flex items-start justify-between gap-2">
-                        <span className="font-bold text-red-700 dark:text-red-300 shrink-0">Row {err.row}:</span>
+                        <span className="font-bold text-red-700 dark:text-red-300 shrink-0">{err.row ? `Row ${err.row}:` : "Header:"}</span>
                         <span className="text-slate-700 dark:text-slate-200 flex-1">[{err.field}] {err.error}</span>
                       </div>
                     ))}
@@ -590,8 +537,11 @@ function IntegrationCatalog() {
 
             <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
               <SecondaryButton onClick={() => setShowUploadModal(false)}>Close</SecondaryButton>
-              <PrimaryButton onClick={handleUploadSubmit} disabled={!uploadFile || uploading}>
-                {uploading ? "Validating Schema…" : "Validate & Upload"}
+              <PrimaryButton
+                onClick={() => { setFormError(null); setErrorReport(null); setUploadSuccess(null); upload.mutate(selectedSource); }}
+                disabled={!uploadFile || upload.isPending}
+              >
+                {upload.isPending ? "Validating Schema…" : "Validate & Upload"}
               </PrimaryButton>
             </div>
           </div>
@@ -606,7 +556,7 @@ function IntegrationCatalog() {
               <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800 mb-4">
                 <div>
                   <h2 className="font-bold text-base text-slate-900 dark:text-white">Submission History Log</h2>
-                  <p className="text-xs text-[#168FA8] font-semibold">{historySource.institution} · {historySource.name}</p>
+                  <p className="text-xs text-[#168FA8] font-semibold">{historySource.participant_name} · {historySource.participant_code}</p>
                 </div>
                 <button onClick={() => setHistorySource(null)} className="text-slate-400 hover:text-slate-600">
                   <X className="h-5 w-5" />
@@ -614,19 +564,28 @@ function IntegrationCatalog() {
               </div>
 
               <div className="space-y-3">
-                {(MOCK_HISTORY[historySource.id] ?? [
-                  { id: "SUB-101", date: "2026-07-20 10:00", fileName: "Automated_Sync.json", mode: historySource.mode, status: "Passed", records: 18900, errorsCount: 0, uploadedBy: "System API" }
-                ]).map((log) => (
+                {history.isLoading && <div className="text-xs text-slate-400">Loading…</div>}
+                {history.error && <div className="text-xs text-red-600">{errorMessage(history.error)}</div>}
+                {history.data?.length === 0 && <div className="text-xs text-slate-400">No submissions yet.</div>}
+                {history.data?.map((log) => (
                   <div key={log.id} className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 space-y-1.5 text-xs">
                     <div className="flex items-center justify-between">
-                      <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{log.id}</span>
-                      <StatusBadge status={log.status === "Passed" ? "healthy" : "failed"} />
+                      <span className="font-mono font-bold text-slate-800 dark:text-slate-200">SUB-{log.id} · {log.period}</span>
+                      <StatusBadge status={log.result === "Passed" ? "healthy" : "failed"}>{log.result}</StatusBadge>
                     </div>
-                    <div className="text-slate-600 dark:text-slate-300 font-medium">{log.fileName}</div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-600 dark:text-slate-300 font-medium">{log.filename}</span>
+                      <button
+                        onClick={() => api.download(`/submissions/${log.id}/download`, log.filename)}
+                        className="text-[11px] font-semibold text-[#168FA8] hover:underline cursor-pointer"
+                      >
+                        Download
+                      </button>
+                    </div>
                     <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 pt-1 border-t border-slate-200/60 dark:border-slate-700/60">
-                      <span>Date: {log.date}</span>
-                      <span>Records: {log.records.toLocaleString()}</span>
-                      <span>By: {log.uploadedBy}</span>
+                      <span>Date: {new Date(log.uploaded_at).toLocaleDateString()}</span>
+                      <span>{log.result === "Passed" ? `Rows: ${log.row_count.toLocaleString()}` : `Errors: ${log.error_count}`}</span>
+                      <span>By: {log.uploaded_by}</span>
                     </div>
                   </div>
                 ))}

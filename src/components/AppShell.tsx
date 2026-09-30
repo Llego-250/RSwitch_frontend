@@ -1,5 +1,17 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { useRole } from "@/context/RoleContext";
+import { useAuth } from "@/context/AuthContext";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
+import type { NotificationRow } from "@/lib/types";
+
+function timeAgo(iso: string) {
+  const mins = Math.floor((Date.now() - new Date(iso + (iso.endsWith("Z") ? "" : "Z")).getTime()) / 60_000);
+  if (mins < 1) return "now";
+  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1440) return `${Math.floor(mins / 60)}h ago`;
+  return `${Math.floor(mins / 1440)}d ago`;
+}
 import { ROLES, visible, type ModuleKey } from "@/lib/roles";
 import {
   LayoutDashboard, Plug, GitBranch, Workflow, Users2, Brain,
@@ -11,6 +23,8 @@ import {
 import { useState, useEffect, useRef, type ReactNode } from "react";
 
 type Item = { key: ModuleKey; label: string; to: string; icon: typeof Plug; desc?: string };
+
+const PARTICIPANT_ROUTES: string[] = ["/integrations", "/participant-360", "/profile"];
 
 const CLUSTERS: { title: string; items: Item[] }[] = [
   {
@@ -57,40 +71,6 @@ type NotificationItem = {
   type: "alert" | "info" | "warning";
 };
 
-const INITIAL_NOTIFS: NotificationItem[] = [
-  {
-    id: "n1",
-    title: "ERP Pipeline Failed",
-    desc: "Ingestion job erp-nightly-ingest failed connection validation.",
-    time: "10m ago",
-    read: false,
-    type: "alert",
-  },
-  {
-    id: "n2",
-    title: "FSA Quarterly Return Due Soon",
-    desc: "Deadline for FSA-Q2-2025 is in 14 days.",
-    time: "1h ago",
-    read: false,
-    type: "warning",
-  },
-  {
-    id: "n3",
-    title: "AI Deviation Alert Generated",
-    desc: "MTN Mobile Money error rate spike (+4.2%) detected by engine.",
-    time: "2h ago",
-    read: false,
-    type: "alert",
-  },
-  {
-    id: "n4",
-    title: "New Governance Document Uploaded",
-    desc: "Board Minutes v2.1 added by Compliance Officer.",
-    time: "1d ago",
-    read: true,
-    type: "info",
-  },
-];
 
 export function AppShell({
   title,
@@ -109,7 +89,8 @@ export function AppShell({
   toolbar?: ReactNode;
   children: ReactNode;
 }) {
-  const { role, setRole, roleLabel } = useRole();
+  const { role, roleLabel } = useRole();
+  const { user, isAuthenticated, logout } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
 
@@ -122,6 +103,18 @@ export function AppShell({
   });
 
   const [roleOpen, setRoleOpen] = useState(false);
+
+  // Participant logins get the participant portal only: their own
+  // integration/uploads and their Participant 360 profile.
+  const isParticipant = user?.participantId != null;
+  const canSee = (i: { key: ModuleKey; to: string }) =>
+    isParticipant ? PARTICIPANT_ROUTES.includes(i.to) : visible(role, i.key);
+
+  // Every page renders inside AppShell, so this is the single auth gate.
+  useEffect(() => {
+    if (!isAuthenticated) navigate({ to: "/login" });
+    else if (isParticipant && !PARTICIPANT_ROUTES.includes(pathname)) navigate({ to: "/integrations" });
+  }, [isAuthenticated, isParticipant, pathname, navigate]);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -129,16 +122,25 @@ export function AppShell({
   const [notifFilter, setNotifFilter] = useState<"all" | "alert" | "warning" | "info">("all");
   const [headerCollapsed, setHeaderCollapsed] = useState<boolean>(false);
 
-  // Notifications state with localStorage persistence
-  const [notifs, setNotifs] = useState<NotificationItem[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("rdip_notifications");
-      if (saved) {
-        try { return JSON.parse(saved); } catch { /* ignore */ }
-      }
-    }
-    return INITIAL_NOTIFS;
+  // Notifications come from the API (generated from alerts, integrations,
+  // document expiry and issue due dates) and refresh every minute.
+  const queryClient = useQueryClient();
+  const notifQuery = useQuery({
+    queryKey: ["notifications"],
+    queryFn: () => api.get<NotificationRow[]>("/notifications"),
+    enabled: isAuthenticated,
+    refetchInterval: 60_000,
   });
+  const notifs: (NotificationItem & { link: string })[] = (notifQuery.data ?? []).map((n) => ({
+    id: String(n.id),
+    title: n.title,
+    desc: n.message,
+    time: timeAgo(n.created_at),
+    read: n.read,
+    type: n.severity,
+    link: n.link,
+  }));
+  const refreshNotifs = () => queryClient.invalidateQueries({ queryKey: ["notifications"] });
 
   // Dark mode state with persistence
   const [isDark, setIsDark] = useState<boolean>(() => {
@@ -167,10 +169,6 @@ export function AppShell({
     localStorage.setItem("rdip_sidebar_collapsed", isCollapsed ? "true" : "false");
   }, [isCollapsed]);
 
-  // Persist notifications
-  useEffect(() => {
-    localStorage.setItem("rdip_notifications", JSON.stringify(notifs));
-  }, [notifs]);
 
   // Keyboard shortcut listener for Command Palette (⌘K or Ctrl+K or /)
   useEffect(() => {
@@ -209,27 +207,31 @@ export function AppShell({
   const unreadCount = notifs.filter((n) => !n.read).length;
 
   const markAllAsRead = () => {
-    setNotifs((prev) => prev.map((n) => ({ ...n, read: true })));
+    api.post("/notifications/read-all").then(refreshNotifs);
   };
 
   const clearReadNotifications = () => {
-    setNotifs((prev) => prev.filter((n) => !n.read));
+    api.delete("/notifications/read").then(refreshNotifs);
   };
 
   const toggleRead = (id: string) => {
-    setNotifs((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: !n.read } : n))
-    );
+    api.post(`/notifications/${id}/read`).then(refreshNotifs);
+  };
+
+  const openNotification = (n: { id: string; read: boolean; link: string }) => {
+    if (!n.read) toggleRead(n.id);
+    setNotifOpen(false);
+    if (n.link) navigate({ to: n.link });
   };
 
   const toggleDarkMode = () => {
     setIsDark(!isDark);
   };
 
-  const avatarInitial = roleLabel.charAt(0).toUpperCase();
+  const avatarInitial = (user?.fullName ?? roleLabel).charAt(0).toUpperCase();
 
   // Filter items for search command palette
-  const allNavItems = CLUSTERS.flatMap((c) => c.items).filter((i) => visible(role, i.key));
+  const allNavItems = CLUSTERS.flatMap((c) => c.items).filter(canSee);
   const filteredSearchItems = searchQuery.trim() === ""
     ? allNavItems
     : allNavItems.filter((i) =>
@@ -304,7 +306,7 @@ export function AppShell({
         {/* Navigation Items */}
         <div className="flex-1 overflow-y-auto my-3 space-y-4 pr-0.5 scrollbar-none">
           {CLUSTERS.map((c) => {
-            const items = c.items.filter((i) => visible(role, i.key));
+            const items = c.items.filter(canSee);
             if (items.length === 0) return null;
             return (
               <div key={c.title} className="space-y-1">
@@ -320,7 +322,7 @@ export function AppShell({
                   const Icon = it.icon;
                   return (
                     <Link
-                      key={it.key}
+                      key={it.to}
                       to={it.to}
                       onClick={() => setMobileNavOpen(false)}
                       title={isCollapsed ? it.label : undefined}
@@ -358,10 +360,10 @@ export function AppShell({
               <>
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-bold truncate text-[#092E3D]">
-                    {roleLabel}
+                    {user?.fullName ?? roleLabel}
                   </div>
                   <div className="text-[10px] font-mono text-[#2B8FB1] font-bold truncate">
-                    {ROLES.find(r => r.id === role)?.scope}
+                    {user?.roleTitle ?? ROLES.find(r => r.id === role)?.scope}
                   </div>
                 </div>
                 <ChevronUp className="h-4 w-4 text-[#2B8FB1] shrink-0" />
@@ -374,25 +376,10 @@ export function AppShell({
             <div
               className={`absolute bottom-full left-0 right-0 mb-2 rounded-2xl border shadow-2xl p-2 z-50 min-w-[240px] ${isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-[#E1E7EA]'}`}
             >
-              <div className="px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider text-[#718596] font-bold">
-                Select Active Role (Demo)
+              <div className="px-3 py-1.5">
+                <div className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">{user?.fullName}</div>
+                <div className="text-[10px] font-mono text-slate-400 truncate">{user?.email} · {user?.roleTitle}</div>
               </div>
-              {ROLES.map((r) => (
-                <button
-                  key={r.id}
-                  onClick={() => { setRole(r.id); setRoleOpen(false); }}
-                  className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-colors ${role === r.id
-                    ? "bg-[#56B4D3]/15 text-[#56B4D3] font-bold"
-                    : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
-                    }`}
-                >
-                  <div className="flex flex-col">
-                    <span className="font-semibold">{r.label}</span>
-                    <span className="text-[10px] text-slate-400 font-normal">{r.scope}</span>
-                  </div>
-                  {role === r.id && <span className="h-2 w-2 rounded-full bg-[#56B4D3] shrink-0" />}
-                </button>
-              ))}
               <div className="border-t my-1 border-slate-200 dark:border-slate-800" />
               <button
                 onClick={() => { setRoleOpen(false); navigate({ to: "/profile" }); }}
@@ -402,7 +389,7 @@ export function AppShell({
                 Profile &amp; 2FA Settings
               </button>
               <button
-                onClick={() => { setRoleOpen(false); navigate({ to: "/login" }); }}
+                onClick={() => { setRoleOpen(false); logout(); navigate({ to: "/login" }); }}
                 className="w-full text-left px-3 py-2 rounded-xl text-xs flex items-center gap-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors font-semibold"
               >
                 <LogOut className="h-3.5 w-3.5" />
@@ -551,7 +538,8 @@ export function AppShell({
                       filteredNotifs.map((n) => (
                         <div
                           key={n.id}
-                          onClick={() => toggleRead(n.id)}
+                          onClick={() => openNotification(n)}
+                          title="Open"
                           className={`pt-2 flex items-start gap-2.5 cursor-pointer p-2 rounded-xl transition-colors ${!n.read
                             ? isDark ? 'bg-slate-800/80' : 'bg-blue-50/70'
                             : 'hover:bg-slate-100 dark:hover:bg-slate-800/50'
@@ -718,7 +706,7 @@ export function AppShell({
                   const Icon = it.icon;
                   return (
                     <Link
-                      key={it.key}
+                      key={it.to}
                       to={it.to}
                       onClick={() => setSearchOpen(false)}
                       className="p-3 rounded-xl flex items-center justify-between hover:bg-[#E7F5F8] dark:hover:bg-slate-800 transition-colors group cursor-pointer"

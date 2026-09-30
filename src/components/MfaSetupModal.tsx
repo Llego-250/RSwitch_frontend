@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { api, errorMessage } from "@/lib/api";
 import { ShieldCheck, Copy, Check, KeyRound, AlertTriangle, X } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -14,17 +15,27 @@ export const MfaSetupModal: React.FC<MfaSetupModalProps> = ({ isOpen, onClose, o
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [setup, setSetup] = useState<{ secret: string; qr_svg_data_uri: string } | null>(null);
+  const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
 
-  const secretKey = "JBSWY3DPEHPK3PXP";
-  const recoveryCodes = [
-    "A8D2-491F-0192",
-    "F921-381B-7741",
-    "C391-882A-9901",
-    "E102-551C-4412",
-    "B734-119D-8823",
-  ];
+  // A fresh secret each time the modal opens; it only becomes active once a
+  // code from the authenticator is verified.
+  useEffect(() => {
+    if (!isOpen) return;
+    setStep("qr");
+    setCode("");
+    setError("");
+    setSetup(null);
+    api
+      .post<{ secret: string; qr_svg_data_uri: string }>("/auth/mfa/setup")
+      .then(setSetup)
+      .catch((e) => setError(errorMessage(e)));
+  }, [isOpen]);
 
   if (!isOpen) return null;
+
+  const secretKey = setup?.secret ?? "…";
 
   const handleCopySecret = () => {
     navigator.clipboard.writeText(secretKey);
@@ -32,13 +43,22 @@ export const MfaSetupModal: React.FC<MfaSetupModalProps> = ({ isOpen, onClose, o
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleVerify = () => {
+  const handleVerify = async () => {
     if (code.trim().length !== 6) {
       setError("Please enter a valid 6-digit TOTP verification code.");
       return;
     }
     setError("");
-    setStep("recovery");
+    setBusy(true);
+    try {
+      const res = await api.post<{ recovery_codes: string[] }>("/auth/mfa/enable", { code: code.trim() });
+      setRecoveryCodes(res.recovery_codes);
+      setStep("recovery");
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleComplete = () => {
@@ -70,18 +90,12 @@ export const MfaSetupModal: React.FC<MfaSetupModalProps> = ({ isOpen, onClose, o
               1. Scan this QR code with your Authenticator App (Google Authenticator, Microsoft Authenticator, 1Password).
             </p>
             <div className="flex flex-col items-center justify-center p-6 bg-neutral-50 rounded-xl border border-neutral-200">
-              {/* QR Code Placeholder Graphic */}
-              <div className="w-44 h-44 bg-white p-3 rounded-lg border border-neutral-300 shadow-sm flex flex-col items-center justify-center text-center">
-                <div className="grid grid-cols-5 gap-1.5 w-full h-full p-2 bg-neutral-900 rounded">
-                  {Array.from({ length: 25 }).map((_, i) => (
-                    <div
-                      key={i}
-                      className={`rounded-sm ${
-                        i % 2 === 0 || i % 5 === 0 ? "bg-white" : "bg-sky-400"
-                      }`}
-                    />
-                  ))}
-                </div>
+              <div className="w-48 h-48 bg-white p-2 rounded-lg border border-neutral-300 shadow-sm flex items-center justify-center">
+                {setup ? (
+                  <img src={setup.qr_svg_data_uri} alt="Authenticator QR code" className="w-full h-full" />
+                ) : (
+                  <span className="text-xs text-neutral-400">{error || "Generating…"}</span>
+                )}
               </div>
               <div className="mt-4 flex items-center gap-2">
                 <span className="text-xs text-neutral-500 font-mono">Key: {secretKey}</span>
@@ -99,7 +113,7 @@ export const MfaSetupModal: React.FC<MfaSetupModalProps> = ({ isOpen, onClose, o
               <Button variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              <Button onClick={() => setStep("verify")} className="bg-[#168FA8] hover:bg-[#0F6F83] text-white">
+              <Button onClick={() => setStep("verify")} disabled={!setup} className="bg-[#168FA8] hover:bg-[#0F6F83] text-white">
                 Next: Verify Code
               </Button>
             </div>
@@ -127,8 +141,8 @@ export const MfaSetupModal: React.FC<MfaSetupModalProps> = ({ isOpen, onClose, o
               <Button variant="outline" onClick={() => setStep("qr")}>
                 Back
               </Button>
-              <Button onClick={handleVerify} className="bg-[#168FA8] hover:bg-[#0F6F83] text-white">
-                Verify & Continue
+              <Button onClick={handleVerify} disabled={busy} className="bg-[#168FA8] hover:bg-[#0F6F83] text-white">
+                {busy ? "Verifying…" : "Verify & Continue"}
               </Button>
             </div>
           </div>
@@ -139,7 +153,7 @@ export const MfaSetupModal: React.FC<MfaSetupModalProps> = ({ isOpen, onClose, o
             <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2.5">
               <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
               <p className="text-xs text-amber-800">
-                Save these backup recovery codes in a secure password manager. You will need them if you lose access to your authenticator device.
+                Save these backup recovery codes in a secure password manager. Each works once, and they won't be shown again.
               </p>
             </div>
             <div className="grid grid-cols-2 gap-2 bg-neutral-900 p-4 rounded-xl font-mono text-sm text-sky-400">

@@ -94,3 +94,24 @@ def summarize_rows(rows: list[dict[str, Any]], columns: list[TemplateColumn]) ->
             if value != "":
                 totals[name] += float(value)
     return len(rows), totals
+
+
+CATEGORICAL_NAMES = {"channel"}
+
+
+def breakdown_rows(rows: list[dict[str, Any]], columns: list[TemplateColumn]) -> dict:
+    """Count and summed amount per value of each categorical column (enum
+    columns, plus well-known ones like 'channel'). Feeds inclusion analytics."""
+    categorical = [c.name for c in columns if c.type == "enum" or c.name in CATEGORICAL_NAMES]
+    amount_col = next((c.name for c in columns if c.type == "number"), None)
+    result: dict[str, dict[str, dict[str, float]]] = {}
+    for name in categorical:
+        buckets: dict[str, dict[str, float]] = {}
+        for row in rows:
+            value = (row.get(name) or "").strip() or "Unspecified"
+            bucket = buckets.setdefault(value, {"count": 0, "amount": 0.0})
+            bucket["count"] += 1
+            if amount_col and row.get(amount_col, "") != "":
+                bucket["amount"] += float(row[amount_col])
+        result[name] = buckets
+    return result

@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { Role } from "@/lib/roles";
+import { api } from "@/lib/api";
+import type { BackendRole, Me } from "@/lib/types";
 
 export interface UserProfile {
   id: string;
@@ -9,6 +11,7 @@ export interface UserProfile {
   roleTitle: string;
   institution: string;
   mfaEnabled: boolean;
+  participantId: number | null;
   avatarUrl?: string;
   lastLogin?: string;
 }
@@ -18,55 +21,57 @@ interface AuthContextType {
   token: string | null;
   isAuthenticated: boolean;
   mfaPending: boolean;
-  login: (email: string, pass: string) => Promise<{ mfaRequired: boolean }>;
-  verifyMfa: (code: string, trustDevice?: boolean) => Promise<boolean>;
+  /** mfaRequired=false means the session is already open. */
+  login: (email: string, pass: string) => Promise<{ mfaRequired: boolean; isParticipant: boolean; mfaSetupRequired: boolean }>;
+  verifyMfa: (code: string) => Promise<{ isParticipant: boolean }>;
   logout: () => void;
-  updateProfile: (updates: Partial<UserProfile>) => void;
-  enableMfa: () => void;
+  /** Re-reads /auth/me (after profile or MFA changes). */
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const STORAGE_KEY = "rdip_auth_session";
 
+// The backend has five roles; the UI permission matrix (lib/roles) has three.
+const ROLE_MAP: Record<BackendRole, Role> = {
+  "Technical / Admin": "technical",
+  Compliance: "compliance",
+  Business: "business",
+  Board: "business",
+  Participant: "business",
+};
+
+function toProfile(me: Me): UserProfile {
+  return {
+    id: me.email,
+    email: me.email,
+    fullName: me.full_name || me.email,
+    role: ROLE_MAP[me.role] ?? "business",
+    roleTitle: me.role,
+    institution: me.participant_id ? `Participant #${me.participant_id}` : "RSwitch HQ",
+    mfaEnabled: me.mfa_enabled,
+    participantId: me.participant_id,
+    lastLogin: me.last_login_at ?? undefined,
+  };
+}
+
+function loadSession(): { user: UserProfile | null; token: string | null } {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) return JSON.parse(saved);
+  } catch (e) {
+    console.error("Failed to parse saved session", e);
+  }
+  return { user: null, token: null };
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<UserProfile | null>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        return parsed.user;
-      } catch (e) {
-        console.error("Failed to parse saved session", e);
-      }
-    }
-    // Default demo user
-    return {
-      id: "usr-001",
-      email: "admin@rswitch.rw",
-      fullName: "Clarisse Keza",
-      role: "technical",
-      roleTitle: "Technical Admin",
-      institution: "RSwitch HQ",
-      mfaEnabled: true,
-      avatarUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150",
-      lastLogin: new Date().toISOString(),
-    };
-  });
-
-  const [token, setToken] = useState<string | null>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        return JSON.parse(saved).token;
-      } catch (e) {
-        return null;
-      }
-    }
-    return "mock-jwt-access-token-jwt-secret-xyz123";
-  });
-
+  const [user, setUser] = useState<UserProfile | null>(() => loadSession().user);
+  const [token, setToken] = useState<string | null>(() => loadSession().token);
   const [mfaPending, setMfaPending] = useState(false);
+  // MFA-scoped token from step 1, exchanged for a session token in step 2.
+  const [mfaToken, setMfaToken] = useState<string | null>(null);
 
   useEffect(() => {
     if (user && token) {
@@ -76,51 +81,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [user, token]);
 
-  const [pendingEmail, setPendingEmail] = useState<string>("clarisse.keza@rswitch.rw");
-
-  const login = async (emailStr: string, _pass: string) => {
-    // Simulated API JWT Request
-    await new Promise((res) => setTimeout(res, 600));
-    setPendingEmail(emailStr);
-    setMfaPending(true);
-    return { mfaRequired: true };
-  };
-
-  const verifyMfa = async (code: string, _trustDevice = false) => {
-    await new Promise((res) => setTimeout(res, 500));
-    if (code.length === 6) {
-      const emailVal = pendingEmail || "clarisse.keza@rswitch.rw";
-      const authenticatedUser: UserProfile = {
-        id: "usr-" + Math.floor(Math.random() * 1000),
-        email: emailVal,
-        fullName: emailVal.split("@")[0].replace(".", " "),
-        role: emailVal.includes("admin") ? "technical" : emailVal.includes("compliance") ? "compliance" : "business",
-        roleTitle: emailVal.includes("admin") ? "Technical Admin" : "Compliance Officer",
-        institution: "RSwitch Network",
-        mfaEnabled: true,
-        lastLogin: new Date().toISOString(),
-      };
-      setUser(authenticatedUser);
-      setToken("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkNsYXJpc3NlIEtlemEiLCJpYXQiOjE1MTYyMzkwMjJ9.mockToken");
-      setMfaPending(false);
-      return true;
-    }
-    return false;
-  };
-
   const logout = () => {
     setUser(null);
     setToken(null);
+    setMfaToken(null);
     setMfaPending(false);
     localStorage.removeItem(STORAGE_KEY);
   };
 
-  const updateProfile = (updates: Partial<UserProfile>) => {
-    setUser((prev) => (prev ? { ...prev, ...updates } : null));
+  // Expired/invalid token anywhere in the app → back to login.
+  useEffect(() => {
+    const onUnauthorized = () => logout();
+    window.addEventListener("rdip:unauthorized", onUnauthorized);
+    return () => window.removeEventListener("rdip:unauthorized", onUnauthorized);
+  }, []);
+
+  const startSession = async (accessToken: string) => {
+    const me = await api.get<Me>("/auth/me", accessToken);
+    const profile = toProfile(me);
+    setUser(profile);
+    setToken(accessToken);
+    setMfaToken(null);
+    setMfaPending(false);
+    return profile;
   };
 
-  const enableMfa = () => {
-    setUser((prev) => (prev ? { ...prev, mfaEnabled: true } : null));
+  const login = async (email: string, password: string) => {
+    const result = await api.login(email, password);
+    if (result.mfa_required) {
+      setMfaToken(result.mfa_token);
+      setMfaPending(true);
+      return { mfaRequired: true, isParticipant: false, mfaSetupRequired: false };
+    }
+    const profile = await startSession(result.access_token);
+    return { mfaRequired: false, isParticipant: profile.participantId != null, mfaSetupRequired: result.mfa_setup_required };
+  };
+
+  const verifyMfa = async (code: string) => {
+    if (!mfaToken) throw new Error("Your sign-in expired. Enter your password again.");
+    const profile = await startSession(await api.verifyMfa(mfaToken, code));
+    return { isParticipant: profile.participantId != null };
+  };
+
+  const refreshUser = async () => {
+    if (!token) return;
+    const me = await api.get<Me>("/auth/me", token);
+    setUser(toProfile(me));
   };
 
   return (
@@ -133,8 +139,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login,
         verifyMfa,
         logout,
-        updateProfile,
-        enableMfa,
+        refreshUser,
       }}
     >
       {children}

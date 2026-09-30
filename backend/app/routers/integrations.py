@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from sqlmodel import Session, select
 
 from app.core.permissions import require_staff, scope_participant_id
@@ -10,6 +10,7 @@ from app.models.enums import IntegrationSource, IntegrationStatus
 from app.models.integration import Integration
 from app.models.participant import Participant
 from app.models.user import User
+from app.services import audit
 
 router = APIRouter(prefix="/integrations", tags=["integrations"])
 
@@ -49,6 +50,7 @@ def list_integrations(
 @router.patch("/{integration_id}/status")
 def set_status(
     integration_id: int,
+    request: Request,
     status: IntegrationStatus = Body(...),
     note: str = Body(...),
     session: Session = Depends(get_session),
@@ -67,4 +69,6 @@ def set_status(
     session.add(integration)
     session.commit()
     session.refresh(integration)
+    audit.record(session, "INTEGRATION_STATUS", f"integration #{integration.id} → {status.value}: {note}", current_user, request,
+                 status="WARNING" if status != IntegrationStatus.connected else "SUCCESS")
     return integration

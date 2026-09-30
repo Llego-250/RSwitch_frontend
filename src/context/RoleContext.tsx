@@ -1,28 +1,16 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import { ROLES, type Role } from "@/lib/roles";
+import { useAuth } from "@/context/AuthContext";
 
-type Ctx = { role: Role; setRole: (r: Role) => void; roleLabel: string; scope: string };
+type Ctx = { role: Role; roleLabel: string; scope: string };
 const RoleCtx = createContext<Ctx | null>(null);
 
+// The active role is whatever the backend says the signed-in user is.
 export function RoleProvider({ children }: { children: ReactNode }) {
-  const [role, setRoleState] = useState<Role>("compliance");
-
-  useEffect(() => {
-    const saved = typeof window !== "undefined" ? localStorage.getItem("rdip.role") : null;
-    if (saved && ROLES.find((r) => r.id === saved)) setRoleState(saved as Role);
-  }, []);
-
-  const setRole = (r: Role) => {
-    setRoleState(r);
-    if (typeof window !== "undefined") localStorage.setItem("rdip.role", r);
-  };
-
+  const { user } = useAuth();
+  const role: Role = user?.role ?? "compliance";
   const meta = ROLES.find((r) => r.id === role) || ROLES[0];
-  return (
-    <RoleCtx.Provider value={{ role, setRole, roleLabel: meta.label, scope: meta.scope }}>
-      {children}
-    </RoleCtx.Provider>
-  );
+  return <RoleCtx.Provider value={{ role, roleLabel: meta.label, scope: meta.scope }}>{children}</RoleCtx.Provider>;
 }
 
 export const useRole = () => {

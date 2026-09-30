@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import React, { useState } from "react";
 import { AppShell, PrimaryButton, SecondaryButton, SectionCard } from "@/components/AppShell";
 import { useAuth } from "@/context/AuthContext";
+import { api, errorMessage } from "@/lib/api";
 import { MfaSetupModal } from "@/components/MfaSetupModal";
 import {
   User,
@@ -23,36 +24,57 @@ export const Route = createFileRoute("/profile")({
 });
 
 function ProfileRoute() {
-  const { user, updateProfile, enableMfa } = useAuth();
+  const { user, refreshUser } = useAuth();
 
-  const [fullName, setFullName] = useState(user?.fullName || "Clarisse Keza");
-  const [email, setEmail] = useState(user?.email || "clarisse.keza@rswitch.rw");
+  const [fullName, setFullName] = useState(user?.fullName ?? "");
   const [currentPass, setCurrentPass] = useState("");
   const [newPass, setNewPass] = useState("");
   const [confirmPass, setConfirmPass] = useState("");
   const [passMessage, setPassMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [savedSuccess, setSavedSuccess] = useState(false);
+  const [profileMessage, setProfileMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [showMfaModal, setShowMfaModal] = useState(false);
+  const [disablePass, setDisablePass] = useState("");
+  const [showDisable, setShowDisable] = useState(false);
+  const [mfaMessage, setMfaMessage] = useState<string | null>(null);
 
-  const handleSaveProfile = () => {
-    updateProfile({ fullName, email });
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 2500);
+  const email = user?.email ?? "";
+
+  const handleSaveProfile = async () => {
+    try {
+      await api.patch("/auth/me", { full_name: fullName });
+      await refreshUser();
+      setProfileMessage({ type: "success", text: "Profile details saved." });
+    } catch (e) {
+      setProfileMessage({ type: "error", text: errorMessage(e) });
+    }
   };
 
-  const handleChangePassword = () => {
-    if (newPass.length < 12) {
-      setPassMessage({ type: "error", text: "Rule §11.1 Violation: Password must be at least 12 characters long." });
-      return;
-    }
+  const handleChangePassword = async () => {
     if (newPass !== confirmPass) {
       setPassMessage({ type: "error", text: "New password and confirmation do not match." });
       return;
     }
-    setPassMessage({ type: "success", text: "Password changed successfully." });
-    setCurrentPass("");
-    setNewPass("");
-    setConfirmPass("");
+    try {
+      await api.post("/auth/change-password", { current_password: currentPass, new_password: newPass });
+      setPassMessage({ type: "success", text: "Password changed successfully." });
+      setCurrentPass("");
+      setNewPass("");
+      setConfirmPass("");
+    } catch (e) {
+      setPassMessage({ type: "error", text: errorMessage(e) });
+    }
+  };
+
+  const handleDisableMfa = async () => {
+    try {
+      await api.post("/auth/mfa/disable", { password: disablePass });
+      await refreshUser();
+      setShowDisable(false);
+      setDisablePass("");
+      setMfaMessage(null);
+    } catch (e) {
+      setMfaMessage(errorMessage(e));
+    }
   };
 
   return (
@@ -69,15 +91,8 @@ function ProfileRoute() {
             <div className="flex flex-col items-center text-center p-4">
               <div className="relative mb-3">
                 <div className="w-24 h-24 rounded-full bg-[#E7F5F8] border-2 border-[#168FA8] overflow-hidden flex items-center justify-center text-[#0F6F83] font-bold text-2xl shadow-md">
-                  {user?.avatarUrl ? (
-                    <img src={user.avatarUrl} alt={fullName} className="w-full h-full object-cover" />
-                  ) : (
-                    fullName.split(" ").map((n) => n[0]).join("")
-                  )}
+                  {(user?.fullName ?? "?").split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
                 </div>
-                <button className="absolute bottom-0 right-0 p-1.5 bg-[#168FA8] text-white rounded-full shadow-md hover:bg-[#0F6F83]">
-                  <Camera className="h-3.5 w-3.5" />
-                </button>
               </div>
 
               <h3 className="text-base font-bold text-neutral-900">{user?.fullName || fullName}</h3>
@@ -99,7 +114,7 @@ function ProfileRoute() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-neutral-400">LAST LOGIN:</span>
-                  <span className="text-neutral-600">Today, 11:24 AM</span>
+                  <span className="text-neutral-600">{user?.lastLogin ? new Date(user.lastLogin + (user.lastLogin.endsWith("Z") ? "" : "Z")).toLocaleString() : "—"}</span>
                 </div>
               </div>
             </div>
@@ -116,11 +131,27 @@ function ProfileRoute() {
                   <span className="font-semibold flex items-center gap-1.5">
                     <ShieldCheck className="h-4 w-4 text-emerald-600" /> 2FA Protection Enabled
                   </span>
-                  <Button size="sm" variant="outline" onClick={() => setShowMfaModal(true)} className="h-7 text-[11px]">
-                    Reconfigure
+                  <Button size="sm" variant="outline" onClick={() => setShowDisable((v) => !v)} className="h-7 text-[11px]">
+                    Disable
                   </Button>
                 </div>
-              ) : (
+              ) : null}
+              {user?.mfaEnabled && showDisable && (
+                <div className="space-y-2">
+                  <Input
+                    type="password"
+                    placeholder="Confirm with your password"
+                    value={disablePass}
+                    onChange={(e) => setDisablePass(e.target.value)}
+                    className="h-9 text-xs"
+                  />
+                  <Button onClick={handleDisableMfa} variant="outline" className="w-full text-rose-600 border-rose-200">
+                    Turn off 2FA
+                  </Button>
+                  {mfaMessage && <p className="text-rose-600 font-medium">{mfaMessage}</p>}
+                </div>
+              )}
+              {!user?.mfaEnabled && (
                 <Button onClick={() => setShowMfaModal(true)} className="w-full bg-[#168FA8] hover:bg-[#0F6F83] text-white gap-2">
                   <ShieldCheck className="h-4 w-4" /> Enable 2FA Now
                 </Button>
@@ -150,18 +181,16 @@ function ProfileRoute() {
                   <label className="font-semibold text-neutral-700 flex items-center gap-1.5">
                     <Mail className="h-3.5 w-3.5 text-neutral-400" /> Email Address
                   </label>
-                  <Input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="h-10 text-xs"
-                  />
+                  <Input type="email" value={email} disabled className="h-10 text-xs" title="Email is your login; ask an admin to change it" />
                 </div>
               </div>
 
-              {savedSuccess && (
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 font-medium text-xs flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4" /> Profile details saved successfully.
+              {profileMessage && (
+                <div className={`p-3 rounded-xl border font-medium text-xs flex items-center gap-2 ${
+                  profileMessage.type === "success" ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-rose-50 border-rose-200 text-rose-700"
+                }`}>
+                  {profileMessage.type === "success" ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+                  {profileMessage.text}
                 </div>
               )}
 
@@ -234,7 +263,7 @@ function ProfileRoute() {
       <MfaSetupModal
         isOpen={showMfaModal}
         onClose={() => setShowMfaModal(false)}
-        onSuccess={() => enableMfa()}
+        onSuccess={() => refreshUser()}
       />
     </AppShell>
   );

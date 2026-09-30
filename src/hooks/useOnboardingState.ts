@@ -1,4 +1,13 @@
 import { useState, useEffect } from "react";
+import { api, errorMessage } from "@/lib/api";
+
+// Onboarding form labels → participant types used elsewhere in the API data.
+const PARTICIPANT_TYPE: Record<string, string> = {
+  "Commercial Bank": "Commercial bank",
+  "Microfinance Institution": "Microfinance",
+  "E-Money Issuer": "Mobile money",
+  SACCO: "SACCO",
+};
 import {
   Step1Data,
   Step2Data,
@@ -117,9 +126,25 @@ export const useOnboardingState = () => {
     }
   };
 
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Registers the institution as a Participant (the API also creates its
+  // Integration row). Technical/compliance details stay client-side for now.
   const submitOnboarding = async () => {
     setIsSaving(true);
-    await new Promise((res) => setTimeout(res, 1200));
+    setSubmitError(null);
+    const s1 = state.step1;
+    try {
+      await api.post("/participants", {
+        name: s1.institutionName,
+        code: (s1.swiftBic ?? "").toUpperCase(),
+        type: PARTICIPANT_TYPE[s1.institutionType ?? ""] ?? s1.institutionType ?? "",
+      });
+    } catch (e) {
+      setSubmitError(errorMessage(e));
+      setIsSaving(false);
+      return false;
+    }
     const nextState: OnboardingState = {
       ...state,
       status: "SUBMITTED",
@@ -145,6 +170,7 @@ export const useOnboardingState = () => {
     updateStep3,
     updateFieldMapping,
     submitOnboarding,
+    submitError,
     resetOnboarding,
   };
 };

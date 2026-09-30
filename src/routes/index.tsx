@@ -1,54 +1,33 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { AppShell, PrimaryButton, FilterChip, SectionCard } from "@/components/AppShell";
+import { AppShell, PrimaryButton, SectionCard } from "@/components/AppShell";
 import { KpiCard } from "@/components/KpiCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useRole } from "@/context/RoleContext";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import {
-  BarChart, Bar, LineChart, Line,
+  BarChart, Bar,
   ResponsiveContainer, Tooltip, XAxis, YAxis,
   Area, AreaChart
 } from "recharts";
-import { Plus, RefreshCw, Download, ShieldCheck, ArrowUpRight, Bell, Sparkles } from "lucide-react";
+import { Plus, RefreshCw, Download, ArrowUpRight, Bell, Sparkles } from "lucide-react";
+import { api, errorMessage } from "@/lib/api";
+import {
+  useDocumentRoster,
+  useIntegrations,
+  useIssues,
+  useOverview,
+  useParticipants,
+  useSubmissionRoster,
+  useSubmissions,
+  useTemplates,
+  useTrends,
+} from "@/lib/queries";
 
 export const Route = createFileRoute("/")({
   component: Dashboard,
 });
 
-/* ─── Static Data ─── */
-
-const riskTrendData = [
-  { d: "Week 1",  v: 22, volume: 140 },
-  { d: "Week 2",  v: 28, volume: 185 },
-  { d: "Week 3",  v: 35, volume: 210 },
-  { d: "Week 4",  v: 31, volume: 195 },
-  { d: "Week 5",  v: 42, volume: 260 },
-  { d: "Week 6",  v: 38, volume: 240 },
-  { d: "Week 7",  v: 47, volume: 290 },
-];
-
-const freshnessData = [
-  { n: "Bank of Kigali",   v: 98, status: "healthy" as const },
-  { n: "MTN Mobile Money", v: 94, status: "healthy" as const },
-  { n: "Equity Bank",      v: 87, status: "healthy" as const },
-  { n: "Inkomoko MFI",     v: 72, status: "warning" as const },
-  { n: "Zigama SACCO",     v: 65, status: "failed" as const },
-];
-
 type AlertSev = "failed" | "warning" | "draft" | "completed";
-
-const ALERT_ITEMS: {
-  id: string;
-  sev: AlertSev;
-  title: string;
-  institution: string;
-  to: string;
-}[] = [
-  { id: "a1", sev: "failed",  title: "ERP ingestion pipeline timeout", institution: "Inkomoko MFI", to: "/pipelines" },
-  { id: "a2", sev: "warning", title: "AI Deviation: Mobile Money error spike (+4.2%)", institution: "MTN Mobile Money", to: "/ai" },
-  { id: "a3", sev: "warning", title: "BNR Directive 07/2024 compliance deadline in 14d", institution: "Zigama SACCO", to: "/compliance" },
-  { id: "a4", sev: "draft",   title: "ISO 20022 field mapping v3.1 ready to publish", institution: "Bank of Kigali", to: "/mapping" },
-];
 
 const SEV_BORDER: Record<AlertSev, string> = {
   failed:    "#EF4444",
@@ -57,22 +36,24 @@ const SEV_BORDER: Record<AlertSev, string> = {
   completed: "#10B981",
 };
 
-const ACTIVITY_LOG = [
-  { t: "12:04", a: "Core Banking pipeline completed", u: "system" },
-  { t: "11:58", a: "AI anomaly alert acknowledged", u: "Compliance User" },
-  { t: "11:30", a: "Mapping ISO 20022 v3.1 published", u: "Technical Lead" },
-  { t: "10:15", a: "Governance meeting record created", u: "Board Admin" },
-  { t: "09:30", a: "Financial Inclusion report generated", u: "Business User" },
+const REPORTS = [
+  { id: "compliance_status", name: "Compliance Document Status", type: "Compliance" },
+  { id: "integration_status", name: "Integration Health Matrix", type: "Technical" },
+  { id: "submission_history", name: "Submission History", type: "Business" },
+  { id: "issues", name: "Issue Tracker Export", type: "Compliance" },
 ];
 
-const RECENT_REPORTS = [
-  { id: "RPT-001", name: "Q2 2025 Compliance Summary", type: "Compliance", gen: "Jul 10 09:14", status: "completed" as const },
-  { id: "RPT-002", name: "Integration Health Matrix", type: "Technical", gen: "Jul 09 14:32", status: "completed" as const },
-  { id: "RPT-003", name: "Participant Performance Ranking", type: "Business", gen: "Jul 08 11:00", status: "completed" as const },
-];
+const MONTH_FMT = new Intl.DateTimeFormat("en", { month: "short", year: "2-digit" });
+const TIME_FMT = new Intl.DateTimeFormat("en", { month: "short", day: "numeric" });
 
-const INSTITUTION_TYPES = ["All Types", "Commercial Bank", "E-money Issuer", "MFI", "SACCO"];
-const REGIONS = ["All Regions", "Kigali", "Eastern Province", "Northern Province", "Southern Province", "Western Province"];
+function daysSince(iso: string | null) {
+  if (!iso) return null;
+  return Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+}
+
+function compact(n: number) {
+  return new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(n);
+}
 
 /* ─── Component ─── */
 
@@ -80,19 +61,121 @@ function Dashboard() {
   const { role, roleLabel, scope } = useRole();
   const navigate = useNavigate();
 
-  const [selectedPeriod, setSelectedPeriod] = useState("Q2 2025");
-  const [instType, setInstType]             = useState("All Types");
-  const [selectedRegion, setSelectedRegion] = useState("All Regions");
   const [autoRefresh, setAutoRefresh]       = useState(false);
   const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
+  const [downloadError, setDownloadError]   = useState<string | null>(null);
 
-  const visibleAlerts = useMemo(
-    () => ALERT_ITEMS.filter((a) => !dismissedAlerts.has(a.id)),
-    [dismissedAlerts],
-  );
+  const overview = useOverview();
+  const trends = useTrends(6);
+  const integrations = useIntegrations();
+  const issues = useIssues();
+  const docRoster = useDocumentRoster();
+  const subRoster = useSubmissionRoster();
+  const submissions = useSubmissions();
+  const templates = useTemplates();
+  const participants = useParticipants();
+
+  const refetchAll = () =>
+    [overview, trends, integrations, issues, docRoster, subRoster, submissions].forEach((q) => q.refetch());
+
+  // 5-minute auto-refresh while the toggle is on.
+  useInterval(autoRefresh ? refetchAll : null, 5 * 60_000);
+
+  const ov = overview.data;
+  const ints = integrations.data ?? [];
+  const failedInts = ints.filter((i) => i.status === "Disconnected");
+  const degradedInts = ints.filter((i) => i.status === "Degraded");
+  const openIssues = (issues.data ?? []).filter((i) => i.status === "Open" || i.status === "In Progress");
+  const latestTrend = trends.data?.at(-1);
+  const prevTrend = trends.data?.at(-2);
+  const expiring = (docRoster.data ?? []).filter((d) => d.status === "Expiring Soon");
+  const overdueSubs = (subRoster.data ?? []).filter((r) => {
+    const p = participants.data?.find((x) => x.id === r.participant_id);
+    const age = daysSince(r.last_uploaded_at);
+    return p && (age === null || age > p.expected_frequency_days);
+  });
+  const failedSubsThisMonth = latestTrend ? latestTrend.submissions_total - latestTrend.submissions_passed : 0;
+
+  const trendData = (trends.data ?? []).map((t) => ({
+    d: MONTH_FMT.format(new Date(`${t.month}-01T00:00:00`)),
+    v: t.submissions_total,
+    volume: t.volume,
+  }));
+  const trendMax = Math.max(4, ...trendData.map((t) => t.v));
+
+  // "Freshness": 100% on the day of a submission, falling to 0% at twice the
+  // participant's expected reporting cadence.
+  const freshnessData = (subRoster.data ?? []).map((r) => {
+    const p = participants.data?.find((x) => x.id === r.participant_id);
+    const age = daysSince(r.last_uploaded_at);
+    const window = (p?.expected_frequency_days ?? 30) * 2;
+    return { n: r.participant_code, v: age === null ? 0 : Math.max(0, Math.round(100 - (age / window) * 100)) };
+  });
+
+  const alertItems = useMemo(() => {
+    const items: { id: string; sev: AlertSev; title: string; institution: string; to: string }[] = [];
+    for (const i of ints) {
+      if (i.status === "Disconnected" || i.status === "Degraded") {
+        items.push({
+          id: `int-${i.id}`,
+          sev: i.status === "Disconnected" ? "failed" : "warning",
+          title: `Integration ${i.status.toLowerCase()}${i.note ? `: ${i.note}` : ""}`,
+          institution: i.participant_name,
+          to: "/integrations",
+        });
+      }
+    }
+    for (const iss of openIssues) {
+      if (iss.severity === "Critical" || iss.severity === "High") {
+        items.push({
+          id: `iss-${iss.id}`,
+          sev: iss.severity === "Critical" ? "failed" : "warning",
+          title: iss.description,
+          institution: participantName(iss.participant_id),
+          to: "/compliance",
+        });
+      }
+    }
+    for (const d of docRoster.data ?? []) {
+      if (d.status === "Expired" || d.status === "Expiring Soon") {
+        items.push({
+          id: `doc-${d.participant_id}-${d.doc_type}`,
+          sev: d.status === "Expired" ? "failed" : "warning",
+          title: `${d.doc_type} ${d.status === "Expired" ? "expired" : "expiring"}${d.expiry_date ? ` (${d.expiry_date})` : ""}`,
+          institution: d.participant_name,
+          to: "/compliance",
+        });
+      }
+    }
+    return items;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [integrations.data, issues.data, docRoster.data, participants.data]);
+
+  function participantName(id: number) {
+    return participants.data?.find((p) => p.id === id)?.name ?? `Participant #${id}`;
+  }
+
+  const visibleAlerts = alertItems.filter((a) => !dismissedAlerts.has(a.id));
+
+  const activityLog = (submissions.data ?? []).slice(0, 8).map((s) => ({
+    t: TIME_FMT.format(new Date(s.uploaded_at)),
+    a: `${s.period} submission ${s.result.toLowerCase()} · ${participantName(s.participant_id)}`,
+    u: s.uploaded_by || "system",
+  }));
+
+  const loadError = [overview, trends, integrations, issues, docRoster, subRoster].find((q) => q.error)?.error;
 
   function dismiss(id: string) {
     setDismissedAlerts((prev) => new Set([...prev, id]));
+  }
+
+  async function download(report: string, format: "pdf" | "xlsx") {
+    setDownloadError(null);
+    try {
+      await api.download(`/reports/export?report=${report}&format=${format}`, `${report}.${format}`);
+    } catch (e) {
+      setDownloadError(errorMessage(e));
+    }
   }
 
   return (
@@ -111,27 +194,6 @@ function Dashboard() {
       }
       toolbar={
         <>
-          <FilterChip
-            label="Period"
-            value={selectedPeriod}
-            onClick={() => setSelectedPeriod((p) => (p === "Q2 2025" ? "Q1 2025" : "Q2 2025"))}
-          />
-          <FilterChip
-            label="Type"
-            value={instType}
-            onClick={() => {
-              const idx = INSTITUTION_TYPES.indexOf(instType);
-              setInstType(INSTITUTION_TYPES[(idx + 1) % INSTITUTION_TYPES.length]);
-            }}
-          />
-          <FilterChip
-            label="Region"
-            value={selectedRegion}
-            onClick={() => {
-              const idx = REGIONS.indexOf(selectedRegion);
-              setSelectedRegion(REGIONS[(idx + 1) % REGIONS.length]);
-            }}
-          />
           <div className="ml-auto flex items-center gap-2">
             <button
               onClick={() => setAutoRefresh((v) => !v)}
@@ -149,37 +211,49 @@ function Dashboard() {
         </>
       }
     >
+      {loadError && (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          Couldn't load live data: {errorMessage(loadError)}
+        </div>
+      )}
       {/* ROW 1 — Dynamic Role-Aware KPI Widgets */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {role === "compliance" ? (
           <>
             <KpiCard
               label="Overdue submissions"
-              value="2"
-              delta={{ dir: "up", text: "+1", tone: "bad" }}
-              source="compliance-reg"
-              freshness="live"
-              updated="12:00"
-            />
-            <KpiCard
-              label="Upcoming deadlines (30d)"
-              value="5"
-              context="Next: Jul 15"
-              source="calendar"
+              value={String(overdueSubs.length)}
+              context={overdueSubs.map((r) => r.participant_code).join(", ") || "All on schedule"}
+              source="submissions"
               freshness="live"
             />
             <KpiCard
-              label="Open incidents"
-              value="3"
-              context="1 Critical, 2 Medium"
-              source="incidents-db"
+              label="Documents needing attention"
+              value={String(ov?.documents_needing_attention ?? "–")}
+              context={expiring.length ? `${expiring.length} expiring soon` : undefined}
+              source="documents"
               freshness="live"
             />
             <KpiCard
-              label="Compliance rate (30d)"
-              value="94.2%"
-              delta={{ dir: "up", text: "+1.5pp", tone: "good" }}
-              source="audit-engine"
+              label="Open issues"
+              value={String(ov?.open_issues_total ?? "–")}
+              context={ov ? `${ov.open_issues_by_severity.Critical} Critical, ${ov.open_issues_by_severity.High} High` : undefined}
+              source="issues"
+              freshness="live"
+            />
+            <KpiCard
+              label="On-time rate (this month)"
+              value={latestTrend?.on_time_rate != null ? `${(latestTrend.on_time_rate * 100).toFixed(1)}%` : "–"}
+              delta={
+                latestTrend?.on_time_rate != null && prevTrend?.on_time_rate != null
+                  ? {
+                      dir: latestTrend.on_time_rate >= prevTrend.on_time_rate ? "up" : "down",
+                      text: `${((latestTrend.on_time_rate - prevTrend.on_time_rate) * 100).toFixed(1)}pp`,
+                      tone: latestTrend.on_time_rate >= prevTrend.on_time_rate ? "good" : "bad",
+                    }
+                  : undefined
+              }
+              source="reports/trends"
               freshness="live"
             />
           </>
@@ -187,61 +261,69 @@ function Dashboard() {
           <>
             <KpiCard
               label="Integration health"
-              value="7 / 8"
-              context="1 Failed (Inkomoko)"
+              value={ov ? `${ov.participants_connected} / ${ov.participants_total}` : "–"}
+              context={ov ? `${ov.participants_degraded_or_worse} degraded or worse` : undefined}
               source="integrations"
               freshness="live"
             />
             <KpiCard
-              label="Unacknowledged AI alerts"
-              value="2"
-              delta={{ dir: "up", text: "+1", tone: "bad" }}
-              source="ai-engine"
+              label="Participants"
+              value={String(ov?.participants_total ?? "–")}
+              context={latestTrend ? `+${latestTrend.new_participants} this month` : undefined}
+              source="participants"
               freshness="live"
             />
             <KpiCard
-              label="Active inclusion accounts"
-              value="4.2M"
-              delta={{ dir: "up", text: "+8.4%", tone: "good" }}
-              source="inclusion-agg"
+              label="Reported volume (this month)"
+              value={latestTrend ? compact(latestTrend.volume) : "–"}
+              delta={
+                latestTrend && prevTrend && prevTrend.volume > 0
+                  ? {
+                      dir: latestTrend.volume >= prevTrend.volume ? "up" : "down",
+                      text: `${(((latestTrend.volume - prevTrend.volume) / prevTrend.volume) * 100).toFixed(1)}%`,
+                      tone: latestTrend.volume >= prevTrend.volume ? "good" : "bad",
+                    }
+                  : undefined
+              }
+              source="reports/trends"
               freshness="live"
             />
             <KpiCard
-              label="Avg composite risk score"
-              value="34.8"
-              context="Low-Medium Risk"
-              source="p360-score"
+              label="Open issues"
+              value={String(ov?.open_issues_total ?? "–")}
+              context={ov ? `${ov.open_issues_by_severity.Critical} Critical` : undefined}
+              source="issues"
               freshness="live"
             />
           </>
         ) : (
           <>
             <KpiCard
-              label="Active pipelines"
-              value="6 / 7"
-              context="● 1 failed today"
-              source="pipeline-mon"
+              label="Connected integrations"
+              value={ov ? `${ov.participants_connected} / ${ov.participants_total}` : "–"}
+              context={degradedInts.length ? `● ${degradedInts.length} degraded` : undefined}
+              source="integrations"
               freshness="live"
             />
             <KpiCard
-              label="Failed integrations"
-              value="1"
-              delta={{ dir: "up", text: "+1", tone: "bad" }}
-              source="catalog"
+              label="Disconnected integrations"
+              value={String(failedInts.length)}
+              context={failedInts.map((i) => i.participant_code).join(", ") || undefined}
+              source="integrations"
               freshness="live"
             />
             <KpiCard
-              label="System uptime (30d)"
-              value="99.82%"
-              delta={{ dir: "up", text: "+0.02pp", tone: "good" }}
-              source="uptime-mon"
+              label="Failed submissions (this month)"
+              value={latestTrend ? String(failedSubsThisMonth) : "–"}
+              context={latestTrend ? `of ${latestTrend.submissions_total} received` : undefined}
+              source="submissions"
               freshness="live"
             />
             <KpiCard
-              label="Pending mappings"
-              value="2"
-              context="Draft v1.0"
-              source="standards-map"
+              label="Ingestion templates"
+              value={String(templates.data?.length ?? "–")}
+              context="Per-participant schemas"
+              source="templates"
               freshness="live"
             />
           </>
@@ -256,17 +338,17 @@ function Dashboard() {
             title={
               <div className="flex items-center gap-2">
                 <Sparkles className="h-4.5 w-4.5 text-[#168FA8]" />
-                <span>Participant Operational & Ingestion Trend (60 days)</span>
+                <span>Submissions Received per Month (6 months)</span>
               </div>
             }
             action={
               <span className="text-xs font-sans text-[#7B8798] dark:text-slate-400 font-medium">
-                Filtered: {instType} ({selectedRegion})
+                Source: /reports/trends
               </span>
             }
           >
             <ResponsiveContainer width="100%" height={260}>
-              <AreaChart data={riskTrendData} margin={{ top: 15, right: 15, left: -15, bottom: 20 }}>
+              <AreaChart data={trendData} margin={{ top: 15, right: 15, left: -15, bottom: 20 }}>
                 <defs>
                   <linearGradient id="colorArea" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#168FA8" stopOpacity={0.25}/>
@@ -280,7 +362,8 @@ function Dashboard() {
                   tickLine={false}
                 />
                 <YAxis
-                  domain={[0, 60]}
+                  domain={[0, trendMax]}
+                  allowDecimals={false}
                   tick={{ fontSize: 11, fontFamily: "Inter, sans-serif", fill: "#7B8798", fontWeight: 500 }}
                   axisLine={false}
                   tickLine={false}
@@ -311,9 +394,11 @@ function Dashboard() {
             <div className="mt-3 font-sans text-xs text-[#526174] dark:text-slate-300 flex items-center justify-between pt-3 border-t border-[#DCE3E8] dark:border-slate-800">
               <span className="flex items-center gap-2 font-medium">
                 <span className="h-2 w-2 rounded-full bg-[#16A979] animate-pulse" />
-                RDIP Ingestion Monitor · 8 Participants Active
+                RDIP Ingestion Monitor · {ov?.participants_total ?? "–"} Participants
               </span>
-              <span className="text-[#168FA8] dark:text-sky-400 font-semibold">Volume Average: 217k tx/day</span>
+              <span className="text-[#168FA8] dark:text-sky-400 font-semibold">
+                This month's volume: {latestTrend ? compact(latestTrend.volume) : "–"}
+              </span>
             </div>
           </SectionCard>
         </div>
@@ -336,7 +421,7 @@ function Dashboard() {
             <div className="flex flex-col gap-3">
               {visibleAlerts.length === 0 && (
                 <div className="text-sm py-10 text-center text-[#7B8798] font-medium">
-                  All attention items dismissed for current session.
+                  {alertItems.length ? "All attention items dismissed for current session." : "Nothing needs attention right now."}
                 </div>
               )}
               {visibleAlerts.map((alert) => (
@@ -377,7 +462,7 @@ function Dashboard() {
       {/* ROW 3 — Data Freshness + Recent Activity */}
       <div className="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Left: Data Freshness by Participant */}
-        <SectionCard title="Data Ingestion Freshness by Institution">
+        <SectionCard title="Data Freshness by Participant (vs. expected cadence)">
           <ResponsiveContainer width="100%" height={210}>
             <BarChart data={freshnessData} margin={{ top: 10, right: 8, left: -20, bottom: 0 }}>
               <XAxis
@@ -410,9 +495,12 @@ function Dashboard() {
         </SectionCard>
 
         {/* Right: Recent Activity Log */}
-        <SectionCard title="Recent Audit Activity Log (Last 10 Events)">
+        <SectionCard title="Recent Submission Activity">
           <div className="flex flex-col gap-0 divide-y divide-slate-100 dark:divide-slate-800/80">
-            {ACTIVITY_LOG.map((entry, i) => (
+            {activityLog.length === 0 && (
+              <div className="py-6 text-center text-xs text-slate-400">No submissions yet.</div>
+            )}
+            {activityLog.map((entry, i) => (
               <div key={i} className="flex items-center gap-3 py-2.5 text-xs hover:bg-slate-50/60 dark:hover:bg-slate-800/40 px-2 rounded-xl transition-colors">
                 <span className="font-mono text-slate-400 font-bold tabular-nums w-12 shrink-0">{entry.t}</span>
                 <span className="font-semibold text-slate-800 dark:text-slate-200 flex-1 truncate">{entry.a}</span>
@@ -428,11 +516,12 @@ function Dashboard() {
       {/* ROW 4 — Recent Generated Reports */}
       <div className="mt-5">
         <SectionCard title="System Reports" noPad>
+          {downloadError && <div className="px-5 py-2 text-xs font-medium text-red-600">{downloadError}</div>}
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-100/70 dark:bg-slate-800/70 border-b border-slate-200/80 dark:border-slate-700">
                 <tr>
-                  {["Report Name", "Module Type", "Generated Date", "Status", "Actions"].map((col) => (
+                  {["Report Name", "Module Type", "Status", "Actions"].map((col) => (
                     <th key={col} className="text-left px-5 py-3 text.5 text-[11px] font-bold uppercase tracking-wider text-slate-500 font-mono">
                       {col}
                     </th>
@@ -440,23 +529,29 @@ function Dashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {RECENT_REPORTS.map((r) => (
+                {REPORTS.map((r) => (
                   <tr key={r.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
                     <td className="px-5 py-3.5">
                       <div className="font-bold text-xs text-slate-900 dark:text-slate-100">{r.name}</div>
                       <div className="font-mono text-[10px] text-slate-400 font-semibold">{r.id}</div>
                     </td>
                     <td className="px-5 py-3.5 font-mono text-xs font-semibold text-slate-600 dark:text-slate-300">{r.type}</td>
-                    <td className="px-5 py-3.5 font-mono text-xs text-slate-500">{r.gen}</td>
-                    <td className="px-5 py-3.5"><StatusBadge status={r.status} /></td>
+                    <td className="px-5 py-3.5"><StatusBadge status="completed" /></td>
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-4">
                         <button
-                          onClick={() => alert(`Simulated download for ${r.name}`)}
+                          onClick={() => download(r.id, "pdf")}
                           className="inline-flex items-center gap-1.5 text-xs font-bold text-[#168FA8] hover:text-[#0F6F83] hover:underline cursor-pointer"
                         >
                           <Download className="h-3.5 w-3.5" />
-                          Download PDF
+                          PDF
+                        </button>
+                        <button
+                          onClick={() => download(r.id, "xlsx")}
+                          className="inline-flex items-center gap-1.5 text-xs font-bold text-[#168FA8] hover:text-[#0F6F83] hover:underline cursor-pointer"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                          Excel
                         </button>
                         <Link to="/reports" className="text-xs font-semibold text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
                           Details →
@@ -472,4 +567,15 @@ function Dashboard() {
       </div>
     </AppShell>
   );
+}
+
+function useInterval(fn: (() => void) | null, ms: number) {
+  const saved = useRef(fn);
+  saved.current = fn;
+  const active = fn !== null;
+  useEffect(() => {
+    if (!active) return;
+    const id = setInterval(() => saved.current?.(), ms);
+    return () => clearInterval(id);
+  }, [active, ms]);
 }

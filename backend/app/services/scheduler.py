@@ -47,8 +47,22 @@ def check_overdue_integrations() -> None:
         session.commit()
 
 
+def run_intelligence_jobs() -> None:
+    """Anomaly scan, auto-escalation, notifications and due report
+    schedules. Each is idempotent, so running often is safe."""
+    from app.routers.reports import run_due_schedules
+    from app.services import anomaly, notifications
+
+    with Session(engine) as session:
+        anomaly.detect(session)
+        anomaly.auto_escalate(session)
+        notifications.generate(session)
+        run_due_schedules(session)
+
+
 def start_scheduler() -> BackgroundScheduler:
     scheduler = BackgroundScheduler()
     scheduler.add_job(check_overdue_integrations, "interval", hours=6, id="overdue-check")
+    scheduler.add_job(run_intelligence_jobs, "interval", minutes=15, id="intelligence", next_run_time=datetime.now())
     scheduler.start()
     return scheduler

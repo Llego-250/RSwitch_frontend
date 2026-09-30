@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useRef } from "react";
 import { Shield, Eye, EyeOff, ArrowRight, KeyRound } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { errorMessage } from "@/lib/api";
 
 export const Route = createFileRoute("/login")({
   component: Login,
@@ -53,8 +54,19 @@ function Login() {
       return;
     }
     setErrorMsg(null);
-    await authLogin(email, pwd);
-    setStep("mfa");
+    try {
+      const result = await authLogin(email.trim(), pwd);
+      if (result.mfaRequired) {
+        setStep("mfa");
+      } else if (result.mfaSetupRequired) {
+        // Two-factor is enforced org-wide and this account hasn't set it up.
+        navigate({ to: "/profile" });
+      } else {
+        navigate({ to: result.isParticipant ? "/integrations" : "/" });
+      }
+    } catch (e) {
+      setErrorMsg(errorMessage(e));
+    }
   }
 
   async function handleVerify() {
@@ -64,11 +76,14 @@ function Login() {
       return;
     }
     setErrorMsg(null);
-    const success = await authVerifyMfa(joined, trustDevice);
-    if (success) {
-      navigate({ to: "/" });
-    } else {
-      setErrorMsg("Invalid MFA code. Try 123456.");
+    try {
+      const { isParticipant } = await authVerifyMfa(joined);
+      // Participant logins only have the participant portal.
+      navigate({ to: isParticipant ? "/integrations" : "/" });
+    } catch (e) {
+      setErrorMsg(errorMessage(e));
+      setCode(["", "", "", "", "", ""]);
+      inputRefs.current[0]?.focus();
     }
   }
 

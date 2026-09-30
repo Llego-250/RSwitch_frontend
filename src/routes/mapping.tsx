@@ -9,6 +9,10 @@ import {
 import { StatusBadge } from "@/components/StatusBadge";
 import { useRole } from "@/context/RoleContext";
 import { canManage } from "@/lib/roles";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { api, errorMessage } from "@/lib/api";
+import { useParticipants, useTemplateColumns, useTemplates } from "@/lib/queries";
+import type { Template, TemplateColumn } from "@/lib/types";
 import {
   Plus,
   Edit2,
@@ -30,172 +34,97 @@ export const Route = createFileRoute("/mapping")({
   component: MappingPage,
 });
 
-type VersionEntry = { v: string; date: string; by: string };
-
-type FieldRule = {
-  id: string;
-  sourceField: string;
-  targetField: string;
-  transform: string;
-  mapped: boolean;
-};
-
-type MappingRow = {
-  id: string;
-  name: string;
-  src: string;
-  target: string;
-  version: string;
-  status: "healthy" | "warning" | "draft";
-  updated: string;
-  fields: number;
-  mapped: number;
-  versions: VersionEntry[];
-  rules: FieldRule[];
-};
-
-const INITIAL_MAPPINGS: MappingRow[] = [
-  {
-    id: "M-001",
-    name: "Core Banking → ISO 20022 Canonical",
-    src: "Bank of Kigali Core",
-    target: "ISO 20022 XML",
-    version: "v3.1",
-    status: "healthy",
-    updated: "2026-07-20",
-    fields: 42,
-    mapped: 42,
-    versions: [
-      { v: "v3.1", date: "2026-07-20", by: "Technical Lead" },
-      { v: "v3.0", date: "2026-04-10", by: "Technical Lead" },
-      { v: "v2.9", date: "2026-01-15", by: "Data Architect" },
-    ],
-    rules: [
-      { id: "r1", sourceField: "account_no", targetField: "DbtrAcct.Id.Othr.Id", transform: "Direct Copy", mapped: true },
-      { id: "r2", sourceField: "tx_amount", targetField: "IntrBkSttlmAmt", transform: "Decimal(18,2)", mapped: true },
-      { id: "r3", sourceField: "currency_code", targetField: "IntrBkSttlmAmt.Ccy", transform: "Uppercase ISO-4217", mapped: true },
-    ],
-  },
-  {
-    id: "M-002",
-    name: "Mobile Money → JSON Canonical",
-    src: "MTN MoMo Feed",
-    target: "JSON Canonical",
-    version: "v2.0",
-    status: "healthy",
-    updated: "2026-07-18",
-    fields: 28,
-    mapped: 28,
-    versions: [
-      { v: "v2.0", date: "2026-07-18", by: "Integration Engineer" },
-    ],
-    rules: [
-      { id: "r4", sourceField: "msisdn", targetField: "payer_phone_hash", transform: "SHA-256 Masked", mapped: true },
-      { id: "r5", sourceField: "transaction_id", targetField: "switch_tx_id", transform: "UUID Prefix", mapped: true },
-    ],
-  },
-  {
-    id: "M-003",
-    name: "Inkomoko MFI → RDIP Standard",
-    src: "Inkomoko MFI",
-    target: "CSV Canonical",
-    version: "v1.4",
-    status: "warning",
-    updated: "2026-07-15",
-    fields: 31,
-    mapped: 29,
-    versions: [{ v: "v1.4", date: "2026-07-15", by: "Data Architect" }],
-    rules: [
-      { id: "r6", sourceField: "tin_no", targetField: "tax_id", transform: "Regex 9-digit", mapped: true },
-      { id: "r7", sourceField: "par_30", targetField: "portfolio_at_risk", transform: "Percentage", mapped: true },
-      { id: "r8", sourceField: "collateral_type", targetField: "collateral_category", transform: "Unmapped", mapped: false },
-      { id: "r9", sourceField: "guarantor_id", targetField: "guarantor_ref", transform: "Unmapped", mapped: false },
-    ],
-  },
-  {
-    id: "M-004",
-    name: "Zigama SACCO → ISO 20022",
-    src: "Zigama SACCO GL",
-    target: "ISO 20022 XML",
-    version: "v1.0-draft",
-    status: "draft",
-    updated: "2026-07-10",
-    fields: 18,
-    mapped: 12,
-    versions: [{ v: "v1.0-draft", date: "2026-07-10", by: "Integration Engineer" }],
-    rules: [
-      { id: "r10", sourceField: "member_no", targetField: "member_id", transform: "Direct", mapped: true },
-      { id: "r11", sourceField: "monthly_contrib", targetField: "monthly_amount", transform: "Decimal", mapped: false },
-    ],
-  },
-];
+const COLUMN_TYPES = ["string", "number", "date", "enum"];
 
 function MappingPage() {
   const { role } = useRole();
   const canManageMapping = canManage(role, "mapping");
+  const queryClient = useQueryClient();
 
-  const [mappings, setMappings]         = useState<MappingRow[]>(INITIAL_MAPPINGS);
-  const [search, setSearch]             = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const templates = useTemplates();
+  const participants = useParticipants();
+
+  const [search, setSearch] = useState("");
+  const [error, setError]   = useState<string | null>(null);
 
   // Modals state
-  const [editingMapping, setEditingMapping] = useState<MappingRow | null>(null);
-  const [historySource, setHistorySource]   = useState<MappingRow | null>(null);
-  const [publishWarning, setPublishWarning] = useState<MappingRow | null>(null);
+  const [editingId, setEditingId]   = useState<number | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [newName, setNewName]       = useState("Monthly transaction report");
+  const [newParticipant, setNewParticipant] = useState<number | "">("");
+  const [col, setCol] = useState({ name: "", type: "string", rule: "", required: true });
+
+  const editing = templates.data?.find((t) => t.id === editingId) ?? null;
+  const columns = useTemplateColumns(editingId ?? undefined);
+
+  const participantName = (id: number) => participants.data?.find((p) => p.id === id)?.name ?? `Participant #${id}`;
 
   const filtered = useMemo(() => {
-    return mappings.filter((m) => {
-      const matchSearch =
-        search.trim() === "" ||
-        m.name.toLowerCase().includes(search.toLowerCase()) ||
-        m.src.toLowerCase().includes(search.toLowerCase()) ||
-        m.target.toLowerCase().includes(search.toLowerCase());
-      const matchStatus = statusFilter === "all" || m.status === statusFilter;
-      return matchSearch && matchStatus;
-    });
-  }, [mappings, search, statusFilter]);
-
-  // Clone mapping (§5.5 REQ-MAP-006)
-  function handleClone(mapping: MappingRow) {
-    const cloned: MappingRow = {
-      ...mapping,
-      id: `M-00${mappings.length + 1}`,
-      name: `${mapping.name} (Copy)`,
-      version: `${mapping.version}-clone`,
-      status: "draft",
-      updated: new Date().toISOString().split("T")[0],
-      versions: [{ v: `${mapping.version}-clone`, date: new Date().toISOString().split("T")[0], by: role }],
-    };
-    setMappings([cloned, ...mappings]);
-  }
-
-  // Publish version (§5.5 REQ-MAP-004, REQ-MAP-008)
-  function handlePublishClick(mapping: MappingRow) {
-    if (mapping.mapped < mapping.fields) {
-      setPublishWarning(mapping);
-    } else {
-      executePublish(mapping.id);
-    }
-  }
-
-  function executePublish(id: string) {
-    setMappings((prev) =>
-      prev.map((m) => {
-        if (m.id === id) {
-          const nextV = `v${(parseFloat(m.version.replace(/[^0-9.]/g, "")) + 0.1).toFixed(1)}`;
-          return {
-            ...m,
-            version: nextV,
-            status: "healthy",
-            updated: new Date().toISOString().split("T")[0],
-            versions: [{ v: nextV, date: new Date().toISOString().split("T")[0], by: role }, ...m.versions],
-          };
-        }
-        return m;
-      })
+    const q = search.trim().toLowerCase();
+    return (templates.data ?? []).filter(
+      (t) => q === "" || t.name.toLowerCase().includes(q) || participantName(t.participant_id).toLowerCase().includes(q),
     );
-    setPublishWarning(null);
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [templates.data, participants.data, search]);
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["templates"] });
+  const onError = (e: unknown) => setError(errorMessage(e));
+
+  const publish = useMutation({
+    mutationFn: (t: Template) => api.post<Template>(`/templates/${t.id}/publish`),
+    onSuccess: invalidate,
+    onError,
+  });
+
+  const create = useMutation({
+    mutationFn: () => api.post<Template>("/templates", { name: newName.trim(), participant_id: Number(newParticipant) }),
+    onSuccess: (t) => {
+      invalidate();
+      setShowCreate(false);
+      setEditingId(t.id);
+    },
+    onError,
+  });
+
+  // Clone = new template for the same participant with the same columns.
+  const clone = useMutation({
+    mutationFn: async (t: Template) => {
+      const cols = await api.get<TemplateColumn[]>(`/templates/${t.id}/columns`);
+      const copy = await api.post<Template>("/templates", {
+        name: `${t.name} (Copy)`,
+        participant_id: t.participant_id,
+        applies_to: t.applies_to,
+      });
+      for (const c of cols) {
+        await api.post(`/templates/${copy.id}/columns`, {
+          template_id: copy.id,
+          name: c.name,
+          type: c.type,
+          rule: c.rule,
+          required: c.required,
+          position: c.position,
+        });
+      }
+      return copy;
+    },
+    onSuccess: invalidate,
+    onError,
+  });
+
+  const addColumn = useMutation({
+    mutationFn: () =>
+      api.post<TemplateColumn>(`/templates/${editingId}/columns`, {
+        template_id: editingId,
+        ...col,
+        name: col.name.trim(),
+        position: columns.data?.length ?? 0,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["templates", editingId, "columns"] });
+      setCol({ name: "", type: "string", rule: "", required: true });
+    },
+    onError,
+  });
 
   // If business user attempts access, show access control note per §5.5 REQ-MAP-009
   if (role === "business") {
@@ -215,31 +144,16 @@ function MappingPage() {
   return (
     <AppShell
       title="Mapping & Schemas"
-      subtitle="ISO 20022 Field Transformations"
+      subtitle="Per-participant ingestion templates"
       breadcrumb="CONNECT › STANDARDS & MAPPING"
       scope="Technical Configuration"
       primaryAction={
         canManageMapping ? (
           <PrimaryButton
             icon={<Plus className="h-4 w-4" />}
-            onClick={() => {
-              const newM: MappingRow = {
-                id: `M-00${mappings.length + 1}`,
-                name: "New Data Field Mapping",
-                src: "Source System",
-                target: "ISO 20022",
-                version: "v1.0-draft",
-                status: "draft",
-                updated: new Date().toISOString().split("T")[0],
-                fields: 10,
-                mapped: 5,
-                versions: [{ v: "v1.0-draft", date: new Date().toISOString().split("T")[0], by: role }],
-                rules: [],
-              };
-              setMappings([newM, ...mappings]);
-            }}
+            onClick={() => { setError(null); setShowCreate(true); }}
           >
-            Create New Field Mapping
+            New Ingestion Template
           </PrimaryButton>
         ) : undefined
       }
@@ -251,29 +165,21 @@ function MappingPage() {
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search field mappings…"
+              placeholder="Search templates or participants…"
               className="h-8 pl-8 pr-3 rounded-xl text-xs w-60 bg-white dark:bg-slate-800 border border-[#DCE3E8] dark:border-slate-700 text-[#172033] dark:text-white focus:outline-none font-sans"
             />
           </div>
 
-          <div className="flex items-center gap-1">
-            {["all", "healthy", "warning", "draft"].map((st) => (
-              <button
-                key={st}
-                onClick={() => setStatusFilter(st)}
-                className={`h-8 px-3 rounded-xl text-xs font-sans font-medium border capitalize transition-colors cursor-pointer ${
-                  statusFilter === st
-                    ? "bg-[#168FA8] text-white font-semibold border-[#168FA8]"
-                    : "bg-white dark:bg-slate-800 text-[#526174] dark:text-slate-300 border-[#DCE3E8] dark:border-slate-700"
-                }`}
-              >
-                {st}
-              </button>
-            ))}
-          </div>
         </>
       }
     >
+      {(templates.error || error) && (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 flex items-center justify-between">
+          <span>{templates.error ? `Couldn't load templates: ${errorMessage(templates.error)}` : error}</span>
+          {error && <button onClick={() => setError(null)}><X className="h-4 w-4" /></button>}
+        </div>
+      )}
+      {templates.isLoading && <div className="py-10 text-center text-sm text-slate-400">Loading templates…</div>}
       {/* Mapping Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 gap-4 mb-6">
         {filtered.map((m) => (
@@ -281,86 +187,73 @@ function MappingPage() {
             <div className="flex items-start justify-between">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-300">{m.id}</span>
-                  <span className="font-mono text-[11px] font-bold text-[#168FA8]">{m.version}</span>
+                  <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-300">TPL-{m.id}</span>
+                  <span className="font-mono text-[11px] font-bold text-[#168FA8]">v{m.version}</span>
                 </div>
                 <h3 className="font-bold text-sm text-slate-900 dark:text-white">{m.name}</h3>
-                <p className="text-xs text-slate-500">{m.src} → {m.target}</p>
+                <p className="text-xs text-slate-500">{participantName(m.participant_id)} → RDIP submission</p>
               </div>
-              <StatusBadge status={m.status} />
+              <StatusBadge status="active" />
             </div>
 
-            <div className="grid grid-cols-3 gap-2 py-2 px-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800 text-xs font-mono">
+            <div className="grid grid-cols-2 gap-2 py-2 px-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800 text-xs font-mono">
               <div>
-                <span className="text-[10px] text-slate-400 block">Total Fields</span>
-                <span className="font-bold text-slate-800 dark:text-slate-200">{m.fields}</span>
+                <span className="text-[10px] text-slate-400 block">Applies To</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200">{m.applies_to || "—"}</span>
               </div>
               <div>
-                <span className="text-[10px] text-slate-400 block">Mapped Fields</span>
-                <span className={`font-bold ${m.mapped < m.fields ? "text-amber-500" : "text-emerald-500"}`}>
-                  {m.mapped} / {m.fields}
-                </span>
-              </div>
-              <div>
-                <span className="text-[10px] text-slate-400 block">Last Updated</span>
-                <span className="font-bold text-slate-800 dark:text-slate-200">{m.updated}</span>
+                <span className="text-[10px] text-slate-400 block">Created</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200">{m.created_at.slice(0, 10)}</span>
               </div>
             </div>
 
             <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
               <button
-                onClick={() => setEditingMapping(m)}
+                onClick={() => { setError(null); setEditingId(m.id); }}
                 className="flex-1 h-9 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-800 dark:text-slate-200 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
               >
                 <Edit2 className="h-3.5 w-3.5" />
-                Edit Mapping Rules
+                {canManageMapping ? "Edit Columns" : "View Columns"}
               </button>
 
               {canManageMapping && (
                 <>
                   <button
-                    onClick={() => handlePublishClick(m)}
+                    onClick={() => publish.mutate(m)}
+                    disabled={publish.isPending}
                     className="h-9 px-3 rounded-xl text-xs font-semibold bg-[#168FA8] text-white hover:bg-[#0F6F83] flex items-center gap-1 transition-all cursor-pointer"
-                    title="Publish Versioned Release (REQ-MAP-004)"
+                    title="Publish a new version"
                   >
                     <CheckCircle2 className="h-3.5 w-3.5" />
-                    Publish
+                    Publish v{m.version + 1}
                   </button>
 
                   <button
-                    onClick={() => handleClone(m)}
+                    onClick={() => clone.mutate(m)}
+                    disabled={clone.isPending}
                     className="h-9 px-3 rounded-xl text-xs font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 flex items-center gap-1 transition-all cursor-pointer"
-                    title="Clone Mapping Baseline (REQ-MAP-006)"
+                    title="Clone template with its columns"
                   >
                     <Copy className="h-3.5 w-3.5" />
                     Clone
                   </button>
                 </>
               )}
-
-              <button
-                onClick={() => setHistorySource(m)}
-                className="h-9 px-3 rounded-xl text-xs font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 flex items-center gap-1 transition-all cursor-pointer"
-                title="Version History Log (REQ-MAP-005)"
-              >
-                <GitBranch className="h-3.5 w-3.5" />
-                History
-              </button>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Field Mapping Rules Editor Drawer */}
-      {editingMapping && (
+      {/* Column Editor */}
+      {editing && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="w-full max-w-2xl rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-6 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
               <div>
-                <h2 className="font-bold text-base text-slate-900 dark:text-white">Field Mapping Definition Rules</h2>
-                <p className="text-xs text-[#168FA8] font-semibold">{editingMapping.name} ({editingMapping.version})</p>
+                <h2 className="font-bold text-base text-slate-900 dark:text-white">Template Columns</h2>
+                <p className="text-xs text-[#168FA8] font-semibold">{editing.name} (v{editing.version}) · {participantName(editing.participant_id)}</p>
               </div>
-              <button onClick={() => setEditingMapping(null)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setEditingId(null)} className="text-slate-400 hover:text-slate-600">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -370,23 +263,31 @@ function MappingPage() {
                 <table className="w-full text-xs">
                   <thead className="bg-slate-100 dark:bg-slate-800">
                     <tr>
-                      <th className="px-3 py-2 text-left font-semibold">Source Field</th>
-                      <th className="px-3 py-2 text-left font-semibold">Target Canonical Field</th>
-                      <th className="px-3 py-2 text-left font-semibold">Transformation Rule</th>
-                      <th className="px-3 py-2 text-center font-semibold">Status</th>
+                      <th className="px-3 py-2 text-left font-semibold">#</th>
+                      <th className="px-3 py-2 text-left font-semibold">Column</th>
+                      <th className="px-3 py-2 text-left font-semibold">Type</th>
+                      <th className="px-3 py-2 text-left font-semibold">Rule</th>
+                      <th className="px-3 py-2 text-center font-semibold">Required</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono">
-                    {editingMapping.rules.map((r) => (
-                      <tr key={r.id}>
-                        <td className="px-3 py-2.5 text-slate-800 dark:text-slate-200">{r.sourceField}</td>
-                        <td className="px-3 py-2.5 text-[#168FA8]">{r.targetField}</td>
-                        <td className="px-3 py-2.5 text-slate-600 dark:text-slate-400">{r.transform}</td>
+                    {columns.isLoading && (
+                      <tr><td colSpan={5} className="px-3 py-4 text-center text-slate-400">Loading…</td></tr>
+                    )}
+                    {columns.data?.length === 0 && (
+                      <tr><td colSpan={5} className="px-3 py-4 text-center text-slate-400">No columns yet.</td></tr>
+                    )}
+                    {columns.data?.map((c) => (
+                      <tr key={c.id}>
+                        <td className="px-3 py-2.5 text-slate-400">{c.position}</td>
+                        <td className="px-3 py-2.5 text-slate-800 dark:text-slate-200">{c.name}</td>
+                        <td className="px-3 py-2.5 text-[#168FA8]">{c.type}</td>
+                        <td className="px-3 py-2.5 text-slate-600 dark:text-slate-400">{c.rule || "—"}</td>
                         <td className="px-3 py-2.5 text-center">
-                          {r.mapped ? (
-                            <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-700 font-bold">Mapped</span>
+                          {c.required ? (
+                            <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-700 font-bold">Required</span>
                           ) : (
-                            <span className="px-2 py-0.5 rounded text-[10px] bg-amber-100 text-amber-700 font-bold">Unmapped</span>
+                            <span className="px-2 py-0.5 rounded text-[10px] bg-slate-100 text-slate-600 font-bold">Optional</span>
                           )}
                         </td>
                       </tr>
@@ -394,66 +295,97 @@ function MappingPage() {
                   </tbody>
                 </table>
               </div>
+
+              {canManageMapping && (
+                <div className="grid grid-cols-12 gap-2 items-end text-xs pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <div className="col-span-4">
+                    <label className="block font-semibold text-slate-600 mb-1">Column name</label>
+                    <input
+                      value={col.name}
+                      onChange={(e) => setCol({ ...col, name: e.target.value })}
+                      placeholder="e.g. channel"
+                      className="w-full h-8 px-2 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono focus:outline-none"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block font-semibold text-slate-600 mb-1">Type</label>
+                    <select
+                      value={col.type}
+                      onChange={(e) => setCol({ ...col, type: e.target.value })}
+                      className="w-full h-8 px-2 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none"
+                    >
+                      {COLUMN_TYPES.map((t) => <option key={t}>{t}</option>)}
+                    </select>
+                  </div>
+                  <div className="col-span-3">
+                    <label className="block font-semibold text-slate-600 mb-1">Rule</label>
+                    <input
+                      value={col.rule}
+                      onChange={(e) => setCol({ ...col, rule: e.target.value })}
+                      placeholder={col.type === "enum" ? "POS|ATM|Web" : "regex (optional)"}
+                      className="w-full h-8 px-2 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono focus:outline-none"
+                    />
+                  </div>
+                  <label className="col-span-1 flex items-center gap-1 h-8 font-semibold text-slate-600">
+                    <input type="checkbox" checked={col.required} onChange={(e) => setCol({ ...col, required: e.target.checked })} />
+                    Req.
+                  </label>
+                  <div className="col-span-2">
+                    <PrimaryButton onClick={() => addColumn.mutate()} disabled={!col.name.trim() || addColumn.isPending}>
+                      Add
+                    </PrimaryButton>
+                  </div>
+                </div>
+              )}
+              {error && <p className="text-xs text-red-600 font-medium">{error}</p>}
             </div>
 
             <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
-              <SecondaryButton onClick={() => setEditingMapping(null)}>Close Editor</SecondaryButton>
+              <SecondaryButton onClick={() => setEditingId(null)}>Close Editor</SecondaryButton>
             </div>
           </div>
         </div>
       )}
 
-      {/* Unmapped Fields Warning Modal (§5.5 REQ-MAP-008) */}
-      {publishWarning && (
+      {/* Create Template Modal */}
+      {showCreate && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-6 shadow-2xl space-y-4">
-            <div className="flex items-center gap-3 text-amber-500 font-bold text-base pb-2 border-b border-slate-200 dark:border-slate-800">
-              <AlertTriangle className="h-6 w-6 shrink-0" />
-              <span>Warning: Unmapped Fields Present</span>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+              <h2 className="font-bold text-base text-slate-900 dark:text-white">New Ingestion Template</h2>
+              <button onClick={() => setShowCreate(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="h-5 w-5" />
+              </button>
             </div>
-            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-              Mapping <strong className="text-slate-900 dark:text-white">{publishWarning.name}</strong> contains{" "}
-              <strong className="text-amber-500">{publishWarning.fields - publishWarning.mapped} unmapped fields</strong>.
-              Publishing will flag incoming missing target fields as warnings during pipeline ingestion.
-            </p>
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Participant</label>
+                <select
+                  value={newParticipant}
+                  onChange={(e) => setNewParticipant(e.target.value ? Number(e.target.value) : "")}
+                  className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
+                >
+                  <option value="">Select participant…</option>
+                  {participants.data?.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name} ({p.code})</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Template name</label>
+                <input
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
+                />
+              </div>
+              {error && <p className="text-red-600 font-medium">{error}</p>}
+            </div>
             <div className="flex justify-end gap-2 pt-2">
-              <SecondaryButton onClick={() => setPublishWarning(null)}>Cancel & Review</SecondaryButton>
-              <PrimaryButton onClick={() => executePublish(publishWarning.id)}>Publish Version Anyway</PrimaryButton>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Version History Drawer (REQ-MAP-005) */}
-      {historySource && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-end">
-          <div className="w-full max-w-md h-full bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-700 p-6 shadow-2xl flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800 mb-4">
-                <div>
-                  <h2 className="font-bold text-base text-slate-900 dark:text-white">Mapping Version History</h2>
-                  <p className="text-xs text-[#168FA8] font-semibold">{historySource.name}</p>
-                </div>
-                <button onClick={() => setHistorySource(null)} className="text-slate-400 hover:text-slate-600">
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <div className="space-y-3 font-mono text-xs">
-                {historySource.versions.map((ver, idx) => (
-                  <div key={idx} className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex items-center justify-between">
-                    <div>
-                      <span className="font-bold text-[#168FA8]">{ver.v}</span>
-                      <span className="text-[11px] text-slate-400 block mt-0.5">Published by {ver.by}</span>
-                    </div>
-                    <span className="text-slate-500 font-semibold">{ver.date}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex justify-end">
-              <SecondaryButton onClick={() => setHistorySource(null)}>Close History</SecondaryButton>
+              <SecondaryButton onClick={() => setShowCreate(false)}>Cancel</SecondaryButton>
+              <PrimaryButton onClick={() => create.mutate()} disabled={!newParticipant || !newName.trim() || create.isPending}>
+                {create.isPending ? "Creating…" : "Create & Add Columns"}
+              </PrimaryButton>
             </div>
           </div>
         </div>

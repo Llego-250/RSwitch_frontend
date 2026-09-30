@@ -6,6 +6,8 @@ engine = create_engine(settings.database_url, echo=False)
 
 
 def init_db() -> None:
+    import app.models  # noqa: F401  (register every table before create_all)
+
     SQLModel.metadata.create_all(engine)
 
 

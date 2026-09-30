@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlmodel import Session, select
 
 from app.core.permissions import require_staff, scope_participant_id
@@ -9,6 +9,7 @@ from app.db import get_session
 from app.models.enums import IssueSeverity, IssueStatus
 from app.models.issue import Issue
 from app.models.user import User
+from app.services import audit
 
 router = APIRouter(prefix="/issues", tags=["issues"])
 
@@ -39,16 +40,17 @@ def my_issues(session: Session = Depends(get_session), current_user: User = Depe
 
 
 @router.post("", response_model=Issue)
-def create_issue(issue: Issue, session: Session = Depends(get_session), _: User = Depends(require_staff)):
+def create_issue(issue: Issue, request: Request, session: Session = Depends(get_session), user: User = Depends(require_staff)):
     session.add(issue)
     session.commit()
     session.refresh(issue)
+    audit.record(session, "ISSUE_CREATE", f"ISS-{issue.id}: {issue.description}", user, request)
     return issue
 
 
 @router.patch("/{issue_id}", response_model=Issue)
 def update_issue(
-    issue_id: int, updates: dict, session: Session = Depends(get_session), _: User = Depends(require_staff)
+    issue_id: int, updates: dict, request: Request, session: Session = Depends(get_session), user: User = Depends(require_staff)
 ):
     issue = session.get(Issue, issue_id)
     if not issue:
@@ -59,4 +61,5 @@ def update_issue(
     session.add(issue)
     session.commit()
     session.refresh(issue)
+    audit.record(session, "ISSUE_UPDATE", f"ISS-{issue.id}: {', '.join(f'{k}={v}' for k, v in updates.items())}", user, request)
     return issue

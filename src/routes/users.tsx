@@ -1,10 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell, PrimaryButton, SecondaryButton, SectionCard } from "@/components/AppShell";
 import { StatusBadge } from "@/components/StatusBadge";
-import { RoleAssignmentModal } from "@/components/RoleAssignmentModal";
 import { AuditLogTable } from "@/components/AuditLogTable";
 import { useRole } from "@/context/RoleContext";
-import { canManage, type Role } from "@/lib/roles";
+import { canManage } from "@/lib/roles";
+import { useAuth } from "@/context/AuthContext";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { api, errorMessage } from "@/lib/api";
+import { useParticipants } from "@/lib/queries";
+import type { BackendRole, UserRow } from "@/lib/types";
 import { useState } from "react";
 import {
   UserPlus, Key, Monitor, ClipboardList, Lock, Shield, Trash2, Edit2,
@@ -16,117 +20,92 @@ export const Route = createFileRoute("/users")({
   component: Users,
 });
 
-type UserStatus = "active" | "inactive" | "invited";
-
-type UserEntry = {
-  id: string;
-  name: string;
-  email: string;
-  role: Role;
-  roleLabel: string;
-  status: UserStatus;
-  login: string;
-  mfa: boolean;
-};
-
-const INITIAL_USERS: UserEntry[] = [
-  { id: "USR-001", name: "Aline Uwamahoro", email: "aline@rswitch.rw", role: "compliance", roleLabel: "Compliance User", status: "active", login: "10m ago", mfa: true },
-  { id: "USR-002", name: "Jean-Paul Nshimiyimana", email: "jp.nshimi@rswitch.rw", role: "business", roleLabel: "Business User", status: "active", login: "2h ago", mfa: true },
-  { id: "USR-003", name: "Eric Manzi", email: "eric.m@rswitch.rw", role: "technical", roleLabel: "Technical / Admin User", status: "active", login: "5h ago", mfa: true },
-  { id: "USR-004", name: "Clarisse Gasana", email: "cgasana@rswitch.rw", role: "compliance", roleLabel: "Compliance User", status: "invited", login: "Never (Pending 48h)", mfa: false },
-  { id: "USR-005", name: "Patrick Habimana", email: "phabimana@rswitch.rw", role: "business", roleLabel: "Business User", status: "inactive", login: "14d ago", mfa: true },
+const ROLE_OPTIONS: { value: BackendRole; label: string }[] = [
+  { value: "Compliance", label: "Compliance User" },
+  { value: "Business", label: "Business User" },
+  { value: "Board", label: "Board Viewer" },
+  { value: "Technical / Admin", label: "Technical / Admin User" },
+  { value: "Participant", label: "Participant (institution login)" },
 ];
 
-type AuditEvent = {
-  id: string;
-  ts: string;
-  actor: string;
-  action: string;
-  object: string;
-  ip: string;
-  status: "active" | "warning";
-};
-
-const AUDIT_LOGS: AuditEvent[] = [
-  { id: "EVT-001", ts: "2026-07-24 12:04:11", actor: "eric.m@rswitch.rw", action: "USER_INVITE", object: "cgasana@rswitch.rw", ip: "197.243.12.88", status: "active" },
-  { id: "EVT-002", ts: "2026-07-24 11:30:04", actor: "aline@rswitch.rw", action: "SUBMISSION_REVIEW", object: "SUB-102 (Approved)", ip: "197.243.12.91", status: "active" },
-  { id: "EVT-003", ts: "2026-07-24 10:15:33", actor: "eric.m@rswitch.rw", action: "ROLE_CHANGE", object: "USR-005 (Deactivated)", ip: "197.243.12.88", status: "warning" },
-  { id: "EVT-004", ts: "2026-07-24 09:12:00", actor: "jp.nshimi@rswitch.rw", action: "REPORT_GENERATE", object: "RPT-001 (PDF)", ip: "197.243.14.02", status: "active" },
-];
+function lastLogin(iso: string | null) {
+  if (!iso) return "Never";
+  return new Date(iso + (iso.endsWith("Z") ? "" : "Z")).toLocaleString();
+}
 
 function Users() {
   const { role } = useRole();
+  const { user: me } = useAuth();
   const canManageUsers = canManage(role, "users");
+  const queryClient = useQueryClient();
 
-  const [users, setUsers]                 = useState<UserEntry[]>(INITIAL_USERS);
+  const usersQuery = useQuery({ queryKey: ["users"], queryFn: () => api.get<UserRow[]>("/users"), enabled: canManageUsers });
+  const participants = useParticipants();
+  const users = usersQuery.data ?? [];
+
   const [search, setSearch]               = useState("");
   const [activeTab, setActiveTab]         = useState<"users" | "audit">("users");
+  const [error, setError]                 = useState<string | null>(null);
+  const [tempPassword, setTempPassword]   = useState<{ email: string; password: string } | null>(null);
 
-  // Invite Modal State (§5.13 REQ-USR-001, REQ-USR-002)
+  // Create-user modal
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteEmail, setInviteEmail]         = useState("");
   const [inviteName, setInviteName]           = useState("");
-  const [inviteRole, setInviteRole]           = useState<Role>("compliance");
-  const [inviteLink, setInviteLink]           = useState<string | null>(null);
+  const [inviteRole, setInviteRole]           = useState<BackendRole>("Compliance");
+  const [inviteParticipant, setInviteParticipant] = useState<number | "">("");
   const [emailError, setEmailError]           = useState<string | null>(null);
 
   const filteredUsers = users.filter(
     (u) =>
-      u.name.toLowerCase().includes(search.toLowerCase()) ||
+      u.full_name.toLowerCase().includes(search.toLowerCase()) ||
       u.email.toLowerCase().includes(search.toLowerCase()) ||
-      u.roleLabel.toLowerCase().includes(search.toLowerCase())
+      u.role.toLowerCase().includes(search.toLowerCase())
   );
 
-  // RFC 5322 Email Validation (§11.2)
-  function validateEmail(emailStr: string): boolean {
-    const re = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    return re.test(emailStr);
-  }
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["users"] });
+  const onError = (e: unknown) => setError(errorMessage(e));
+
+  const createUser = useMutation({
+    mutationFn: () =>
+      api.post<UserRow & { temporary_password: string }>("/users", {
+        email: inviteEmail,
+        full_name: inviteName,
+        role: inviteRole,
+        participant_id: inviteRole === "Participant" ? inviteParticipant || null : null,
+      }),
+    onSuccess: (u) => {
+      refresh();
+      setTempPassword({ email: u.email, password: u.temporary_password });
+      setInviteEmail("");
+      setInviteName("");
+    },
+    onError: (e) => setEmailError(errorMessage(e)),
+  });
+
+  const updateUser = useMutation({
+    mutationFn: ({ id, ...body }: { id: number; role?: BackendRole; is_active?: boolean }) => api.patch<UserRow>(`/users/${id}`, body),
+    onSuccess: refresh,
+    onError,
+  });
+
+  const resetPassword = useMutation({
+    mutationFn: (u: UserRow) => api.post<{ temporary_password: string }>(`/users/${u.id}/reset-password`).then((r) => ({ ...r, email: u.email })),
+    onSuccess: (r) => setTempPassword({ email: r.email, password: r.temporary_password }),
+    onError,
+  });
 
   function handleSendInvite() {
     setEmailError(null);
-    if (!validateEmail(inviteEmail)) {
-      setEmailError("Rule §11.2 Violation: Must match RFC 5322 valid email format (e.g. user@domain.com).");
+    if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(inviteEmail)) {
+      setEmailError("Enter a valid email address (e.g. user@domain.com).");
       return;
     }
-    if (!inviteName) return;
-
-    const roleLabelMap: Record<Role, string> = {
-      compliance: "Compliance User",
-      business: "Business User",
-      technical: "Technical / Admin User",
-    };
-
-    const newUser: UserEntry = {
-      id: `USR-00${users.length + 1}`,
-      name: inviteName,
-      email: inviteEmail,
-      role: inviteRole,
-      roleLabel: roleLabelMap[inviteRole],
-      status: "invited",
-      login: "Never (Pending 48h)",
-      mfa: false,
-    };
-
-    setUsers([newUser, ...users]);
-    setInviteLink(`https://rdip.rswitch.rw/register?token=inv_${Date.now()}`);
-  }
-
-  function handleDeactivate(id: string) {
-    setUsers((prev) =>
-      prev.map((u) => (u.id === id ? { ...u, status: "inactive" } : u))
-    );
-  }
-
-  function handleChangeRole(id: string, newR: Role) {
-    const roleLabelMap: Record<Role, string> = {
-      compliance: "Compliance User",
-      business: "Business User",
-      technical: "Technical / Admin User",
-    };
-    setUsers((prev) =>
-      prev.map((u) => (u.id === id ? { ...u, role: newR, roleLabel: roleLabelMap[newR] } : u))
-    );
+    if (!inviteName.trim()) {
+      setEmailError("Enter the user's full name.");
+      return;
+    }
+    createUser.mutate();
   }
 
   return (
@@ -137,8 +116,8 @@ function Users() {
       scope="Technical Administration"
       primaryAction={
         canManageUsers ? (
-          <PrimaryButton icon={<UserPlus className="h-4 w-4" />} onClick={() => { setShowInviteModal(true); setInviteLink(null); }}>
-            Invite New User
+          <PrimaryButton icon={<UserPlus className="h-4 w-4" />} onClick={() => { setShowInviteModal(true); setTempPassword(null); setEmailError(null); }}>
+            Add New User
           </PrimaryButton>
         ) : undefined
       }
@@ -159,7 +138,7 @@ function Users() {
                 activeTab === "audit" ? "bg-[#168FA8] text-white border-[#168FA8]" : "bg-white dark:bg-slate-800 text-[#526174] dark:text-slate-300 border-[#DCE3E8] dark:border-slate-700"
               }`}
             >
-              Audit Log Register ({AUDIT_LOGS.length})
+              Audit Log Register
             </button>
           </div>
           <span className="text-[11px] font-mono text-slate-400">
@@ -168,6 +147,25 @@ function Users() {
         </div>
       }
     >
+      {error && (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 flex justify-between">
+          {error}
+          <button onClick={() => setError(null)}><X className="h-4 w-4" /></button>
+        </div>
+      )}
+      {tempPassword && !showInviteModal && (
+        <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-800 flex justify-between items-center">
+          <span>
+            One-time password for <b>{tempPassword.email}</b>: <code className="font-mono font-bold">{tempPassword.password}</code> — share it securely; it won't be shown again.
+          </span>
+          <button onClick={() => setTempPassword(null)}><X className="h-4 w-4" /></button>
+        </div>
+      )}
+      {!canManageUsers && activeTab === "users" && (
+        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-medium text-amber-800">
+          User administration is limited to Technical / Admin users.
+        </div>
+      )}
       {activeTab === "users" ? (
         <div className="space-y-6">
           {/* User Table (§5.13 REQ-USR-005) */}
@@ -197,42 +195,58 @@ function Users() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono">
+                  {usersQuery.isLoading && canManageUsers && (
+                    <tr><td colSpan={7} className="px-4 py-6 text-center text-slate-400 font-sans">Loading…</td></tr>
+                  )}
                   {filteredUsers.map((u) => (
                     <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                      <td className="px-4 py-3 font-sans font-bold text-slate-900 dark:text-white">{u.name}</td>
+                      <td className="px-4 py-3 font-sans font-bold text-slate-900 dark:text-white">{u.full_name || "—"}</td>
                       <td className="px-4 py-3 text-[#168FA8]">{u.email}</td>
-                      <td className="px-4 py-3 font-sans font-medium text-slate-700 dark:text-slate-300">{u.roleLabel}</td>
+                      <td className="px-4 py-3 font-sans font-medium text-slate-700 dark:text-slate-300">
+                        {u.role}
+                        {u.participant_id && <span className="text-slate-400"> · #{u.participant_id}</span>}
+                      </td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          u.status === "active" ? "bg-emerald-100 text-emerald-700" : u.status === "invited" ? "bg-[#E7F5F8] text-[#168FA8]" : "bg-slate-200 text-slate-600"
+                          u.is_active ? (u.last_login_at ? "bg-emerald-100 text-emerald-700" : "bg-[#E7F5F8] text-[#168FA8]") : "bg-slate-200 text-slate-600"
                         }`}>
-                          {u.status}
+                          {u.is_active ? (u.last_login_at ? "active" : "invited") : "inactive"}
                         </span>
                       </td>
-                      <td className="px-4 py-3">{u.mfa ? <span className="text-emerald-500 font-bold">Enabled</span> : <span className="text-slate-400">Pending</span>}</td>
-                      <td className="px-4 py-3 text-slate-500">{u.login}</td>
+                      <td className="px-4 py-3">{u.mfa_enabled ? <span className="text-emerald-500 font-bold">Enabled</span> : <span className="text-slate-400">Off</span>}</td>
+                      <td className="px-4 py-3 text-slate-500">{lastLogin(u.last_login_at)}</td>
                       <td className="px-4 py-3 font-sans">
                         <div className="flex items-center gap-2">
-                          {canManageUsers && u.status === "active" && (
+                          {canManageUsers && u.id !== me?.id && (
                             <>
-                              <select
-                                value={u.role}
-                                onChange={(e) => handleChangeRole(u.id, e.target.value as Role)}
-                                className="h-7 px-2 text-[11px] rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-mono"
-                              >
-                                <option value="compliance">Compliance User</option>
-                                <option value="business">Business User</option>
-                                <option value="technical">Technical / Admin User</option>
-                              </select>
+                              {u.is_active && (
+                                <select
+                                  value={u.role}
+                                  onChange={(e) => updateUser.mutate({ id: u.id, role: e.target.value as BackendRole })}
+                                  className="h-7 px-2 text-[11px] rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-mono"
+                                >
+                                  {ROLE_OPTIONS.filter((r) => r.value !== "Participant" || u.participant_id).map((r) => (
+                                    <option key={r.value} value={r.value}>{r.label}</option>
+                                  ))}
+                                </select>
+                              )}
                               <button
-                                onClick={() => handleDeactivate(u.id)}
-                                className="text-red-500 hover:underline text-[11px] font-semibold cursor-pointer"
-                                title="Deactivate without deleting (§5.13 REQ-USR-003)"
+                                onClick={() => resetPassword.mutate(u)}
+                                className="text-[#168FA8] hover:underline text-[11px] font-semibold cursor-pointer"
+                                title="Issue a one-time password and clear 2FA"
                               >
-                                Deactivate
+                                Reset
+                              </button>
+                              <button
+                                onClick={() => updateUser.mutate({ id: u.id, is_active: !u.is_active })}
+                                className={`${u.is_active ? "text-red-500" : "text-emerald-600"} hover:underline text-[11px] font-semibold cursor-pointer`}
+                                title="Deactivation keeps the account and its audit history"
+                              >
+                                {u.is_active ? "Deactivate" : "Reactivate"}
                               </button>
                             </>
                           )}
+                          {u.id === me?.id && <span className="text-[11px] text-slate-400">You</span>}
                         </div>
                       </td>
                     </tr>
@@ -247,22 +261,22 @@ function Users() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono">
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 space-y-1">
                 <span className="font-bold text-slate-800 dark:text-slate-200 block">Minimum Length</span>
-                <span className="text-[#168FA8]">At least 12 characters</span>
+                <span className="text-[#168FA8]">Set in Settings → Security (default 12)</span>
               </div>
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 space-y-1">
-                <span className="font-bold text-slate-800 dark:text-slate-200 block">Character Types</span>
-                <span className="text-slate-600 dark:text-slate-300">1 Upper, 1 Lower, 1 Digit, 1 Special (!@#$%^&*)</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200 block">Two-Factor</span>
+                <span className="text-slate-600 dark:text-slate-300">TOTP authenticator + single-use recovery codes</span>
               </div>
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 space-y-1">
-                <span className="font-bold text-slate-800 dark:text-slate-200 block">Password Reuse</span>
-                <span className="text-amber-500">Cannot match last 5 passwords</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200 block">Deactivation</span>
+                <span className="text-amber-500">Blocks sign-in; audit history is kept</span>
               </div>
             </div>
           </SectionCard>
         </div>
       ) : (
         /* Audit Log Register Tab (§5.13 REQ-USR-006) */
-        <AuditLogTable />
+        <AuditLogTable canExport={canManageUsers} />
       )}
 
       {/* Invite User Modal (§5.13 REQ-USR-001, REQ-USR-002) */}
@@ -270,13 +284,13 @@ function Users() {
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
-              <h2 className="font-bold text-base text-slate-900 dark:text-white">Invite New User (§5.13 REQ-USR-001)</h2>
+              <h2 className="font-bold text-base text-slate-900 dark:text-white">Add New User</h2>
               <button onClick={() => setShowInviteModal(false)} className="text-slate-400 hover:text-slate-600">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            {!inviteLink ? (
+            {!tempPassword ? (
               <div className="space-y-3 text-xs">
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Full Name</label>
@@ -288,11 +302,8 @@ function Users() {
                     className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
                   />
                 </div>
-
                 <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Email Address (RFC 5322 Format — §11.2)
-                  </label>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Email Address</label>
                   <input
                     type="email"
                     value={inviteEmail}
@@ -301,20 +312,29 @@ function Users() {
                     className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
                   />
                 </div>
-
                 <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Assigned SRS Role</label>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Role</label>
                   <select
                     value={inviteRole}
-                    onChange={(e) => setInviteRole(e.target.value as Role)}
+                    onChange={(e) => setInviteRole(e.target.value as BackendRole)}
                     className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
                   >
-                    <option value="compliance">Compliance User (Monitors compliance, deadlines & incidents)</option>
-                    <option value="business">Business User (Reviews reports, AI insights & inclusion analytics)</option>
-                    <option value="technical">Technical / Admin User (Manages integrations, pipelines & settings)</option>
+                    {ROLE_OPTIONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
                   </select>
                 </div>
-
+                {inviteRole === "Participant" && (
+                  <div>
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Institution</label>
+                    <select
+                      value={inviteParticipant}
+                      onChange={(e) => setInviteParticipant(e.target.value ? Number(e.target.value) : "")}
+                      className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
+                    >
+                      <option value="">Select participant…</option>
+                      {participants.data?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                  </div>
+                )}
                 {emailError && (
                   <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/60 border border-red-200 text-red-600 font-semibold text-xs">
                     {emailError}
@@ -325,17 +345,20 @@ function Users() {
               <div className="space-y-3 text-xs">
                 <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 text-emerald-700 dark:text-emerald-300 space-y-1">
                   <div className="font-bold flex items-center gap-1">
-                    <CheckCircle2 className="h-4 w-4" /> Invitation Link Generated (Expires in 48h — REQ-USR-002)
+                    <CheckCircle2 className="h-4 w-4" /> Account created for {tempPassword.email}
                   </div>
-                  <p className="text-[11px] font-mono break-all">{inviteLink}</p>
+                  <p>One-time password (shown once — share it securely, the user should change it after signing in):</p>
+                  <p className="text-sm font-mono font-bold select-all">{tempPassword.password}</p>
                 </div>
               </div>
             )}
 
             <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
               <SecondaryButton onClick={() => setShowInviteModal(false)}>Close</SecondaryButton>
-              {!inviteLink && (
-                <PrimaryButton onClick={handleSendInvite}>Send Invitation Email</PrimaryButton>
+              {!tempPassword && (
+                <PrimaryButton onClick={handleSendInvite} disabled={createUser.isPending}>
+                  {createUser.isPending ? "Creating…" : "Create Account"}
+                </PrimaryButton>
               )}
             </div>
           </div>

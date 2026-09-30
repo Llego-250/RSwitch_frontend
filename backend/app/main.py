@@ -7,7 +7,21 @@ from app.core.security import hash_password
 from app.db import engine, init_db
 from app.models.enums import UserRole
 from app.models.user import User
-from app.routers import auth, documents, integrations, issues, participants, reports, submissions, templates
+from app.routers import (
+    alerts,
+    auth,
+    documents,
+    governance,
+    integrations,
+    issues,
+    notifications,
+    participants,
+    reports,
+    settings as settings_router,
+    submissions,
+    templates,
+    users,
+)
 from app.services.scheduler import start_scheduler
 from app.storage import init_bucket
 
@@ -18,10 +32,13 @@ app.add_middleware(
     allow_origins=[origin.strip() for origin in settings.cors_origins.split(",")],
     allow_methods=["*"],
     allow_headers=["*"],
+    # Lets the browser read the report filename on downloads.
+    expose_headers=["Content-Disposition", "X-Report-Run-Id"],
 )
 
 for router in (auth.router, participants.router, templates.router, submissions.router,
-               integrations.router, documents.router, issues.router, reports.router):
+               integrations.router, documents.router, issues.router, reports.router, users.router,
+               settings_router.router, governance.router, alerts.router, notifications.router):
     app.include_router(router)
 
 

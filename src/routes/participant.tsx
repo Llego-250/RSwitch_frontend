@@ -1,184 +1,82 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import {
-  AppShell,
-  PrimaryButton,
-  SecondaryButton,
-  SectionCard,
-} from "@/components/AppShell";
-import { StatusBadge } from "@/components/StatusBadge";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { AppShell, SecondaryButton, SectionCard } from "@/components/AppShell";
+import { StatusBadge, type Status } from "@/components/StatusBadge";
 import { useRole } from "@/context/RoleContext";
-import {
-  Building2,
-  Smartphone,
-  Landmark,
-  FileSpreadsheet,
-  Search,
-  ShieldAlert,
-  ShieldCheck,
-  Activity,
-  AlertTriangle,
-  Clock,
-  FileText,
-  MessageSquare,
-  Plus,
-  X,
-  ChevronRight,
-  TrendingUp,
-} from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { canManage } from "@/lib/roles";
+import { api, errorMessage } from "@/lib/api";
+import { useIntegrations, useIssues, useParticipants, useSubmissions } from "@/lib/queries";
+import type { IntegrationStatus, ParticipantDocumentRow } from "@/lib/types";
+import { Search, Clock, Download, Upload } from "lucide-react";
 
 export const Route = createFileRoute("/participant")({
   component: Participant360,
 });
 
-type InstitutionType = "Commercial Bank" | "E-money Issuer" | "MFI" | "SACCO";
-
-type Participant = {
-  id: string;
-  name: string;
-  shortName: string;
-  type: InstitutionType;
-  registrationDate: string;
-  contactName: string;
-  contactEmail: string;
-  status: "Active" | "Inactive" | "Suspended";
-  historyMonths: number;
-  // Risk Breakdown (§5.6 REQ-P360-010)
-  complianceRiskScore: number;
-  operationalRiskScore: number;
-  technicalRiskScore: number;
-  compositeRiskScore: number;
-  integrations: { name: string; type: string; status: "healthy" | "warning" | "failed"; lastSync: string }[];
-  submissions: { id: string; date: string; docName: string; status: "Approved" | "Under Review" | "Validation Failed"; records: number; errors: number }[];
-  incidents: { id: string; title: string; severity: "Critical" | "High" | "Medium" | "Low"; status: "Open" | "Under Investigation" | "Resolved"; date: string }[];
-  performance: { uptime: string; failureRate: string; avgLatency: string };
-  outstandingActions: { id: string; action: string; owner: string; due: string }[];
-  notes: { id: string; date: string; author: string; note: string }[];
+const INTEGRATION_BADGE: Record<IntegrationStatus, Status> = {
+  Connected: "healthy",
+  Degraded: "warning",
+  Disconnected: "failed",
+  Maintenance: "paused",
 };
 
-const PARTICIPANTS: Participant[] = [
-  {
-    id: "INST-001",
-    name: "Bank of Kigali Plc",
-    shortName: "BK",
-    type: "Commercial Bank",
-    registrationDate: "2024-01-15",
-    contactName: "Jean-Claude Mugabo",
-    contactEmail: "jcmugabo@bk.rw",
-    status: "Active",
-    historyMonths: 18,
-    complianceRiskScore: 12,
-    operationalRiskScore: 18,
-    technicalRiskScore: 10,
-    compositeRiskScore: 13.4,
-    integrations: [
-      { name: "Core Banking Data Exchange", type: "Automated API", status: "healthy", lastSync: "5m ago" },
-      { name: "SWIFT & Card Switch Feed", type: "Automated API", status: "healthy", lastSync: "15m ago" },
-    ],
-    submissions: [
-      { id: "SUB-102", date: "2026-07-20", docName: "Q2 Prudential Return", status: "Approved", records: 128400, errors: 0 },
-      { id: "SUB-098", date: "2026-06-15", docName: "AML Monthly Return", status: "Approved", records: 124100, errors: 0 },
-    ],
-    incidents: [
-      { id: "INC-204", title: "API Gateway 504 Timeout", severity: "Low", status: "Resolved", date: "2026-06-02" },
-    ],
-    performance: { uptime: "99.94%", failureRate: "0.06%", avgLatency: "142 ms" },
-    outstandingActions: [
-      { id: "ACT-01", action: "Submit updated ISO 20022 mapping release notes", owner: "RSwitch Tech", due: "Jul 30" },
-    ],
-    notes: [
-      { id: "n1", date: "2026-07-02", author: "Compliance Officer", note: "Annual prudential audit signed off with no major discrepancies." },
-    ],
-  },
-  {
-    id: "INST-002",
-    name: "MTN Mobile Money Rwanda Ltd",
-    shortName: "MTN MoMo",
-    type: "E-money Issuer",
-    registrationDate: "2024-03-10",
-    contactName: "Aline Uwase",
-    contactEmail: "aline.uwase@mtn.co.rw",
-    status: "Active",
-    historyMonths: 14,
-    complianceRiskScore: 28,
-    operationalRiskScore: 42,
-    technicalRiskScore: 34,
-    compositeRiskScore: 33.6,
-    integrations: [
-      { name: "Mobile Money Switch Feed", type: "Automated API", status: "warning", lastSync: "12m ago" },
-    ],
-    submissions: [
-      { id: "SUB-105", date: "2026-07-22", docName: "E-money Volume Report", status: "Under Review", records: 84201, errors: 14 },
-    ],
-    incidents: [
-      { id: "INC-210", title: "Unexplained Submission Error Rate Spike (+4.2%)", severity: "High", status: "Under Investigation", date: "2026-07-24" },
-    ],
-    performance: { uptime: "99.20%", failureRate: "1.80%", avgLatency: "380 ms" },
-    outstandingActions: [
-      { id: "ACT-02", action: "Investigate transaction payload error rate spike", owner: "MTN Compliance", due: "Jul 27" },
-    ],
-    notes: [
-      { id: "n2", date: "2026-07-24", author: "Compliance Lead", note: "Triggered AI Anomaly alert under investigation by team." },
-    ],
-  },
-  {
-    id: "INST-003",
-    name: "Inkomoko Microfinance Ltd",
-    shortName: "Inkomoko",
-    type: "MFI",
-    registrationDate: "2026-06-01",
-    contactName: "David Ntaganda",
-    contactEmail: "dntaganda@inkomoko.rw",
-    status: "Active",
-    historyMonths: 1.5, // Less than 3 months! (§5.6 REQ-P360-012)
-    complianceRiskScore: 0,
-    operationalRiskScore: 0,
-    technicalRiskScore: 0,
-    compositeRiskScore: 0,
-    integrations: [
-      { name: "Quarterly Regulatory Upload", type: "Manual Upload", status: "failed", lastSync: "3h ago" },
-    ],
-    submissions: [
-      { id: "SUB-801", date: "2026-07-24", docName: "Inkomoko_Q2_Portfolio.csv", status: "Validation Failed", records: 0, errors: 3 },
-    ],
-    incidents: [
-      { id: "INC-215", title: "Manual Upload Schema Validation Failure", severity: "Medium", status: "Open", date: "2026-07-24" },
-    ],
-    performance: { uptime: "—", failureRate: "100%", avgLatency: "—" },
-    outstandingActions: [
-      { id: "ACT-03", action: "Re-upload corrected loan portfolio CSV file", owner: "Inkomoko MFI", due: "Jul 28" },
-    ],
-    notes: [],
-  },
-];
+function monthsSince(iso: string) {
+  return (Date.now() - new Date(iso).getTime()) / (30 * 86_400_000);
+}
 
 export function Participant360() {
   const { role } = useRole();
-  const canAddNote = role === "compliance";
+  const { user } = useAuth();
+  const canEdit = canManage(role, "compliance") || canManage(role, "integrations");
+  const queryClient = useQueryClient();
 
-  const [selectedInstId, setSelectedInstId] = useState<string>("INST-001");
-  const [search, setSearch]                 = useState("");
-  const [newNoteText, setNewNoteText]       = useState("");
+  const participants = useParticipants();
+  const integrations = useIntegrations();
+  const issues = useIssues();
 
-  const currentInst = PARTICIPANTS.find((p) => p.id === selectedInstId) || PARTICIPANTS[0];
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [search, setSearch] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredInsts = PARTICIPANTS.filter(
+  const list = participants.data ?? [];
+  const current = list.find((p) => p.id === selectedId) ?? list[0];
+
+  const submissions = useSubmissions(current?.id);
+  const documents = useQuery({
+    queryKey: ["documents", "participant", current?.id],
+    queryFn: () => api.get<ParticipantDocumentRow[]>(`/documents/participant/${current!.id}`),
+    enabled: current !== undefined,
+  });
+
+  const toggleActive = useMutation({
+    mutationFn: () => api.patch(`/participants/${current!.id}`, { is_active: !current!.is_active }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["participants"] }),
+    onError: (e) => setError(errorMessage(e)),
+  });
+
+  const filtered = list.filter(
     (p) =>
       p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.shortName.toLowerCase().includes(search.toLowerCase()) ||
-      p.type.toLowerCase().includes(search.toLowerCase())
+      p.code.toLowerCase().includes(search.toLowerCase()) ||
+      p.type.toLowerCase().includes(search.toLowerCase()),
   );
 
-  function handleAddNote() {
-    if (!newNoteText.trim()) return;
-    currentInst.notes.unshift({
-      id: `note-${Date.now()}`,
-      date: new Date().toISOString().split("T")[0],
-      author: "Compliance User",
-      note: newNoteText.trim(),
-    });
-    setNewNoteText("");
-  }
+  const integration = integrations.data?.find((i) => i.participant_id === current?.id);
+  const subs = submissions.data ?? [];
+  const passed = subs.filter((s) => s.result === "Passed");
+  const passRate = subs.length ? (passed.length / subs.length) * 100 : null;
+  const avgRows = passed.length ? Math.round(passed.reduce((n, s) => n + s.row_count, 0) / passed.length) : null;
+  const myIssues = (issues.data ?? []).filter((i) => i.participant_id === current?.id);
+  const openIssues = myIssues.filter((i) => i.status === "Open" || i.status === "In Progress");
+  const docsAttention = (documents.data ?? []).filter((d) => d.status !== "On File").length;
+  const historyMonths = current ? monthsSince(current.created_at) : 0;
+
+  // Only the participant uploads their own documents (enforced by the API).
+  const isOwnRecord = user?.participantId != null && user.participantId === current?.id;
+
+  const loadError = participants.error ?? integrations.error ?? issues.error;
 
   return (
     <AppShell
@@ -194,249 +92,285 @@ export function Participant360() {
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search participating bank, e-money issuer, MFI, SACCO…"
+              placeholder="Search participant name, code or type…"
               className="h-8 pl-8 pr-3 rounded-xl text-xs w-full bg-white dark:bg-slate-800 border border-[#DCE3E8] dark:border-slate-700 text-[#172033] dark:text-white focus:outline-none font-sans"
             />
           </div>
-          <div className="text-xs text-[#526174] font-sans">
-            REQ-P360-013: Individual Customer Data Excluded (Institution Scope Only)
-          </div>
+          <div className="text-xs text-[#526174] font-sans">Institution scope only — no individual customer data</div>
         </div>
       }
     >
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* Left Side: Institution Selector List */}
-        <div className="lg:col-span-4 space-y-3">
-          <h2 className="font-semibold text-xs uppercase tracking-wider text-[#526174] font-sans">Participating Institutions</h2>
-          <div className="space-y-2">
-            {filteredInsts.map((inst) => {
-              const selected = inst.id === currentInst.id;
-              return (
-                <div
-                  key={inst.id}
-                  onClick={() => setSelectedInstId(inst.id)}
-                  className={`p-4 rounded-xl border transition-all cursor-pointer ${
-                    selected
-                      ? "bg-[#E7F5F8] border-[#168FA8] text-[#172033] dark:bg-slate-800 dark:border-[#168FA8] shadow-2xs font-semibold"
-                      : "bg-white dark:bg-slate-900 border-[#DCE3E8] dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60"
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-bold text-sm text-[#172033] dark:text-white">{inst.name}</span>
-                    <span className="text-xs font-sans px-2.5 py-0.5 rounded-full bg-[#E7F5F8] dark:bg-slate-800 font-semibold text-[#168FA8]">
-                      {inst.type}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs text-[#526174] font-sans mt-2">
-                    <span>Contact: {inst.contactName}</span>
-                    <span className="font-mono text-[11px]">Joined: {inst.registrationDate}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+      {(loadError || error) && (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          {loadError ? `Couldn't load participants: ${errorMessage(loadError)}` : error}
         </div>
+      )}
+      {participants.isLoading && <div className="py-10 text-center text-sm text-slate-400">Loading participants…</div>}
+      {current && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          {/* Left Side: Institution Selector List */}
+          <div className="lg:col-span-4 space-y-3">
+            <h2 className="font-semibold text-xs uppercase tracking-wider text-[#526174] font-sans">Participating Institutions</h2>
+            <div className="space-y-2">
+              {filtered.map((inst) => {
+                const selected = inst.id === current.id;
+                const intg = integrations.data?.find((i) => i.participant_id === inst.id);
+                return (
+                  <div
+                    key={inst.id}
+                    onClick={() => setSelectedId(inst.id)}
+                    className={`p-4 rounded-xl border transition-all cursor-pointer ${
+                      selected
+                        ? "bg-[#E7F5F8] border-[#168FA8] text-[#172033] dark:bg-slate-800 dark:border-[#168FA8] shadow-2xs font-semibold"
+                        : "bg-white dark:bg-slate-900 border-[#DCE3E8] dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-bold text-sm text-[#172033] dark:text-white">{inst.name}</span>
+                      <span className="text-xs font-sans px-2.5 py-0.5 rounded-full bg-[#E7F5F8] dark:bg-slate-800 font-semibold text-[#168FA8]">
+                        {inst.type || "—"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-[#526174] font-sans mt-2">
+                      <span>Integration: {intg?.status ?? "—"}</span>
+                      <span className="font-mono text-[11px]">Joined: {inst.created_at.slice(0, 10)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
 
-        {/* Right Side: Consolidated Profile View */}
-        <div className="lg:col-span-8 space-y-5">
-          {/* Institution Header Card */}
-          <SectionCard noPad>
-            <div className="p-6 border-b border-[#DCE3E8] dark:border-slate-800 flex flex-wrap items-center justify-between gap-4">
-              <div>
+          {/* Right Side: Consolidated Profile View */}
+          <div className="lg:col-span-8 space-y-5">
+            <SectionCard noPad>
+              <div className="p-6 border-b border-[#DCE3E8] dark:border-slate-800 flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <div className="h-12 w-12 rounded-xl bg-[#168FA8] text-white font-bold text-lg flex items-center justify-center shadow-2xs font-sans">
-                    {currentInst.shortName.charAt(0)}
+                    {current.code.charAt(0)}
                   </div>
                   <div>
-                    <h1 className="text-xl font-bold text-[#172033] dark:text-white font-sans">{currentInst.name}</h1>
+                    <h1 className="text-xl font-bold text-[#172033] dark:text-white font-sans">{current.name}</h1>
                     <p className="text-xs text-[#526174] dark:text-slate-400 font-sans mt-0.5">
-                      <span className="font-mono">{currentInst.id}</span> · {currentInst.type} · Reg: <span className="font-mono">{currentInst.registrationDate}</span>
+                      <span className="font-mono">{current.code}</span> · {current.type || "Participant"} · Reports every{" "}
+                      <span className="font-mono">{current.expected_frequency_days}d</span>
                     </p>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex items-center gap-3">
-                <StatusBadge status={currentInst.status === "Active" ? "healthy" : "failed"} />
-                <div className="text-right text-xs font-mono">
-                  <span className="block text-[10px] text-slate-400">Assigned Contact</span>
-                  <span className="font-semibold text-slate-700 dark:text-slate-200">{currentInst.contactName}</span>
+                <div className="flex items-center gap-3">
+                  <StatusBadge status={current.is_active ? "active" : "paused"}>
+                    {current.is_active ? "Trading: Active" : "Trading: Inactive"}
+                  </StatusBadge>
+                  {canEdit && (
+                    <SecondaryButton onClick={() => toggleActive.mutate()}>
+                      {toggleActive.isPending ? "Saving…" : current.is_active ? "Deactivate" : "Activate"}
+                    </SecondaryButton>
+                  )}
                 </div>
               </div>
-            </div>
 
-            {/* Composite Risk Score Banner (§5.6 REQ-P360-009, REQ-P360-010, REQ-P360-012) */}
-            <div className="p-6 bg-slate-50/80 dark:bg-slate-900/40">
-              <h3 className="font-bold text-xs uppercase tracking-wider text-slate-400 mb-3">
-                Participant Risk Assessment (Release 2 Methodology)
-              </h3>
-
-              {currentInst.historyMonths < 3 ? (
-                <div className="p-4 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/40 flex items-center gap-3">
-                  <Clock className="h-5 w-5 text-amber-500 shrink-0" />
-                  <div>
-                    <span className="font-bold text-xs text-amber-700 dark:text-amber-300 block">Insufficient Data — Score Pending (REQ-P360-012)</span>
+              <div className="p-6 bg-slate-50/80 dark:bg-slate-900/40">
+                <h3 className="font-bold text-xs uppercase tracking-wider text-slate-400 mb-3">Operational Summary</h3>
+                {historyMonths < 3 && (
+                  <div className="mb-3 p-4 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/40 flex items-center gap-3">
+                    <Clock className="h-5 w-5 text-amber-500 shrink-0" />
                     <span className="text-[11px] text-slate-600 dark:text-slate-300">
-                      Minimum 3 months of submission history required to calculate risk score. Current history: {currentInst.historyMonths} months.
+                      Less than 3 months of history ({historyMonths.toFixed(1)} months) — treat trends with caution.
                     </span>
                   </div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                  <div className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                    <span className="text-[10px] font-mono text-slate-400 block uppercase">Composite Risk Score</span>
-                    <span className="text-2xl font-bold font-mono text-[#168FA8]">{currentInst.compositeRiskScore} / 100</span>
-                    <span className="text-[10px] text-slate-500 block mt-1">Weighted Average Score</span>
-                  </div>
-                  <div className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                    <span className="text-[10px] font-mono text-slate-400 block uppercase">Compliance Risk (30%)</span>
-                    <span className="text-lg font-bold font-mono text-slate-800 dark:text-slate-100">{currentInst.complianceRiskScore} / 100</span>
-                    <span className="text-[10px] text-emerald-500 block mt-1">Adherence & Deadlines</span>
-                  </div>
-                  <div className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                    <span className="text-[10px] font-mono text-slate-400 block uppercase">Operational Risk (20%)</span>
-                    <span className="text-lg font-bold font-mono text-slate-800 dark:text-slate-100">{currentInst.operationalRiskScore} / 100</span>
-                    <span className="text-[10px] text-amber-500 block mt-1">Incidents & Severity</span>
-                  </div>
-                  <div className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                    <span className="text-[10px] font-mono text-slate-400 block uppercase">Technical Risk (30%)</span>
-                    <span className="text-lg font-bold font-mono text-slate-800 dark:text-slate-100">{currentInst.technicalRiskScore} / 100</span>
-                    <span className="text-[10px] text-emerald-500 block mt-1">Uptime & Latency</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          </SectionCard>
-
-          {/* Profile Sections Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Section 1: Integration Status */}
-            <SectionCard title="Integration Status">
-              <div className="space-y-2">
-                {currentInst.integrations.map((int, i) => (
-                  <div key={i} className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex items-center justify-between text-xs font-mono">
-                    <div>
-                      <span className="font-bold text-slate-800 dark:text-slate-200 block">{int.name}</span>
-                      <span className="text-[11px] text-slate-400">{int.type} · Sync: {int.lastSync}</span>
+                )}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  {[
+                    ["Submission Pass Rate", passRate === null ? "–" : `${passRate.toFixed(0)}%`, `${subs.length} submissions`],
+                    ["Open Issues", String(openIssues.length), `${myIssues.length} total`],
+                    ["Docs Needing Attention", String(docsAttention), `${documents.data?.length ?? 0} required`],
+                    ["Avg Rows / Submission", avgRows === null ? "–" : avgRows.toLocaleString(), "passed only"],
+                  ].map(([label, value, sub]) => (
+                    <div key={label} className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                      <span className="text-[10px] font-mono text-slate-400 block uppercase">{label}</span>
+                      <span className="text-lg font-bold font-mono text-slate-800 dark:text-slate-100">{value}</span>
+                      <span className="text-[10px] text-slate-500 block mt-1">{sub}</span>
                     </div>
-                    <StatusBadge status={int.status} />
-                  </div>
-                ))}
-              </div>
-            </SectionCard>
-
-            {/* Section 2: Technical Performance (REQ-P360-007) */}
-            <SectionCard title="Performance">
-              <div className="grid grid-cols-3 gap-2 text-center font-mono">
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800">
-                  <span className="text-[10px] text-slate-400 block uppercase">Uptime</span>
-                  <span className="font-bold text-sm text-emerald-500">{currentInst.performance.uptime}</span>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800">
-                  <span className="text-[10px] text-slate-400 block uppercase">Failure Rate</span>
-                  <span className="font-bold text-sm text-slate-800 dark:text-slate-200">{currentInst.performance.failureRate}</span>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800">
-                  <span className="text-[10px] text-slate-400 block uppercase">Avg Latency</span>
-                  <span className="font-bold text-sm text-slate-800 dark:text-slate-200">{currentInst.performance.avgLatency}</span>
-                </div>
-              </div>
-            </SectionCard>
-          </div>
-
-          {/* Section 3: Data Submission History Log (REQ-P360-004) */}
-          <SectionCard title="Submission Log" noPad>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead className="bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
-                  <tr>
-                    <th className="px-4 py-2.5 text-left font-semibold">Sub ID</th>
-                    <th className="px-4 py-2.5 text-left font-semibold">Date</th>
-                    <th className="px-4 py-2.5 text-left font-semibold">Document Name</th>
-                    <th className="px-4 py-2.5 text-left font-semibold">Status</th>
-                    <th className="px-4 py-2.5 text-right font-semibold">Records</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono">
-                  {currentInst.submissions.map((sub) => (
-                    <tr key={sub.id}>
-                      <td className="px-4 py-2.5 font-bold text-slate-700 dark:text-slate-300">{sub.id}</td>
-                      <td className="px-4 py-2.5 text-slate-500">{sub.date}</td>
-                      <td className="px-4 py-2.5 font-sans font-medium text-slate-900 dark:text-white">{sub.docName}</td>
-                      <td className="px-4 py-2.5">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          sub.status === "Approved" ? "bg-emerald-100 text-emerald-700" : sub.status === "Under Review" ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700"
-                        }`}>
-                          {sub.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2.5 text-right font-bold">{sub.records.toLocaleString()}</td>
-                    </tr>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          </SectionCard>
-
-          {/* Section 4: Incidents & Remediation (REQ-P360-006) */}
-          <SectionCard title="Incidents & Remediation">
-            <div className="space-y-2">
-              {currentInst.incidents.length === 0 ? (
-                <p className="text-xs text-slate-400 py-2">No open or resolved incidents recorded for this institution.</p>
-              ) : (
-                currentInst.incidents.map((inc) => (
-                  <div key={inc.id} className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex items-center justify-between text-xs">
-                    <div>
-                      <span className="font-mono font-bold text-slate-500 mr-2">{inc.id}</span>
-                      <span className="font-semibold text-slate-800 dark:text-slate-200">{inc.title}</span>
-                      <span className="text-[11px] text-slate-400 block font-mono">Date: {inc.date}</span>
-                    </div>
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
-                      inc.severity === "Critical" ? "bg-red-100 text-red-700" : inc.severity === "High" ? "bg-amber-100 text-amber-700" : "bg-[#E7F5F8] text-[#168FA8]"
-                    }`}>
-                      {inc.severity} · {inc.status}
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
-          </SectionCard>
-
-          {/* Section 5: Compliance Notes & Annotations (REQ-P360-014) */}
-          <SectionCard title="Compliance Notes">
-            <div className="space-y-3">
-              {canAddNote && (
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newNoteText}
-                    onChange={(e) => setNewNoteText(e.target.value)}
-                    placeholder="Add internal compliance note or observation…"
-                    className="flex-1 h-9 px-3 rounded-xl text-xs bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
-                  />
-                  <PrimaryButton onClick={handleAddNote}>Add Note</PrimaryButton>
                 </div>
-              )}
+              </div>
+            </SectionCard>
 
-              <div className="space-y-2">
-                {currentInst.notes.length === 0 ? (
-                  <p className="text-xs text-slate-400 py-2">No notes recorded yet.</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <SectionCard title="Integration Status">
+                {integration ? (
+                  <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 text-xs font-mono space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-800 dark:text-slate-200">{integration.status}</span>
+                      <StatusBadge status={INTEGRATION_BADGE[integration.status]}>{integration.status}</StatusBadge>
+                    </div>
+                    <div className="text-[11px] text-slate-500 font-sans">{integration.note || "No status note."}</div>
+                    <div className="text-[11px] text-slate-400">
+                      {integration.source} · {integration.updated_by || "—"} · {integration.updated_at.slice(0, 10)}
+                    </div>
+                  </div>
                 ) : (
-                  currentInst.notes.map((n) => (
-                    <div key={n.id} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-xs space-y-1">
-                      <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
-                        <span className="font-bold text-[#168FA8]">{n.author}</span>
-                        <span>{n.date}</span>
+                  <p className="text-xs text-slate-400">No integration record.</p>
+                )}
+              </SectionCard>
+
+              <SectionCard title="Compliance Documents">
+                <div className="space-y-2">
+                  {documents.isLoading && <p className="text-xs text-slate-400">Loading…</p>}
+                  {documents.data?.map((row) => (
+                    <div key={row.doc_type.id} className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 text-xs space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-semibold text-slate-800 dark:text-slate-200">{row.doc_type.name}</span>
+                        <StatusBadge status={row.status === "On File" ? "healthy" : row.status === "Expiring Soon" ? "warning" : "failed"}>
+                          {row.status}
+                        </StatusBadge>
                       </div>
-                      <p className="text-slate-700 dark:text-slate-200 leading-relaxed">{n.note}</p>
+                      {row.document && (
+                        <button
+                          onClick={() => api.download(`/documents/${row.document!.id}/download`, row.document!.filename).catch((e) => setError(errorMessage(e)))}
+                          className="text-[11px] font-mono text-[#168FA8] hover:underline inline-flex items-center gap-1 cursor-pointer break-all text-left"
+                        >
+                          <Download className="h-3 w-3 shrink-0" /> {row.document.filename}
+                          {row.document.expiry_date && <span className="text-slate-400"> · exp. {row.document.expiry_date}</span>}
+                        </button>
+                      )}
+                      {isOwnRecord && (
+                        <DocumentUpload
+                          participantId={current.id}
+                          docTypeId={row.doc_type.id}
+                          renews={row.doc_type.renewal_months != null}
+                          onError={setError}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </SectionCard>
+            </div>
+
+            <SectionCard title="Submission Log" noPad>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+                    <tr>
+                      <th className="px-4 py-2.5 text-left font-semibold">Sub ID</th>
+                      <th className="px-4 py-2.5 text-left font-semibold">Uploaded</th>
+                      <th className="px-4 py-2.5 text-left font-semibold">Period / File</th>
+                      <th className="px-4 py-2.5 text-left font-semibold">Result</th>
+                      <th className="px-4 py-2.5 text-right font-semibold">Rows</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono">
+                    {submissions.isLoading && (
+                      <tr><td colSpan={5} className="px-4 py-4 text-center text-slate-400">Loading…</td></tr>
+                    )}
+                    {!submissions.isLoading && subs.length === 0 && (
+                      <tr><td colSpan={5} className="px-4 py-4 text-center text-slate-400">No submissions yet.</td></tr>
+                    )}
+                    {subs.map((sub) => (
+                      <tr key={sub.id}>
+                        <td className="px-4 py-2.5 font-bold text-slate-700 dark:text-slate-300">SUB-{sub.id}</td>
+                        <td className="px-4 py-2.5 text-slate-500">{sub.uploaded_at.slice(0, 10)}</td>
+                        <td className="px-4 py-2.5 font-sans font-medium text-slate-900 dark:text-white">
+                          {sub.period} <span className="font-mono text-[10px] text-slate-400">{sub.filename}</span>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            sub.result === "Passed" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
+                          }`}>
+                            {sub.result}{sub.error_count ? ` · ${sub.error_count} err` : ""}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-right font-bold">{sub.row_count.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </SectionCard>
+
+            <SectionCard title="Issues & Remediation">
+              <div className="space-y-2">
+                {myIssues.length === 0 ? (
+                  <p className="text-xs text-slate-400 py-2">No issues recorded for this institution.</p>
+                ) : (
+                  myIssues.map((inc) => (
+                    <div key={inc.id} className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex items-center justify-between text-xs">
+                      <div>
+                        <span className="font-mono font-bold text-slate-500 mr-2">ISS-{inc.id}</span>
+                        <span className="font-semibold text-slate-800 dark:text-slate-200">{inc.description}</span>
+                        <span className="text-[11px] text-slate-400 block font-mono">
+                          Raised: {inc.created_at.slice(0, 10)} · {inc.assignee || "Unassigned"}
+                        </span>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
+                        inc.severity === "Critical" ? "bg-red-100 text-red-700" : inc.severity === "High" ? "bg-amber-100 text-amber-700" : "bg-[#E7F5F8] text-[#168FA8]"
+                      }`}>
+                        {inc.severity} · {inc.status}
+                      </span>
                     </div>
                   ))
                 )}
               </div>
-            </div>
-          </SectionCard>
+            </SectionCard>
+          </div>
         </div>
-      </div>
+      )}
     </AppShell>
+  );
+}
+
+function DocumentUpload({
+  participantId,
+  docTypeId,
+  renews,
+  onError,
+}: {
+  participantId: number;
+  docTypeId: number;
+  renews: boolean;
+  onError: (msg: string) => void;
+}) {
+  const queryClient = useQueryClient();
+  const [expiry, setExpiry] = useState("");
+  const upload = useMutation({
+    mutationFn: (file: File) => {
+      const form = new FormData();
+      form.append("participant_id", String(participantId));
+      form.append("doc_type_id", String(docTypeId));
+      if (expiry) form.append("expiry_date", expiry);
+      form.append("file", file);
+      return api.post("/documents/upload", form);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["documents"] }),
+    onError: (e) => onError(errorMessage(e)),
+  });
+  const inputId = `doc-upload-${docTypeId}`;
+  return (
+    <div className="flex items-center gap-2 pt-1 border-t border-slate-200/70 dark:border-slate-700/70">
+      {renews && (
+        <input
+          type="date"
+          value={expiry}
+          onChange={(e) => setExpiry(e.target.value)}
+          title="Expiry date of the new document"
+          className="h-6 px-1 rounded-md text-[10px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+        />
+      )}
+      <input
+        id={inputId}
+        type="file"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) upload.mutate(file);
+          e.target.value = "";
+        }}
+      />
+      <label htmlFor={inputId} className="text-[11px] font-semibold text-[#168FA8] hover:underline cursor-pointer inline-flex items-center gap-1">
+        <Upload className="h-3 w-3" /> {upload.isPending ? "Uploading…" : "Upload"}
+      </label>
+    </div>
   );
 }

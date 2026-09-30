@@ -37,3 +37,18 @@ def require_participant_upload(participant_id: int, current_user: User) -> None:
         raise HTTPException(status_code=403, detail="Only the participant can upload their own data")
     if current_user.participant_id != participant_id:
         raise HTTPException(status_code=403, detail="Not your participant record")
+
+
+def require_admin(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role != UserRole.technical:
+        raise HTTPException(status_code=403, detail="Technical / Admin role required")
+    return current_user
+
+
+def require_roles(*roles: UserRole):
+    def dependency(current_user: User = Depends(get_current_user)) -> User:
+        if current_user.role not in roles and current_user.role != UserRole.technical:
+            raise HTTPException(status_code=403, detail="Your role can't perform this action")
+        return current_user
+
+    return dependency

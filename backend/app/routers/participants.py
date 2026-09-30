@@ -1,12 +1,15 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from sqlmodel import Session, select
 
-from app.core.permissions import require_own_participant, require_staff, scope_participant_id
+from app.core.permissions import require_own_participant, require_roles, require_staff, scope_participant_id
 from app.core.security import get_current_user
 from app.db import get_session
+from app.models.admin import ParticipantNote
+from app.models.enums import UserRole
 from app.models.integration import Integration
+from app.services import audit
 from app.models.participant import Participant
 from app.models.user import User
 
@@ -27,8 +30,10 @@ def list_participants(
 
 @router.post("", response_model=Participant)
 def create_participant(
-    participant: Participant, session: Session = Depends(get_session), _: User = Depends(require_staff)
+    participant: Participant, request: Request, session: Session = Depends(get_session), user: User = Depends(require_staff)
 ):
+    if session.exec(select(Participant).where(Participant.code == participant.code)).first():
+        raise HTTPException(status_code=409, detail=f"Participant code {participant.code} is already in use")
     session.add(participant)
     session.commit()
     session.refresh(participant)
@@ -36,6 +41,8 @@ def create_participant(
     # derived from or confused with is_active.
     session.add(Integration(participant_id=participant.id))
     session.commit()
+    session.refresh(participant)
+    audit.record(session, "PARTICIPANT_CREATE", f"{participant.name} ({participant.code})", user, request)
     return participant
 
 
@@ -65,8 +72,9 @@ def get_participant(
 def update_participant(
     participant_id: int,
     updates: dict,
+    request: Request,
     session: Session = Depends(get_session),
-    _: User = Depends(require_staff),
+    user: User = Depends(require_staff),
 ):
     participant = session.get(Participant, participant_id)
     if not participant:
@@ -77,4 +85,32 @@ def update_participant(
     session.add(participant)
     session.commit()
     session.refresh(participant)
+    audit.record(session, "PARTICIPANT_UPDATE", f"{participant.code}: {', '.join(updates)}", user, request)
     return participant
+
+
+@router.get("/{participant_id}/notes", response_model=list[ParticipantNote])
+def list_notes(participant_id: int, session: Session = Depends(get_session), _: User = Depends(require_staff)):
+    return session.exec(
+        select(ParticipantNote).where(ParticipantNote.participant_id == participant_id).order_by(ParticipantNote.created_at.desc())
+    ).all()
+
+
+@router.post("/{participant_id}/notes", response_model=ParticipantNote)
+def add_note(
+    participant_id: int,
+    request: Request,
+    note: str = Body(..., embed=True),
+    session: Session = Depends(get_session),
+    user: User = Depends(require_roles(UserRole.compliance)),
+):
+    if not session.get(Participant, participant_id):
+        raise HTTPException(status_code=404, detail="Participant not found")
+    if not note.strip():
+        raise HTTPException(status_code=422, detail="Note can't be empty")
+    row = ParticipantNote(participant_id=participant_id, author=user.full_name or user.email, note=note.strip())
+    session.add(row)
+    session.commit()
+    session.refresh(row)
+    audit.record(session, "PARTICIPANT_NOTE", f"participant #{participant_id}", user, request)
+    return row

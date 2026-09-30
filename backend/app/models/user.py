@@ -1,5 +1,7 @@
+from datetime import datetime
 from typing import Optional
 
+from sqlalchemy import JSON, Column
 from sqlmodel import Field, SQLModel
 
 from app.models.enums import UserRole
@@ -16,3 +18,10 @@ class User(SQLModel, table=True):
     # scoped to. Every participant-role request is filtered to this id,
     # server-side, regardless of what the client asks for.
     participant_id: Optional[int] = Field(default=None, foreign_key="participant.id")
+    # TOTP two-factor. The secret is set at setup time; mfa_enabled flips only
+    # after the user proves they can generate a valid code.
+    mfa_secret: Optional[str] = None
+    mfa_enabled: bool = False
+    recovery_codes: list = Field(default_factory=list, sa_column=Column(JSON))
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    last_login_at: Optional[datetime] = None
