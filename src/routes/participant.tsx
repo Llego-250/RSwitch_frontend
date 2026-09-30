@@ -285,7 +285,7 @@ export function Participant360() {
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                   <div className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                     <span className="text-[10px] font-mono text-slate-400 block uppercase">Composite Risk Score</span>
-                    <span className="text-2xl font-bold font-mono text-[#56B4D3]">{currentInst.compositeRiskScore} / 100</span>
+                    <span className="text-2xl font-bold font-mono text-[#168FA8]">{currentInst.compositeRiskScore} / 100</span>
                     <span className="text-[10px] text-slate-500 block mt-1">Weighted Average Score</span>
                   </div>
                   <div className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
@@ -392,7 +392,7 @@ export function Participant360() {
                       <span className="text-[11px] text-slate-400 block font-mono">Date: {inc.date}</span>
                     </div>
                     <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
-                      inc.severity === "Critical" ? "bg-red-100 text-red-700" : inc.severity === "High" ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700"
+                      inc.severity === "Critical" ? "bg-red-100 text-red-700" : inc.severity === "High" ? "bg-amber-100 text-amber-700" : "bg-[#E7F5F8] text-[#168FA8]"
                     }`}>
                       {inc.severity} · {inc.status}
                     </span>
@@ -425,7 +425,7 @@ export function Participant360() {
                   currentInst.notes.map((n) => (
                     <div key={n.id} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-xs space-y-1">
                       <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
-                        <span className="font-bold text-[#56B4D3]">{n.author}</span>
+                        <span className="font-bold text-[#168FA8]">{n.author}</span>
                         <span>{n.date}</span>
                       </div>
                       <p className="text-slate-700 dark:text-slate-200 leading-relaxed">{n.note}</p>

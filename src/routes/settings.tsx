@@ -143,7 +143,7 @@ function Settings() {
                 onClick={() => setActiveSection(item.id)}
                 className={`w-full p-3.5 rounded-2xl border text-xs font-semibold flex items-center justify-between transition-all cursor-pointer ${
                   active
-                    ? "bg-[#56B4D3] text-[#092E3D] border-[#56B4D3] shadow-xs"
+                    ? "bg-[#168FA8] text-white border-[#168FA8] shadow-xs"
                     : "bg-white/80 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
                 }`}
               >
@@ -218,7 +218,7 @@ function Settings() {
                     <div key={k.id} className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex items-center justify-between">
                       <div>
                         <span className="font-bold text-slate-900 dark:text-white font-sans block">{k.name}</span>
-                        <span className="text-[11px] text-[#56B4D3]">{k.keyMasked}</span>
+                        <span className="text-[11px] text-[#168FA8]">{k.keyMasked}</span>
                         <span className="text-[10px] text-slate-400 block mt-0.5">Created: {k.created} by {k.owner}</span>
                       </div>
                       <div className="flex items-center gap-2">
@@ -251,7 +251,7 @@ function Settings() {
                     type="checkbox"
                     checked={mfaEnforced}
                     onChange={(e) => setMfaEnforced(e.target.checked)}
-                    className="accent-[#56B4D3] h-5 w-5 cursor-pointer"
+                    className="accent-[#168FA8] h-5 w-5 cursor-pointer"
                   />
                 </div>
 
@@ -275,15 +275,15 @@ function Settings() {
                 <p className="text-slate-500">Configure automated email and in-app reminder trigger lead times before compliance due dates:</p>
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 cursor-pointer font-mono">
-                    <input type="checkbox" checked={remind14} onChange={(e) => setRemind14(e.target.checked)} className="accent-[#56B4D3] h-4 w-4" />
+                    <input type="checkbox" checked={remind14} onChange={(e) => setRemind14(e.target.checked)} className="accent-[#168FA8] h-4 w-4" />
                     <span>Send reminder 14 days before due date</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer font-mono">
-                    <input type="checkbox" checked={remind7} onChange={(e) => setRemind7(e.target.checked)} className="accent-[#56B4D3] h-4 w-4" />
+                    <input type="checkbox" checked={remind7} onChange={(e) => setRemind7(e.target.checked)} className="accent-[#168FA8] h-4 w-4" />
                     <span>Send reminder 7 days before due date</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer font-mono">
-                    <input type="checkbox" checked={remind1} onChange={(e) => setRemind1(e.target.checked)} className="accent-[#56B4D3] h-4 w-4" />
+                    <input type="checkbox" checked={remind1} onChange={(e) => setRemind1(e.target.checked)} className="accent-[#168FA8] h-4 w-4" />
                     <span>Send urgent reminder 1 day before due date</span>
                   </label>
                 </div>

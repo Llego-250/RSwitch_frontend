@@ -290,7 +290,7 @@ function PipelineMonitor() {
       columnHelper.accessor("institution", {
         header: "Institution",
         cell: (info) => (
-          <span className="text-xs font-semibold text-[#56B4D3]">
+          <span className="text-xs font-semibold text-[#168FA8]">
             {info.getValue()}
           </span>
         ),
@@ -313,7 +313,7 @@ function PipelineMonitor() {
                       ? "bg-emerald-500"
                       : status === "failed"
                       ? "bg-red-500"
-                      : "bg-[#56B4D3]"
+                      : "bg-[#168FA8]"
                   }`}
                   style={{ width: `${val}%` }}
                 />
@@ -424,7 +424,7 @@ function PipelineMonitor() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search pipelines or institutions..."
-              className="h-9 w-64 pl-8 pr-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-xs border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-1 focus:ring-[#56B4D3]"
+              className="h-9 w-64 pl-8 pr-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-xs border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-1 focus:ring-[#168FA8]"
             />
           </div>
           <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">
@@ -535,7 +535,7 @@ function PipelineMonitor() {
                             exit={{ opacity: 0, height: 0 }}
                             className="p-4 font-mono text-xs leading-relaxed space-y-2"
                           >
-                            <div className="flex items-center justify-between pb-2 border-b border-slate-800 text-[#56B4D3] font-bold">
+                            <div className="flex items-center justify-between pb-2 border-b border-slate-800 text-[#168FA8] font-bold">
                               <span>Step-by-Step Execution Log — {job.name}</span>
                               <span>Retained for 90 Days (REQ-PIPE-009)</span>
                             </div>

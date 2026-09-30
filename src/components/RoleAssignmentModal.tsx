@@ -39,7 +39,7 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
       <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-neutral-200">
         <div className="flex items-center justify-between border-b border-neutral-100 pb-4 mb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-purple-50 text-purple-600">
+            <div className="p-2 rounded-xl bg-[#E7F5F8] text-[#168FA8]">
               <Shield className="h-5 w-5" />
             </div>
             <div>
@@ -63,7 +63,7 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
                   onClick={() => setSelectedRole(r.id)}
                   className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-start justify-between ${
                     isSelected
-                      ? "border-purple-600 bg-purple-50/60 ring-1 ring-purple-600"
+                      ? "border-[#168FA8] bg-[#E7F5F8]/60 ring-1 ring-[#168FA8]"
                       : "border-neutral-200 hover:border-neutral-300 bg-white"
                   }`}
                 >
@@ -77,7 +77,7 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
                     <p className="text-xs text-neutral-500">{r.description}</p>
                   </div>
                   {isSelected && (
-                    <div className="p-1 bg-purple-600 text-white rounded-full mt-0.5">
+                    <div className="p-1 bg-[#168FA8] text-white rounded-full mt-0.5">
                       <Check className="h-3.5 w-3.5" />
                     </div>
                   )}
@@ -96,7 +96,7 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={handleSave} className="bg-purple-600 hover:bg-purple-700 text-white">
+          <Button onClick={handleSave} className="bg-[#168FA8] hover:bg-[#0F6F83] text-white">
             Save Permissions
           </Button>
         </div>

@@ -28,7 +28,7 @@ export const StepReviewSubmit: React.FC<Step5Props> = ({ state, onSubmit, isSubm
         {/* Section 1 */}
         <div className="p-4 bg-neutral-50 border border-neutral-200 rounded-xl space-y-2">
           <div className="flex items-center gap-2 text-sm font-bold text-neutral-900 border-b border-neutral-200 pb-2">
-            <Building2 className="h-4 w-4 text-sky-600" /> Institution Identity
+            <Building2 className="h-4 w-4 text-[#168FA8]" /> Institution Identity
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2 pt-1 font-mono text-neutral-700">
             <div><span className="text-neutral-400 block text-[10px]">NAME</span> {step1.institutionName}</div>
@@ -43,7 +43,7 @@ export const StepReviewSubmit: React.FC<Step5Props> = ({ state, onSubmit, isSubm
         {/* Section 2 */}
         <div className="p-4 bg-neutral-50 border border-neutral-200 rounded-xl space-y-2">
           <div className="flex items-center gap-2 text-sm font-bold text-neutral-900 border-b border-neutral-200 pb-2">
-            <Server className="h-4 w-4 text-sky-600" /> Technical Integration
+            <Server className="h-4 w-4 text-[#168FA8]" /> Technical Integration
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-1 font-mono text-neutral-700">
             <div><span className="text-neutral-400 block text-[10px]">API ENDPOINT</span> {step2.apiBaseUrl}</div>
@@ -56,7 +56,7 @@ export const StepReviewSubmit: React.FC<Step5Props> = ({ state, onSubmit, isSubm
         {/* Section 3 */}
         <div className="p-4 bg-neutral-50 border border-neutral-200 rounded-xl space-y-2">
           <div className="flex items-center gap-2 text-sm font-bold text-neutral-900 border-b border-neutral-200 pb-2">
-            <ShieldCheck className="h-4 w-4 text-sky-600" /> Compliance & Legal
+            <ShieldCheck className="h-4 w-4 text-[#168FA8]" /> Compliance & Legal
           </div>
           <div className="grid grid-cols-2 gap-2 pt-1 font-mono text-neutral-700">
             <div><span className="text-neutral-400 block text-[10px]">DATA PRIVACY OFFICER</span> {step3.dataPrivacyOfficerName} ({step3.dataPrivacyOfficerEmail})</div>
@@ -68,7 +68,7 @@ export const StepReviewSubmit: React.FC<Step5Props> = ({ state, onSubmit, isSubm
         <div className="p-4 bg-neutral-50 border border-neutral-200 rounded-xl space-y-2">
           <div className="flex items-center justify-between text-sm font-bold text-neutral-900 border-b border-neutral-200 pb-2">
             <div className="flex items-center gap-2">
-              <Database className="h-4 w-4 text-sky-600" /> Field Mappings ({fieldMappings.length} Fields)
+              <Database className="h-4 w-4 text-[#168FA8]" /> Field Mappings ({fieldMappings.length} Fields)
             </div>
             <span className="text-xs text-emerald-600 font-semibold font-mono">100% Validated</span>
           </div>
@@ -91,7 +91,7 @@ export const StepReviewSubmit: React.FC<Step5Props> = ({ state, onSubmit, isSubm
         <Button
           onClick={onSubmit}
           disabled={isSubmitting}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold h-11 px-6 shadow-md"
+          className="bg-[#168FA8] hover:bg-[#0F6F83] text-white font-semibold h-11 px-6 shadow-md"
         >
           {isSubmitting ? "Submitting Application..." : "Submit Application"}
         </Button>

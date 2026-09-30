@@ -89,7 +89,7 @@ export const AuditLogTable: React.FC = () => {
     <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm overflow-hidden">
       <div className="p-4 border-b border-neutral-200 flex flex-wrap items-center justify-between gap-3 bg-neutral-50/50">
         <div className="flex items-center gap-2">
-          <FileText className="h-5 w-5 text-sky-600" />
+          <FileText className="h-5 w-5 text-[#168FA8]" />
           <h3 className="text-sm font-bold text-neutral-900">Security & Administrative Audit Logs</h3>
         </div>
         <div className="flex items-center gap-2">
@@ -139,7 +139,7 @@ export const AuditLogTable: React.FC = () => {
                   <div className="font-medium text-neutral-900">{log.actor}</div>
                   <div className="text-[11px] text-neutral-500">{log.role}</div>
                 </td>
-                <td className="px-4 py-3 font-mono font-medium text-sky-700">
+                <td className="px-4 py-3 font-mono font-medium text-[#168FA8]">
                   {log.action}
                 </td>
                 <td className="px-4 py-3 text-neutral-700">

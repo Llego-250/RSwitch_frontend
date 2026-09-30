@@ -180,9 +180,9 @@ function Reports() {
               setGenTitle(`RDIP ${cat.title} - ${new Date().toISOString().split("T")[0]}`);
               setShowGenerateModal(true);
             }}
-            className="p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-[#56B4D3] transition-all cursor-pointer shadow-xs space-y-1"
+            className="p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-[#168FA8] transition-all cursor-pointer shadow-xs space-y-1"
           >
-            <span className="font-mono text-[10px] font-bold text-[#56B4D3] block">{cat.code}</span>
+            <span className="font-mono text-[10px] font-bold text-[#168FA8] block">{cat.code}</span>
             <h4 className="font-bold text-xs text-slate-900 dark:text-white leading-snug">{cat.title}</h4>
             <p className="text-[11px] text-slate-500 line-clamp-2">{cat.desc}</p>
           </div>
@@ -209,7 +209,7 @@ function Reports() {
                     <div className="font-bold text-slate-900 dark:text-white">{rpt.name}</div>
                     <div className="text-[10px] text-slate-400 font-mono">{rpt.id} · Size: {rpt.size}</div>
                   </td>
-                  <td className="px-4 py-3 text-[#56B4D3] font-bold">{rpt.category}</td>
+                  <td className="px-4 py-3 text-[#168FA8] font-bold">{rpt.category}</td>
                   <td className="px-4 py-3 text-slate-500">{rpt.generatedDate}</td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300 font-sans">{rpt.author}</td>
                   <td className="px-4 py-3 text-slate-400">{rpt.institutionTypeFilter} ({rpt.regionFilter})</td>
@@ -217,7 +217,7 @@ function Reports() {
                   <td className="px-4 py-3 font-sans">
                     <button
                       onClick={() => handleSimulateDownload(rpt)}
-                      className="inline-flex items-center gap-1 font-semibold text-[#56B4D3] hover:underline cursor-pointer"
+                      className="inline-flex items-center gap-1 font-semibold text-[#168FA8] hover:underline cursor-pointer"
                     >
                       <Download className="h-3.5 w-3.5" />
                       Download {rpt.format}

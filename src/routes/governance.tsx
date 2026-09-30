@@ -222,16 +222,16 @@ function Governance() {
                       <td className="px-4 py-2.5 font-sans">
                         <div className="font-bold text-slate-900 dark:text-white">{doc.title}</div>
                         <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                          {doc.id} · <span className="text-[#56B4D3] font-bold">{doc.category}</span>
+                          {doc.id} · <span className="text-[#168FA8] font-bold">{doc.category}</span>
                         </div>
                       </td>
                       <td className="px-4 py-2.5 text-slate-600 dark:text-slate-300">{doc.committee}</td>
-                      <td className="px-4 py-2.5 font-bold text-[#56B4D3]">{doc.version}</td>
+                      <td className="px-4 py-2.5 font-bold text-[#168FA8]">{doc.version}</td>
                       <td className="px-4 py-2.5 text-slate-500">{doc.uploadDate}</td>
                       <td className="px-4 py-2.5 text-right font-sans">
                         <button
                           onClick={() => alert(`Simulated download for ${doc.title}`)}
-                          className="inline-flex items-center gap-1 font-semibold text-[#56B4D3] hover:underline cursor-pointer"
+                          className="inline-flex items-center gap-1 font-semibold text-[#168FA8] hover:underline cursor-pointer"
                         >
                           <Download className="h-3 w-3" />
                           Download
@@ -253,7 +253,7 @@ function Governance() {
                 <div key={mtg.id} className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 space-y-2 text-xs">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-slate-900 dark:text-white">{mtg.title}</span>
-                    <span className="font-mono text-[10px] font-semibold text-[#56B4D3] px-2 py-0.5 rounded bg-[#56B4D3]/15">
+                    <span className="font-mono text-[10px] font-semibold text-[#168FA8] px-2 py-0.5 rounded bg-[#168FA8]/15">
                       {mtg.committee}
                     </span>
                   </div>
@@ -265,7 +265,7 @@ function Governance() {
                   {mtg.minutesDoc && (
                     <div className="pt-1.5 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-between text-[11px]">
                       <span className="font-mono text-slate-400 flex items-center gap-1"><FileText className="h-3 w-3" />{mtg.minutesDoc}</span>
-                      <button onClick={() => alert(`Opening minutes for ${mtg.title}`)} className="text-[#56B4D3] hover:underline font-semibold">View Minutes</button>
+                      <button onClick={() => alert(`Opening minutes for ${mtg.title}`)} className="text-[#168FA8] hover:underline font-semibold">View Minutes</button>
                     </div>
                   )}
                 </div>

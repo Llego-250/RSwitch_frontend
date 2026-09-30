@@ -321,7 +321,7 @@ function AIPage() {
         <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 w-64 h-64 bg-sky-400/20 rounded-full blur-3xl pointer-events-none" />
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
           <div className="space-y-1.5 max-w-2xl">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-500/25 border border-sky-300/40 text-sky-200 font-mono text-[11px] font-bold tracking-wider uppercase backdrop-blur-md shadow-inner">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#168FA8]/25 border border-[#CDECF1]/40 text-sky-200 font-mono text-[11px] font-bold tracking-wider uppercase backdrop-blur-md shadow-inner">
               <Sparkles className="h-3.5 w-3.5 text-sky-300 animate-pulse" /> Machine Intelligence Engine
             </div>
             <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight drop-shadow-sm font-sans">
@@ -383,7 +383,7 @@ function AIPage() {
           <SectionCard title="Priority Risk Ranking (§5.9 REQ-AI-005)" noPad>
             <div className="p-3 bg-neutral-50/80 dark:bg-slate-800/40 border-b border-neutral-200 dark:border-slate-800 text-[11px] text-neutral-500 font-mono flex items-center justify-between font-medium">
               <span>Ranked by signal strength &amp; failure score</span>
-              <span className="text-sky-600 dark:text-sky-400 font-bold uppercase tracking-wider">Live Signals</span>
+              <span className="text-[#168FA8] dark:text-sky-400 font-bold uppercase tracking-wider">Live Signals</span>
             </div>
             <div className="divide-y divide-neutral-100 dark:divide-slate-800">
               {PRIORITY_PARTICIPANTS.map((p) => (
@@ -484,7 +484,7 @@ function AIPage() {
                     onClick={() => setFilterStatus(st)}
                     className={`px-2.5 py-1 rounded-lg text-xs font-semibold font-mono transition-all cursor-pointer ${
                       filterStatus === st
-                        ? "bg-sky-600 text-white shadow-sm"
+                        ? "bg-[#168FA8] text-white shadow-sm"
                         : "bg-white text-neutral-600 hover:bg-neutral-100 border border-neutral-200"
                     }`}
                   >
@@ -516,14 +516,14 @@ function AIPage() {
                       }}
                       className={`p-4 transition-all cursor-pointer ${
                         isSelected
-                          ? "bg-sky-50/80 border-l-4 border-l-sky-600"
+                          ? "bg-[#E7F5F8]/80 border-l-4 border-l-sky-600"
                           : "hover:bg-neutral-50/80"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3 mb-2">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
-                            <span className="font-mono text-xs font-bold text-sky-600">{alt.id}</span>
+                            <span className="font-mono text-xs font-bold text-[#168FA8]">{alt.id}</span>
                             <span className="font-bold text-xs text-neutral-900">{alt.institution}</span>
                             <span
                               className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
@@ -531,7 +531,7 @@ function AIPage() {
                                   ? "bg-rose-100 text-rose-800 border border-rose-300"
                                   : alt.severity === "HIGH"
                                   ? "bg-amber-100 text-amber-800 border border-amber-300"
-                                  : "bg-blue-100 text-blue-800 border border-blue-300"
+                                  : "bg-[#E7F5F8] text-[#0F6F83] border border-[#CDECF1]"
                               }`}
                             >
                               {alt.severity}
@@ -549,7 +549,7 @@ function AIPage() {
                             alt.status === "Closed"
                               ? "bg-neutral-100 text-neutral-700 border-neutral-300"
                               : alt.status === "Acknowledged"
-                              ? "bg-blue-50 text-blue-700 border-blue-200"
+                              ? "bg-[#E7F5F8] text-[#168FA8] border-[#CDECF1]"
                               : alt.status === "Under Investigation"
                               ? "bg-amber-50 text-amber-700 border-amber-200"
                               : "bg-rose-50 text-rose-700 border-rose-200"
@@ -594,7 +594,7 @@ function AIPage() {
             <div className="flex items-center justify-between pb-3 border-b border-neutral-200">
               <div>
                 <h2 className="font-bold text-base text-neutral-900">AI Alert Lifecycle &amp; Investigation</h2>
-                <p className="text-xs text-sky-600 font-semibold font-mono">
+                <p className="text-xs text-[#168FA8] font-semibold font-mono">
                   {selectedAlert.id} · {selectedAlert.institution}
                 </p>
               </div>
@@ -616,7 +616,7 @@ function AIPage() {
                 </div>
                 <div>
                   <span className="text-neutral-400 block text-[10px]">RECOMMENDED AREA</span>
-                  <span className="text-sky-700 font-semibold">{selectedAlert.recommendedArea}</span>
+                  <span className="text-[#168FA8] font-semibold">{selectedAlert.recommendedArea}</span>
                 </div>
                 <div>
                   <span className="text-neutral-400 block text-[10px]">BASELINE METHODOLOGY</span>
@@ -626,9 +626,9 @@ function AIPage() {
 
               {/* Lifecycle Progress Stepper Controls */}
               {selectedAlert.status !== "Closed" ? (
-                <div className="p-4 rounded-xl border border-neutral-200 space-y-4 bg-sky-50/40">
+                <div className="p-4 rounded-xl border border-neutral-200 space-y-4 bg-[#E7F5F8]/40">
                   <h4 className="font-bold text-xs text-neutral-900 flex items-center gap-1.5">
-                    <Zap className="h-4 w-4 text-sky-600" /> Advance Alert Lifecycle (§5.9 REQ-AI-006)
+                    <Zap className="h-4 w-4 text-[#168FA8]" /> Advance Alert Lifecycle (§5.9 REQ-AI-006)
                   </h4>
 
                   <div className="flex items-center gap-2 flex-wrap font-mono">
@@ -636,7 +636,7 @@ function AIPage() {
                       size="sm"
                       onClick={() => handleTransition("Acknowledged")}
                       disabled={selectedAlert.status !== "Generated"}
-                      className="bg-blue-600 hover:bg-blue-700 text-white text-xs disabled:opacity-40"
+                      className="bg-[#168FA8] hover:bg-[#0F6F83] text-white text-xs disabled:opacity-40"
                     >
                       1. Acknowledge Alert
                     </Button>
@@ -653,7 +653,7 @@ function AIPage() {
                     <Button
                       size="sm"
                       onClick={() => handleTransition("Closed")}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs"
+                      className="bg-[#168FA8] hover:bg-[#0F6F83] text-white text-xs"
                     >
                       3. Formally Close Alert
                     </Button>
@@ -711,7 +711,7 @@ function AIPage() {
                   {selectedAlert.notes.map((n, idx) => (
                     <div key={idx} className="p-3 rounded-xl bg-neutral-50 border border-neutral-200 text-[11px] font-mono space-y-1">
                       <div className="flex items-center justify-between text-neutral-500">
-                        <span className="font-bold text-sky-700">{n.user}</span>
+                        <span className="font-bold text-[#168FA8]">{n.user}</span>
                         <span>{n.date}</span>
                       </div>
                       <p className="text-neutral-800 font-sans">{n.text}</p>
@@ -773,7 +773,7 @@ function AIPage() {
               <Button variant="outline" onClick={() => setShowConfigModal(false)}>
                 Cancel
               </Button>
-              <Button onClick={() => setShowConfigModal(false)} className="bg-sky-600 hover:bg-sky-700 text-white">
+              <Button onClick={() => setShowConfigModal(false)} className="bg-[#168FA8] hover:bg-[#0F6F83] text-white">
                 Save Sensitivity Config
               </Button>
             </div>

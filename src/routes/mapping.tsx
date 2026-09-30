@@ -282,7 +282,7 @@ function MappingPage() {
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-300">{m.id}</span>
-                  <span className="font-mono text-[11px] font-bold text-[#56B4D3]">{m.version}</span>
+                  <span className="font-mono text-[11px] font-bold text-[#168FA8]">{m.version}</span>
                 </div>
                 <h3 className="font-bold text-sm text-slate-900 dark:text-white">{m.name}</h3>
                 <p className="text-xs text-slate-500">{m.src} → {m.target}</p>
@@ -320,7 +320,7 @@ function MappingPage() {
                 <>
                   <button
                     onClick={() => handlePublishClick(m)}
-                    className="h-9 px-3 rounded-xl text-xs font-semibold bg-[#56B4D3] text-[#092E3D] hover:bg-[#46A4C3] flex items-center gap-1 transition-all cursor-pointer"
+                    className="h-9 px-3 rounded-xl text-xs font-semibold bg-[#168FA8] text-white hover:bg-[#0F6F83] flex items-center gap-1 transition-all cursor-pointer"
                     title="Publish Versioned Release (REQ-MAP-004)"
                   >
                     <CheckCircle2 className="h-3.5 w-3.5" />
@@ -358,7 +358,7 @@ function MappingPage() {
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
               <div>
                 <h2 className="font-bold text-base text-slate-900 dark:text-white">Field Mapping Definition Rules</h2>
-                <p className="text-xs text-[#56B4D3] font-semibold">{editingMapping.name} ({editingMapping.version})</p>
+                <p className="text-xs text-[#168FA8] font-semibold">{editingMapping.name} ({editingMapping.version})</p>
               </div>
               <button onClick={() => setEditingMapping(null)} className="text-slate-400 hover:text-slate-600">
                 <X className="h-5 w-5" />
@@ -380,7 +380,7 @@ function MappingPage() {
                     {editingMapping.rules.map((r) => (
                       <tr key={r.id}>
                         <td className="px-3 py-2.5 text-slate-800 dark:text-slate-200">{r.sourceField}</td>
-                        <td className="px-3 py-2.5 text-[#56B4D3]">{r.targetField}</td>
+                        <td className="px-3 py-2.5 text-[#168FA8]">{r.targetField}</td>
                         <td className="px-3 py-2.5 text-slate-600 dark:text-slate-400">{r.transform}</td>
                         <td className="px-3 py-2.5 text-center">
                           {r.mapped ? (
@@ -432,7 +432,7 @@ function MappingPage() {
               <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800 mb-4">
                 <div>
                   <h2 className="font-bold text-base text-slate-900 dark:text-white">Mapping Version History</h2>
-                  <p className="text-xs text-[#56B4D3] font-semibold">{historySource.name}</p>
+                  <p className="text-xs text-[#168FA8] font-semibold">{historySource.name}</p>
                 </div>
                 <button onClick={() => setHistorySource(null)} className="text-slate-400 hover:text-slate-600">
                   <X className="h-5 w-5" />
@@ -443,7 +443,7 @@ function MappingPage() {
                 {historySource.versions.map((ver, idx) => (
                   <div key={idx} className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex items-center justify-between">
                     <div>
-                      <span className="font-bold text-[#56B4D3]">{ver.v}</span>
+                      <span className="font-bold text-[#168FA8]">{ver.v}</span>
                       <span className="text-[11px] text-slate-400 block mt-0.5">Published by {ver.by}</span>
                     </div>
                     <span className="text-slate-500 font-semibold">{ver.date}</span>

@@ -96,7 +96,7 @@ function OnboardingRoute() {
                 <Clock className="h-3 w-3 text-neutral-400" /> Auto-saved at {state.lastSavedAt}
               </span>
             )}
-            {isSaving && <span className="text-sky-600 font-semibold text-[11px] animate-pulse">Syncing...</span>}
+            {isSaving && <span className="text-[#168FA8] font-semibold text-[11px] animate-pulse">Syncing...</span>}
             <button
               onClick={resetOnboarding}
               className="text-neutral-400 hover:text-neutral-600 font-medium text-[11px] flex items-center gap-1"
@@ -123,7 +123,7 @@ function OnboardingRoute() {
           </div>
           <div className="pt-4 flex justify-center gap-3">
             <Link to="/participant">
-              <Button className="bg-sky-600 hover:bg-sky-700 text-white">
+              <Button className="bg-[#168FA8] hover:bg-[#0F6F83] text-white">
                 View Participant Directory
               </Button>
             </Link>
@@ -145,7 +145,7 @@ function OnboardingRoute() {
                     onClick={() => setStep(s.id)}
                     className={`flex items-center gap-2 p-3 rounded-xl border transition-all text-left ${
                       isActive
-                        ? "border-sky-600 bg-sky-50/70 shadow-sm"
+                        ? "border-[#168FA8] bg-[#E7F5F8]/70 shadow-sm"
                         : isDone
                         ? "border-emerald-200 bg-emerald-50/50 text-emerald-800"
                         : "border-neutral-200 bg-neutral-50/50 text-neutral-400"
@@ -154,7 +154,7 @@ function OnboardingRoute() {
                     <div
                       className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold ${
                         isActive
-                          ? "bg-sky-600 text-white"
+                          ? "bg-[#168FA8] text-white"
                           : isDone
                           ? "bg-emerald-600 text-white"
                           : "bg-neutral-200 text-neutral-600"
@@ -163,7 +163,7 @@ function OnboardingRoute() {
                       {isDone ? <Check className="h-4 w-4" /> : s.id}
                     </div>
                     <div className="hidden sm:block overflow-hidden">
-                      <div className={`text-xs font-bold truncate ${isActive ? "text-sky-900" : isDone ? "text-emerald-900" : "text-neutral-500"}`}>
+                      <div className={`text-xs font-bold truncate ${isActive ? "text-[#0F6F83]" : isDone ? "text-emerald-900" : "text-neutral-500"}`}>
                         {s.label}
                       </div>
                       <div className="text-[10px] text-neutral-400 font-mono">Step {s.id} of 5</div>
@@ -207,7 +207,7 @@ function OnboardingRoute() {
                 {state.currentStep < 5 && (
                   <Button
                     onClick={handleNext}
-                    className="bg-sky-600 hover:bg-sky-700 text-white gap-2 text-xs font-semibold"
+                    className="bg-[#168FA8] hover:bg-[#0F6F83] text-white gap-2 text-xs font-semibold"
                   >
                     Next Step <ArrowRight className="h-4 w-4" />
                   </Button>

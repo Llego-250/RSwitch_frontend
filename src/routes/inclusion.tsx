@@ -34,11 +34,11 @@ const demoData = [
 ];
 
 const SERVICES = [
-  { name: "Mobile Money",          rate: 72, color: "#0D9488" },
-  { name: "Basic Savings Account", rate: 67, color: "#2D6A9F" },
-  { name: "Micro-credit",          rate: 34, color: "#7C3AED" },
+  { name: "Mobile Money",          rate: 72, color: "#168FA8" },
+  { name: "Basic Savings Account", rate: 67, color: "#172033" },
+  { name: "Micro-credit",          rate: 34, color: "#0F6F83" },
   { name: "Insurance",             rate: 18, color: "#D97706" },
-  { name: "Pension / Savings",     rate: 12, color: "#0891B2" },
+  { name: "Pension / Savings",     rate: 12, color: "#00A3E0" },
 ];
 
 const trendData = [
@@ -171,8 +171,8 @@ function Inclusion() {
                     wrapperStyle={{ fontSize: 12, fontFamily: "monospace", paddingTop: 8 }}
                     formatter={(v) => v.charAt(0).toUpperCase() + v.slice(1)}
                   />
-                  <Bar dataKey="banked"   fill="#2D6A9F" radius={[3, 3, 0, 0]} name="banked"   maxBarSize={20} />
-                  <Bar dataKey="mobile"   fill="#0D9488" radius={[3, 3, 0, 0]} name="mobile"   maxBarSize={20} />
+                  <Bar dataKey="banked"   fill="#172033" radius={[3, 3, 0, 0]} name="banked"   maxBarSize={20} />
+                  <Bar dataKey="mobile"   fill="#168FA8" radius={[3, 3, 0, 0]} name="mobile"   maxBarSize={20} />
                   <Bar dataKey="excluded" fill="#E11D48" radius={[3, 3, 0, 0]} name="excluded" maxBarSize={20} />
                 </BarChart>
               </ResponsiveContainer>
@@ -230,8 +230,8 @@ function Inclusion() {
                 >
                   <defs>
                     <linearGradient id="approvalGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%"  stopColor="#2D6A9F" stopOpacity={0.18} />
-                      <stop offset="95%" stopColor="#2D6A9F" stopOpacity={0} />
+                      <stop offset="5%"  stopColor="#172033" stopOpacity={0.18} />
+                      <stop offset="95%" stopColor="#172033" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <XAxis
@@ -261,11 +261,11 @@ function Inclusion() {
                   <Area
                     type="monotone"
                     dataKey="rate"
-                    stroke="#2D6A9F"
+                    stroke="#172033"
                     strokeWidth={2}
                     fill="url(#approvalGradient)"
                     dot={false}
-                    activeDot={{ r: 4, fill: "#2D6A9F", strokeWidth: 0 }}
+                    activeDot={{ r: 4, fill: "#172033", strokeWidth: 0 }}
                   />
                 </AreaChart>
               </ResponsiveContainer>

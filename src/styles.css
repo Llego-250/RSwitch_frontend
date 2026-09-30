@@ -109,6 +109,9 @@
   --secondary-foreground:    #172033;
   --muted:                   #F4F7F9;
   --muted-foreground:        #7B8798;
+  --accent:                  #E7F5F8;
+  --accent-foreground:       #0F6F83;
+  --input:                   #DCE3E8;
   --destructive:             #DC3154;
   --destructive-foreground:  #FFFFFF;
   --ring:                    #168FA8;

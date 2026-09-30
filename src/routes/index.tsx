@@ -404,7 +404,7 @@ function Dashboard() {
                 cursor={{ fill: "rgba(86, 180, 211, 0.08)" }}
                 formatter={(v: number) => [`${v}%`, "Freshness Score"]}
               />
-              <Bar dataKey="v" fill="#56B4D3" radius={[8, 8, 0, 0]} barSize={28} />
+              <Bar dataKey="v" fill="#168FA8" radius={[8, 8, 0, 0]} barSize={28} />
             </BarChart>
           </ResponsiveContainer>
         </SectionCard>
@@ -453,7 +453,7 @@ function Dashboard() {
                       <div className="flex items-center gap-4">
                         <button
                           onClick={() => alert(`Simulated download for ${r.name}`)}
-                          className="inline-flex items-center gap-1.5 text-xs font-bold text-[#56B4D3] hover:text-[#267A99] hover:underline cursor-pointer"
+                          className="inline-flex items-center gap-1.5 text-xs font-bold text-[#168FA8] hover:text-[#0F6F83] hover:underline cursor-pointer"
                         >
                           <Download className="h-3.5 w-3.5" />
                           Download PDF

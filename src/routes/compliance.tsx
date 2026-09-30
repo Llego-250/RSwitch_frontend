@@ -201,7 +201,7 @@ function Compliance() {
                     <div className="font-bold text-slate-900 dark:text-white">{req.name}</div>
                     <div className="text-[10px] text-slate-400 font-mono">{req.id}</div>
                   </td>
-                  <td className="px-4 py-3 text-[#56B4D3] font-semibold">{req.regulatoryRef}</td>
+                  <td className="px-4 py-3 text-[#168FA8] font-semibold">{req.regulatoryRef}</td>
                   <td className="px-4 py-3 font-sans font-medium text-slate-800 dark:text-slate-200">{req.institution}</td>
                   <td className="px-4 py-3 text-slate-500">{req.frequency}</td>
                   <td className="px-4 py-3">
@@ -231,7 +231,7 @@ function Compliance() {
                           setRejectionReason("");
                           setReviewError(null);
                         }}
-                        className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-[#56B4D3] text-[#092E3D] hover:bg-[#46A4C3] cursor-pointer"
+                        className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-[#168FA8] text-white hover:bg-[#0F6F83] cursor-pointer"
                       >
                         Review Submission
                       </button>
@@ -267,12 +267,12 @@ function Compliance() {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono">
                 {incidents.map((inc) => (
                   <tr key={inc.id}>
-                    <td className="px-4 py-2.5 font-bold text-[#56B4D3]">{inc.id}</td>
+                    <td className="px-4 py-2.5 font-bold text-[#168FA8]">{inc.id}</td>
                     <td className="px-4 py-2.5 font-sans font-medium text-slate-900 dark:text-white">{inc.institution}</td>
                     <td className="px-4 py-2.5 font-sans text-slate-700 dark:text-slate-300">{inc.description}</td>
                     <td className="px-4 py-2.5">
                       <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                        inc.severity === "Critical" ? "bg-red-100 text-red-700 font-extrabold" : inc.severity === "High" ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700"
+                        inc.severity === "Critical" ? "bg-red-100 text-red-700 font-extrabold" : inc.severity === "High" ? "bg-amber-100 text-amber-700" : "bg-[#E7F5F8] text-[#168FA8]"
                       }`}>
                         {inc.severity}
                       </span>
@@ -295,7 +295,7 @@ function Compliance() {
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
               <div>
                 <h2 className="font-bold text-base text-slate-900 dark:text-white">Compliance Submission Review (§8.4)</h2>
-                <p className="text-xs text-[#56B4D3] font-semibold">{reviewReq.institution} · {reviewReq.name}</p>
+                <p className="text-xs text-[#168FA8] font-semibold">{reviewReq.institution} · {reviewReq.name}</p>
               </div>
               <button onClick={() => setReviewReq(null)} className="text-slate-400 hover:text-slate-600">
                 <X className="h-5 w-5" />
@@ -305,7 +305,7 @@ function Compliance() {
             <div className="space-y-3 text-xs">
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 font-mono space-y-1">
                 <div>Requirement ID: <span className="font-bold text-slate-800 dark:text-slate-200">{reviewReq.id}</span></div>
-                <div>Regulatory Ref: <span className="font-bold text-[#56B4D3]">{reviewReq.regulatoryRef}</span></div>
+                <div>Regulatory Ref: <span className="font-bold text-[#168FA8]">{reviewReq.regulatoryRef}</span></div>
                 <div>Submitted At: <span className="font-bold text-slate-700 dark:text-slate-300">{reviewReq.submittedAt ?? "Today"}</span></div>
               </div>
 
@@ -339,7 +339,7 @@ function Compliance() {
               </button>
               <button
                 onClick={() => handleApprove(reviewReq.id)}
-                className="px-4 py-2 rounded-full text-xs font-semibold bg-emerald-500 text-white hover:bg-emerald-600 cursor-pointer"
+                className="px-4 py-2 rounded-full text-xs font-semibold bg-[#168FA8] text-white hover:bg-[#0F6F83] cursor-pointer"
               >
                 Approve Submission
               </button>

@@ -200,11 +200,11 @@ function Users() {
                   {filteredUsers.map((u) => (
                     <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
                       <td className="px-4 py-3 font-sans font-bold text-slate-900 dark:text-white">{u.name}</td>
-                      <td className="px-4 py-3 text-[#56B4D3]">{u.email}</td>
+                      <td className="px-4 py-3 text-[#168FA8]">{u.email}</td>
                       <td className="px-4 py-3 font-sans font-medium text-slate-700 dark:text-slate-300">{u.roleLabel}</td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          u.status === "active" ? "bg-emerald-100 text-emerald-700" : u.status === "invited" ? "bg-blue-100 text-blue-700" : "bg-slate-200 text-slate-600"
+                          u.status === "active" ? "bg-emerald-100 text-emerald-700" : u.status === "invited" ? "bg-[#E7F5F8] text-[#168FA8]" : "bg-slate-200 text-slate-600"
                         }`}>
                           {u.status}
                         </span>
@@ -247,7 +247,7 @@ function Users() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono">
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 space-y-1">
                 <span className="font-bold text-slate-800 dark:text-slate-200 block">Minimum Length</span>
-                <span className="text-[#56B4D3]">At least 12 characters</span>
+                <span className="text-[#168FA8]">At least 12 characters</span>
               </div>
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 space-y-1">
                 <span className="font-bold text-slate-800 dark:text-slate-200 block">Character Types</span>

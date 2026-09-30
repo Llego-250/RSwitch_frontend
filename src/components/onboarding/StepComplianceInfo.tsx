@@ -13,7 +13,7 @@ export const StepComplianceInfo: React.FC<Step3Props> = ({ data, onChange }) => 
     <div className="space-y-6">
       <div className="border-b border-neutral-200 pb-4">
         <h3 className="text-base font-bold text-neutral-900 flex items-center gap-2">
-          <ShieldCheck className="h-5 w-5 text-sky-600" />
+          <ShieldCheck className="h-5 w-5 text-[#168FA8]" />
           Step 3: Regulatory Compliance & Data Privacy Sign-Off
         </h3>
         <p className="text-xs text-neutral-500 mt-1">
@@ -64,8 +64,8 @@ export const StepComplianceInfo: React.FC<Step3Props> = ({ data, onChange }) => 
           <label className="font-semibold text-neutral-700 flex items-center gap-1.5">
             <Upload className="h-3.5 w-3.5 text-neutral-400" /> Upload BNR Operating License (PDF) *
           </label>
-          <div className="p-4 border-2 border-dashed border-neutral-300 hover:border-sky-500 rounded-xl bg-neutral-50/50 flex flex-col items-center justify-center text-center cursor-pointer transition-colors">
-            <FileCheck className="h-8 w-8 text-sky-600 mb-2" />
+          <div className="p-4 border-2 border-dashed border-neutral-300 hover:border-[#168FA8] rounded-xl bg-neutral-50/50 flex flex-col items-center justify-center text-center cursor-pointer transition-colors">
+            <FileCheck className="h-8 w-8 text-[#168FA8] mb-2" />
             <span className="text-xs font-semibold text-neutral-800">
               {data.licenseDocumentName ? data.licenseDocumentName : "Click to select BNR_License_Document.pdf"}
             </span>
@@ -73,16 +73,16 @@ export const StepComplianceInfo: React.FC<Step3Props> = ({ data, onChange }) => 
           </div>
         </div>
 
-        <div className="md:col-span-2 p-4 bg-sky-50/70 border border-sky-200 rounded-xl flex items-start gap-3 mt-2">
+        <div className="md:col-span-2 p-4 bg-[#E7F5F8]/70 border border-[#CDECF1] rounded-xl flex items-start gap-3 mt-2">
           <input
             type="checkbox"
             id="aml-check"
             checked={data.amlComplianceApproved ?? true}
             onChange={(e) => onChange({ amlComplianceApproved: e.target.checked })}
-            className="mt-1 h-4 w-4 accent-sky-600 rounded"
+            className="mt-1 h-4 w-4 accent-[#168FA8] rounded"
           />
           <label htmlFor="aml-check" className="text-xs text-neutral-800 leading-relaxed cursor-pointer">
-            <span className="font-bold text-sky-900 block mb-0.5">Regulatory Compliance Declaration (§10.1 & §12)</span>
+            <span className="font-bold text-[#0F6F83] block mb-0.5">Regulatory Compliance Declaration (§10.1 & §12)</span>
             We confirm that our institution fully complies with BNR Regulation N° 03/2021 on Prevention of Money Laundering and Financing of Terrorism, and that all data provided strictly adheres to National Data Protection law.
           </label>
         </div>

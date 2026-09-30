@@ -13,7 +13,7 @@ export const StepDataMapping: React.FC<Step4Props> = ({ mappings, onChange }) =>
     <div className="space-y-6">
       <div className="border-b border-neutral-200 pb-4">
         <h3 className="text-base font-bold text-neutral-900 flex items-center gap-2">
-          <Database className="h-5 w-5 text-sky-600" />
+          <Database className="h-5 w-5 text-[#168FA8]" />
           Step 4: Field-Level Data Schema Mapping
         </h3>
         <p className="text-xs text-neutral-500 mt-1">
@@ -35,7 +35,7 @@ export const StepDataMapping: React.FC<Step4Props> = ({ mappings, onChange }) =>
           <tbody className="divide-y divide-neutral-200">
             {mappings.map((m, idx) => (
               <tr key={idx} className="hover:bg-neutral-50/60 transition-colors">
-                <td className="px-4 py-3 font-mono font-bold text-sky-700">
+                <td className="px-4 py-3 font-mono font-bold text-[#168FA8]">
                   {m.targetField}
                   {m.isRequired && <span className="text-rose-500 ml-1">*</span>}
                 </td>
@@ -43,7 +43,7 @@ export const StepDataMapping: React.FC<Step4Props> = ({ mappings, onChange }) =>
                   {m.dataType}
                 </td>
                 <td className="px-4 py-3 text-center text-neutral-400">
-                  <ArrowRight className="h-4 w-4 inline text-sky-500" />
+                  <ArrowRight className="h-4 w-4 inline text-[#168FA8]" />
                 </td>
                 <td className="px-4 py-3">
                   <Input
@@ -73,7 +73,7 @@ export const StepDataMapping: React.FC<Step4Props> = ({ mappings, onChange }) =>
           onClick={() => {
             mappings.forEach((m, i) => onChange(i, { ...m }));
           }}
-          className="text-sky-600 hover:text-sky-700 font-semibold flex items-center gap-1"
+          className="text-[#168FA8] hover:text-[#168FA8] font-semibold flex items-center gap-1"
         >
           <RefreshCw className="h-3.5 w-3.5" /> Auto-Detect Fields
         </button>

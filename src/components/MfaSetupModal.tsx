@@ -51,7 +51,7 @@ export const MfaSetupModal: React.FC<MfaSetupModalProps> = ({ isOpen, onClose, o
       <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-neutral-200">
         <div className="flex items-center justify-between border-b border-neutral-100 pb-4 mb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-sky-50 text-sky-600">
+            <div className="p-2 rounded-xl bg-[#E7F5F8] text-[#168FA8]">
               <ShieldCheck className="h-6 w-6" />
             </div>
             <div>
@@ -88,7 +88,7 @@ export const MfaSetupModal: React.FC<MfaSetupModalProps> = ({ isOpen, onClose, o
                 <button
                   type="button"
                   onClick={handleCopySecret}
-                  className="p-1 text-neutral-400 hover:text-sky-600 text-xs flex items-center gap-1"
+                  className="p-1 text-neutral-400 hover:text-[#168FA8] text-xs flex items-center gap-1"
                 >
                   {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
                   {copied ? "Copied" : "Copy"}
@@ -99,7 +99,7 @@ export const MfaSetupModal: React.FC<MfaSetupModalProps> = ({ isOpen, onClose, o
               <Button variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              <Button onClick={() => setStep("verify")} className="bg-sky-600 hover:bg-sky-700 text-white">
+              <Button onClick={() => setStep("verify")} className="bg-[#168FA8] hover:bg-[#0F6F83] text-white">
                 Next: Verify Code
               </Button>
             </div>
@@ -127,7 +127,7 @@ export const MfaSetupModal: React.FC<MfaSetupModalProps> = ({ isOpen, onClose, o
               <Button variant="outline" onClick={() => setStep("qr")}>
                 Back
               </Button>
-              <Button onClick={handleVerify} className="bg-sky-600 hover:bg-sky-700 text-white">
+              <Button onClick={handleVerify} className="bg-[#168FA8] hover:bg-[#0F6F83] text-white">
                 Verify & Continue
               </Button>
             </div>
@@ -151,7 +151,7 @@ export const MfaSetupModal: React.FC<MfaSetupModalProps> = ({ isOpen, onClose, o
               ))}
             </div>
             <div className="flex justify-end pt-4">
-              <Button onClick={handleComplete} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2">
+              <Button onClick={handleComplete} className="bg-[#168FA8] hover:bg-[#0F6F83] text-white gap-2">
                 <KeyRound className="h-4 w-4" />
                 Finish 2FA Setup
               </Button>

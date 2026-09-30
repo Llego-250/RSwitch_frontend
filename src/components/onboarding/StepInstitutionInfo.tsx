@@ -14,7 +14,7 @@ export const StepInstitutionInfo: React.FC<Step1Props> = ({ data, onChange }) =>
     <div className="space-y-6">
       <div className="border-b border-neutral-200 pb-4">
         <h3 className="text-base font-bold text-neutral-900 flex items-center gap-2">
-          <Building2 className="h-5 w-5 text-sky-600" />
+          <Building2 className="h-5 w-5 text-[#168FA8]" />
           Step 1: Institution Details & Identity
         </h3>
         <p className="text-xs text-neutral-500 mt-1">
@@ -56,7 +56,7 @@ export const StepInstitutionInfo: React.FC<Step1Props> = ({ data, onChange }) =>
           <select
             value={data.institutionType || "Commercial Bank"}
             onChange={(e) => onChange({ institutionType: e.target.value as any })}
-            className="w-full h-10 px-3 bg-white border border-neutral-200 rounded-lg text-xs font-medium text-neutral-900 outline-none focus:border-sky-500"
+            className="w-full h-10 px-3 bg-white border border-neutral-200 rounded-lg text-xs font-medium text-neutral-900 outline-none focus:border-[#168FA8]"
           >
             <option value="Commercial Bank">Commercial Bank</option>
             <option value="Microfinance Institution">Microfinance Institution (MFI)</option>

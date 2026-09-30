@@ -13,7 +13,7 @@ export const StepTechnicalSetup: React.FC<Step2Props> = ({ data, onChange }) => 
     <div className="space-y-6">
       <div className="border-b border-neutral-200 pb-4">
         <h3 className="text-base font-bold text-neutral-900 flex items-center gap-2">
-          <Server className="h-5 w-5 text-sky-600" />
+          <Server className="h-5 w-5 text-[#168FA8]" />
           Step 2: Technical Integration & Security Endpoints
         </h3>
         <p className="text-xs text-neutral-500 mt-1">

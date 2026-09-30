@@ -68,21 +68,21 @@ function ProfileRoute() {
           <SectionCard title="Profile Overview">
             <div className="flex flex-col items-center text-center p-4">
               <div className="relative mb-3">
-                <div className="w-24 h-24 rounded-full bg-sky-100 border-2 border-sky-500 overflow-hidden flex items-center justify-center text-sky-800 font-bold text-2xl shadow-md">
+                <div className="w-24 h-24 rounded-full bg-[#E7F5F8] border-2 border-[#168FA8] overflow-hidden flex items-center justify-center text-[#0F6F83] font-bold text-2xl shadow-md">
                   {user?.avatarUrl ? (
                     <img src={user.avatarUrl} alt={fullName} className="w-full h-full object-cover" />
                   ) : (
                     fullName.split(" ").map((n) => n[0]).join("")
                   )}
                 </div>
-                <button className="absolute bottom-0 right-0 p-1.5 bg-sky-600 text-white rounded-full shadow-md hover:bg-sky-700">
+                <button className="absolute bottom-0 right-0 p-1.5 bg-[#168FA8] text-white rounded-full shadow-md hover:bg-[#0F6F83]">
                   <Camera className="h-3.5 w-3.5" />
                 </button>
               </div>
 
               <h3 className="text-base font-bold text-neutral-900">{user?.fullName || fullName}</h3>
-              <p className="text-xs text-sky-600 font-medium font-mono mt-0.5">{user?.email || email}</p>
-              <div className="mt-2 inline-flex items-center gap-1 px-3 py-1 rounded-full bg-purple-50 text-purple-700 text-xs font-semibold border border-purple-200">
+              <p className="text-xs text-[#168FA8] font-medium font-mono mt-0.5">{user?.email || email}</p>
+              <div className="mt-2 inline-flex items-center gap-1 px-3 py-1 rounded-full bg-[#E7F5F8] text-[#168FA8] text-xs font-semibold border border-[#CDECF1]">
                 {user?.roleTitle || "Technical Admin"}
               </div>
 
@@ -121,7 +121,7 @@ function ProfileRoute() {
                   </Button>
                 </div>
               ) : (
-                <Button onClick={() => setShowMfaModal(true)} className="w-full bg-sky-600 hover:bg-sky-700 text-white gap-2">
+                <Button onClick={() => setShowMfaModal(true)} className="w-full bg-[#168FA8] hover:bg-[#0F6F83] text-white gap-2">
                   <ShieldCheck className="h-4 w-4" /> Enable 2FA Now
                 </Button>
               )}
@@ -166,7 +166,7 @@ function ProfileRoute() {
               )}
 
               <div className="flex justify-end pt-2">
-                <Button onClick={handleSaveProfile} className="bg-sky-600 hover:bg-sky-700 text-white">
+                <Button onClick={handleSaveProfile} className="bg-[#168FA8] hover:bg-[#0F6F83] text-white">
                   Save Changes
                 </Button>
               </div>
@@ -222,7 +222,7 @@ function ProfileRoute() {
               )}
 
               <div className="flex justify-end pt-2">
-                <Button onClick={handleChangePassword} className="bg-neutral-900 hover:bg-black text-white">
+                <Button onClick={handleChangePassword} className="bg-[#172033] hover:bg-[#23304C] text-white">
                   Update Password
                 </Button>
               </div>
