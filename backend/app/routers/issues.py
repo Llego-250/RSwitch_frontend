@@ -3,7 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlmodel import Session, select
 
-from app.core.permissions import require_staff, scope_participant_id
+from app.core.permissions import require_staff
 from app.core.security import get_current_user
 from app.db import get_session
 from app.models.enums import IssueSeverity, IssueStatus
@@ -20,12 +20,11 @@ def list_issues(
     severity: Optional[IssueSeverity] = None,
     status: Optional[IssueStatus] = None,
     session: Session = Depends(get_session),
-    scope: Optional[int] = Depends(scope_participant_id),
+    _: User = Depends(require_staff),
 ):
     query = select(Issue)
-    effective_participant_id = scope if scope is not None else participant_id
-    if effective_participant_id is not None:
-        query = query.where(Issue.participant_id == effective_participant_id)
+    if participant_id is not None:
+        query = query.where(Issue.participant_id == participant_id)
     if severity is not None:
         query = query.where(Issue.severity == severity)
     if status is not None:

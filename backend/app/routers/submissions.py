@@ -6,8 +6,7 @@ from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select
 
-from app.core.permissions import require_own_participant, require_participant_upload, require_roles, require_staff, scope_participant_id
-from app.core.security import get_current_user
+from app.core.permissions import require_roles, require_staff, require_uploader
 from app.db import get_session
 from app.models.enums import SubmissionResult, UserRole
 from app.models.integration import Integration
@@ -26,12 +25,11 @@ router = APIRouter(prefix="/submissions", tags=["submissions"])
 def list_submissions(
     participant_id: Optional[int] = None,
     session: Session = Depends(get_session),
-    scope: Optional[int] = Depends(scope_participant_id),
+    _: User = Depends(require_staff),
 ):
     query = select(Submission).order_by(Submission.uploaded_at.desc())
-    effective_participant_id = scope if scope is not None else participant_id
-    if effective_participant_id is not None:
-        query = query.where(Submission.participant_id == effective_participant_id)
+    if participant_id is not None:
+        query = query.where(Submission.participant_id == participant_id)
     return session.exec(query).all()
 
 
@@ -72,14 +70,13 @@ def submissions_roster(session: Session = Depends(get_session), _: User = Depend
 def download_submission(
     submission_id: int,
     session: Session = Depends(get_session),
-    scope: Optional[int] = Depends(scope_participant_id),
+    _: User = Depends(require_staff),
 ):
     """Streams the exact file that was ingested, straight from MinIO — the
     same object the validation pipeline read at upload time."""
     submission = session.get(Submission, submission_id)
     if not submission:
         raise HTTPException(status_code=404, detail="Submission not found")
-    require_own_participant(submission.participant_id, scope)
     data = get_file(submission.storage_key)
     return StreamingResponse(
         iter([data]),
@@ -144,9 +141,10 @@ async def upload_submission(
     period: str = Form(...),
     file: UploadFile = File(...),
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_uploader),
 ):
-    require_participant_upload(participant_id, current_user)
+    # The participant sent this file offline; staff upload it on their behalf
+    # and are recorded as uploaded_by (REQ-INTG-007).
     try:
         period_start = datetime.strptime(period, "%Y-%m")
     except ValueError:

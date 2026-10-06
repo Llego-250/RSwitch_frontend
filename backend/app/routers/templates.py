@@ -1,9 +1,7 @@
-from typing import Optional
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
-from app.core.permissions import require_own_participant, require_staff, scope_participant_id
+from app.core.permissions import require_staff
 from app.db import get_session
 from app.models.template import IngestionTemplate, TemplateColumn
 from app.models.user import User
@@ -13,12 +11,9 @@ router = APIRouter(prefix="/templates", tags=["templates"])
 
 @router.get("", response_model=list[IngestionTemplate])
 def list_templates(
-    session: Session = Depends(get_session), scope: Optional[int] = Depends(scope_participant_id)
+    session: Session = Depends(get_session), _: User = Depends(require_staff)
 ):
-    query = select(IngestionTemplate)
-    if scope is not None:
-        query = query.where(IngestionTemplate.participant_id == scope)
-    return session.exec(query).all()
+    return session.exec(select(IngestionTemplate)).all()
 
 
 @router.post("", response_model=IngestionTemplate)
@@ -35,12 +30,11 @@ def create_template(
 def list_columns(
     template_id: int,
     session: Session = Depends(get_session),
-    scope: Optional[int] = Depends(scope_participant_id),
+    _: User = Depends(require_staff),
 ):
     template = session.get(IngestionTemplate, template_id)
     if not template:
         raise HTTPException(status_code=404, detail="Template not found")
-    require_own_participant(template.participant_id, scope)
     return session.exec(
         select(TemplateColumn).where(TemplateColumn.template_id == template_id).order_by(TemplateColumn.position)
     ).all()

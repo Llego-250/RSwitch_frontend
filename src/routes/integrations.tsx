@@ -8,7 +8,7 @@ import {
 import { StatusBadge } from "@/components/StatusBadge";
 import type { Status } from "@/components/StatusBadge";
 import { useRole } from "@/context/RoleContext";
-import { canManage } from "@/lib/roles";
+import { canManage, canUploadOnBehalf } from "@/lib/roles";
 import { useAuth } from "@/context/AuthContext";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, errorMessage } from "@/lib/api";
@@ -176,8 +176,9 @@ function IntegrationCatalog() {
     return roster.data?.find((r) => r.participant_id === participantId);
   }
 
-  // Submissions are uploaded by the participant themselves (backend rule).
-  const canUploadFor = (s: IntegrationRow) => user?.participantId === s.participant_id;
+  // Participants send files offline; Compliance or Technical/Admin staff
+  // upload them on the participant's behalf (REQ-INTG-007, enforced by the API).
+  const canUploadFor = (_s: IntegrationRow) => canUploadOnBehalf(user?.role);
 
   return (
     <AppShell
@@ -469,7 +470,7 @@ function IntegrationCatalog() {
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
               <div>
                 <h2 className="font-bold text-base text-slate-900 dark:text-white">Manual Data File Upload</h2>
-                <p className="text-xs text-[#168FA8] font-semibold">{selectedSource.participant_name} · {selectedSource.participant_code}</p>
+                <p className="text-xs text-[#168FA8] font-semibold">Upload file received from {selectedSource.participant_name} · {selectedSource.participant_code}</p>
               </div>
               <button onClick={() => setShowUploadModal(false)} className="text-slate-400 hover:text-slate-600">
                 <X className="h-5 w-5" />

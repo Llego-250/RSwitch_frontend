@@ -3,8 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from sqlmodel import Session, select
 
-from app.core.permissions import require_own_participant, require_roles, require_staff, scope_participant_id
-from app.core.security import get_current_user
+from app.core.permissions import require_roles, require_staff
 from app.db import get_session
 from app.models.admin import ParticipantNote
 from app.models.enums import UserRole
@@ -46,22 +45,12 @@ def create_participant(
     return participant
 
 
-@router.get("/me", response_model=Participant)
-def my_participant(
-    session: Session = Depends(get_session), current_user: User = Depends(get_current_user)
-):
-    if current_user.participant_id is None:
-        raise HTTPException(status_code=404, detail="This account isn't linked to a participant")
-    return session.get(Participant, current_user.participant_id)
-
-
 @router.get("/{participant_id}", response_model=Participant)
 def get_participant(
     participant_id: int,
     session: Session = Depends(get_session),
-    scope: Optional[int] = Depends(scope_participant_id),
+    _: User = Depends(require_staff),
 ):
-    require_own_participant(participant_id, scope)
     participant = session.get(Participant, participant_id)
     if not participant:
         raise HTTPException(status_code=404, detail="Participant not found")

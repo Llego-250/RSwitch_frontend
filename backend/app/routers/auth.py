@@ -35,7 +35,6 @@ def _user_out(user: User) -> dict:
         "email": user.email,
         "full_name": user.full_name,
         "role": user.role,
-        "participant_id": user.participant_id,
         "mfa_enabled": user.mfa_enabled,
         "last_login_at": user.last_login_at,
     }

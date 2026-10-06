@@ -4,7 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from sqlmodel import Session, select
 
-from app.core.permissions import require_staff, scope_participant_id
+from app.core.permissions import require_staff
 from app.db import get_session
 from app.models.enums import IntegrationSource, IntegrationStatus
 from app.models.integration import Integration
@@ -20,16 +20,13 @@ def list_integrations(
     status: Optional[IntegrationStatus] = None,
     participant_code: Optional[str] = None,
     session: Session = Depends(get_session),
-    scope: Optional[int] = Depends(scope_participant_id),
+    _: User = Depends(require_staff),
 ):
     query = select(Integration, Participant).where(Integration.participant_id == Participant.id)
-    if scope is not None:
-        query = query.where(Integration.participant_id == scope)
-    else:
-        if status is not None:
-            query = query.where(Integration.status == status)
-        if participant_code is not None:
-            query = query.where(Participant.code == participant_code)
+    if status is not None:
+        query = query.where(Integration.status == status)
+    if participant_code is not None:
+        query = query.where(Participant.code == participant_code)
     rows = session.exec(query).all()
     return [
         {

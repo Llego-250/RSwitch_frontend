@@ -25,3 +25,5 @@ class ComplianceDocument(SQLModel, table=True):
     uploaded_at: datetime = Field(default_factory=datetime.utcnow)
     expiry_date: Optional[date] = None
     notes: str = ""
+    # The RSwitch staff member who uploaded it on the participant's behalf.
+    uploaded_by: str = ""

@@ -62,3 +62,7 @@ export const can = (role: Role, mod: ModuleKey): Capability => CAPS[mod]?.[role]
 export const visible = (role: Role, mod: ModuleKey) => can(role, mod) !== "X";
 export const canManage = (role: Role, mod: ModuleKey) => can(role, mod) === "M";
 
+// Participants never log in: they send files to RSwitch offline and
+// Compliance or Technical/Admin staff upload them on their behalf (REQ-INTG-007).
+export const canUploadOnBehalf = (role: Role | undefined) => role === "compliance" || role === "technical";
+

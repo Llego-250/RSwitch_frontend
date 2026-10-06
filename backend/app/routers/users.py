@@ -14,7 +14,6 @@ from app.core.security import hash_password
 from app.db import get_session
 from app.models.admin import AuditEvent
 from app.models.enums import UserRole
-from app.models.participant import Participant
 from app.models.user import User
 from app.services import audit
 
@@ -29,7 +28,6 @@ def _out(u: User) -> dict:
         "email": u.email,
         "full_name": u.full_name,
         "role": u.role,
-        "participant_id": u.participant_id,
         "is_active": u.is_active,
         "mfa_enabled": u.mfa_enabled,
         "last_login_at": u.last_login_at,
@@ -48,7 +46,6 @@ def create_user(
     email: str = Body(...),
     full_name: str = Body(...),
     role: UserRole = Body(...),
-    participant_id: Optional[int] = Body(None),
     session: Session = Depends(get_session),
     admin: User = Depends(require_admin),
 ):
@@ -59,14 +56,13 @@ def create_user(
         raise HTTPException(status_code=422, detail="Enter a valid email address")
     if session.exec(select(User).where(User.email == email)).first():
         raise HTTPException(status_code=409, detail="A user with that email already exists")
-    if role == UserRole.participant and (participant_id is None or not session.get(Participant, participant_id)):
-        raise HTTPException(status_code=422, detail="Participant logins must be linked to a participant")
+    if role == UserRole.participant:
+        raise HTTPException(status_code=422, detail="Participant institutions don't have RDIP logins")
     temp_password = secrets.token_urlsafe(12)
     user = User(
         email=email,
         full_name=full_name.strip(),
         role=role,
-        participant_id=participant_id if role == UserRole.participant else None,
         hashed_password=hash_password(temp_password),
     )
     session.add(user)
@@ -93,8 +89,8 @@ def update_user(
         raise HTTPException(status_code=400, detail="You can't demote or deactivate your own account")
     changes = []
     if role is not None and role != user.role:
-        if role == UserRole.participant and user.participant_id is None:
-            raise HTTPException(status_code=422, detail="Link a participant before giving this role")
+        if role == UserRole.participant:
+            raise HTTPException(status_code=422, detail="Participant institutions don't have RDIP logins")
         changes.append(f"role {user.role.value} → {role.value}")
         user.role = role
     if is_active is not None and is_active != user.is_active:

@@ -62,7 +62,7 @@ function Login() {
         // Two-factor is enforced org-wide and this account hasn't set it up.
         navigate({ to: "/profile" });
       } else {
-        navigate({ to: result.isParticipant ? "/integrations" : "/" });
+        navigate({ to: "/" });
       }
     } catch (e) {
       setErrorMsg(errorMessage(e));
@@ -77,9 +77,8 @@ function Login() {
     }
     setErrorMsg(null);
     try {
-      const { isParticipant } = await authVerifyMfa(joined);
-      // Participant logins only have the participant portal.
-      navigate({ to: isParticipant ? "/integrations" : "/" });
+      await authVerifyMfa(joined);
+      navigate({ to: "/" });
     } catch (e) {
       setErrorMsg(errorMessage(e));
       setCode(["", "", "", "", "", ""]);

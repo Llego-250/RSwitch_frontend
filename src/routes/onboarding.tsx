@@ -115,7 +115,7 @@ function OnboardingRoute() {
           </div>
           <h2 className="text-xl font-bold text-neutral-900">Onboarding Application Submitted!</h2>
           <p className="text-xs text-neutral-600 leading-relaxed">
-            Your application for <span className="font-semibold text-neutral-900">{state.step1.institutionName}</span> has been transmitted to the RSwitch Technical & Compliance team.
+            The onboarding record for <span className="font-semibold text-neutral-900">{state.step1.institutionName}</span> has been submitted for RSwitch Technical & Compliance review.
           </p>
           <div className="p-3 bg-neutral-50 rounded-xl border border-neutral-200 text-xs font-mono text-neutral-700 text-left space-y-1">
             <div><span className="text-neutral-400">STATE TRANSITION:</span> DRAFT → SUBMITTED</div>

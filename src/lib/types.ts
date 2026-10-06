@@ -1,6 +1,6 @@
 // Shapes returned by the FastAPI backend (see backend/app/models and routers).
 
-export type BackendRole = "Compliance" | "Business" | "Board" | "Technical / Admin" | "Participant";
+export type BackendRole = "Compliance" | "Business" | "Board" | "Technical / Admin";
 export type IntegrationStatus = "Connected" | "Degraded" | "Disconnected" | "Maintenance";
 export type IssueSeverity = "Critical" | "High" | "Medium" | "Low";
 export type IssueStatus = "Open" | "In Progress" | "Resolved" | "Closed";
@@ -11,7 +11,6 @@ export interface Me {
   email: string;
   full_name: string;
   role: BackendRole;
-  participant_id: number | null;
   mfa_enabled: boolean;
   last_login_at: string | null;
 }
@@ -143,7 +142,6 @@ export interface UserRow {
   email: string;
   full_name: string;
   role: BackendRole;
-  participant_id: number | null;
   is_active: boolean;
   mfa_enabled: boolean;
   last_login_at: string | null;

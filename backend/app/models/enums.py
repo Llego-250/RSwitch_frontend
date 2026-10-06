@@ -44,4 +44,6 @@ class UserRole(str, Enum):
     business = "Business"
     board = "Board"
     technical = "Technical / Admin"
+    # Legacy only — participant logins no longer exist; any such account is
+    # deactivated at startup (see app.db.init_db). Never assigned.
     participant = "Participant"

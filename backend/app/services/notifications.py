@@ -10,7 +10,7 @@ from sqlmodel import Session, select
 from app.models.admin import Notification
 from app.models.alert import AnomalyAlert
 from app.models.document import ComplianceDocument, RequiredDocumentType
-from app.models.enums import IntegrationStatus, IssueStatus, UserRole
+from app.models.enums import IntegrationStatus, IssueStatus
 from app.models.integration import Integration
 from app.models.issue import Issue
 from app.models.participant import Participant
@@ -63,11 +63,6 @@ def generate(session: Session) -> int:
     created = 0
     for user in users:
         for key, title, msg, sev, link, pid in notices:
-            # Participants only hear about their own institution.
-            if user.role == UserRole.participant and pid != user.participant_id:
-                continue
-            if user.role == UserRole.participant and link in ("/ai", "/compliance"):
-                link = "/participant-360"
             if (user.id, key) in existing:
                 continue
             session.add(Notification(user_id=user.id, dedupe_key=key, title=title, message=msg, severity=sev, link=link))

@@ -7,7 +7,6 @@ import { canManage } from "@/lib/roles";
 import { useAuth } from "@/context/AuthContext";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, errorMessage } from "@/lib/api";
-import { useParticipants } from "@/lib/queries";
 import type { BackendRole, UserRow } from "@/lib/types";
 import { useState } from "react";
 import {
@@ -25,7 +24,6 @@ const ROLE_OPTIONS: { value: BackendRole; label: string }[] = [
   { value: "Business", label: "Business User" },
   { value: "Board", label: "Board Viewer" },
   { value: "Technical / Admin", label: "Technical / Admin User" },
-  { value: "Participant", label: "Participant (institution login)" },
 ];
 
 function lastLogin(iso: string | null) {
@@ -40,7 +38,6 @@ function Users() {
   const queryClient = useQueryClient();
 
   const usersQuery = useQuery({ queryKey: ["users"], queryFn: () => api.get<UserRow[]>("/users"), enabled: canManageUsers });
-  const participants = useParticipants();
   const users = usersQuery.data ?? [];
 
   const [search, setSearch]               = useState("");
@@ -53,7 +50,6 @@ function Users() {
   const [inviteEmail, setInviteEmail]         = useState("");
   const [inviteName, setInviteName]           = useState("");
   const [inviteRole, setInviteRole]           = useState<BackendRole>("Compliance");
-  const [inviteParticipant, setInviteParticipant] = useState<number | "">("");
   const [emailError, setEmailError]           = useState<string | null>(null);
 
   const filteredUsers = users.filter(
@@ -72,7 +68,6 @@ function Users() {
         email: inviteEmail,
         full_name: inviteName,
         role: inviteRole,
-        participant_id: inviteRole === "Participant" ? inviteParticipant || null : null,
       }),
     onSuccess: (u) => {
       refresh();
@@ -204,7 +199,6 @@ function Users() {
                       <td className="px-4 py-3 text-[#168FA8]">{u.email}</td>
                       <td className="px-4 py-3 font-sans font-medium text-slate-700 dark:text-slate-300">
                         {u.role}
-                        {u.participant_id && <span className="text-slate-400"> · #{u.participant_id}</span>}
                       </td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
@@ -217,7 +211,7 @@ function Users() {
                       <td className="px-4 py-3 text-slate-500">{lastLogin(u.last_login_at)}</td>
                       <td className="px-4 py-3 font-sans">
                         <div className="flex items-center gap-2">
-                          {canManageUsers && u.id !== me?.id && (
+                          {canManageUsers && u.email !== me?.email && (
                             <>
                               {u.is_active && (
                                 <select
@@ -225,7 +219,7 @@ function Users() {
                                   onChange={(e) => updateUser.mutate({ id: u.id, role: e.target.value as BackendRole })}
                                   className="h-7 px-2 text-[11px] rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-mono"
                                 >
-                                  {ROLE_OPTIONS.filter((r) => r.value !== "Participant" || u.participant_id).map((r) => (
+                                  {ROLE_OPTIONS.map((r) => (
                                     <option key={r.value} value={r.value}>{r.label}</option>
                                   ))}
                                 </select>
@@ -246,7 +240,7 @@ function Users() {
                               </button>
                             </>
                           )}
-                          {u.id === me?.id && <span className="text-[11px] text-slate-400">You</span>}
+                          {u.email === me?.email && <span className="text-[11px] text-slate-400">You</span>}
                         </div>
                       </td>
                     </tr>
@@ -322,19 +316,6 @@ function Users() {
                     {ROLE_OPTIONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
                   </select>
                 </div>
-                {inviteRole === "Participant" && (
-                  <div>
-                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Institution</label>
-                    <select
-                      value={inviteParticipant}
-                      onChange={(e) => setInviteParticipant(e.target.value ? Number(e.target.value) : "")}
-                      className="w-full h-9 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
-                    >
-                      <option value="">Select participant…</option>
-                      {participants.data?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                    </select>
-                  </div>
-                )}
                 {emailError && (
                   <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/60 border border-red-200 text-red-600 font-semibold text-xs">
                     {emailError}

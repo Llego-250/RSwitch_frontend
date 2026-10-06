@@ -1,16 +1,17 @@
 from typing import Optional
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select
 
-from app.core.permissions import require_own_participant, require_participant_upload, require_staff, scope_participant_id
+from app.core.permissions import require_staff, require_uploader
 from app.core.security import get_current_user
 from app.db import get_session
 from app.models.document import ComplianceDocument, RequiredDocumentType
 from app.models.participant import Participant
 from app.models.user import User
+from app.services import audit
 from app.services.compliance import document_status
 from app.storage import get_file, put_file
 
@@ -34,15 +35,18 @@ def add_document_type(
 
 @router.post("/upload")
 async def upload_document(
+    request: Request,
     participant_id: int = Form(...),
     doc_type_id: int = Form(...),
     expiry_date: Optional[str] = Form(None),
     notes: str = Form(""),
     file: UploadFile = File(...),
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_uploader),
 ):
-    require_participant_upload(participant_id, current_user)
+    # Uploaded by RSwitch staff on the participant's behalf (REQ-INTG-007).
+    if not session.get(Participant, participant_id):
+        raise HTTPException(status_code=404, detail="Participant not found")
     data = await file.read()
     storage_key = f"documents/{participant_id}/{uuid4()}-{file.filename}"
     put_file(storage_key, data, file.content_type or "application/octet-stream")
@@ -54,10 +58,12 @@ async def upload_document(
         storage_key=storage_key,
         expiry_date=expiry_date or None,
         notes=notes,
+        uploaded_by=current_user.full_name or current_user.email,
     )
     session.add(doc)
     session.commit()
     session.refresh(doc)
+    audit.record(session, "DOCUMENT_UPLOAD", f"{file.filename} for participant #{participant_id}", current_user, request)
     return {**doc.model_dump(), "status": document_status(doc)}
 
 
@@ -65,12 +71,11 @@ async def upload_document(
 def download_document(
     document_id: int,
     session: Session = Depends(get_session),
-    scope: Optional[int] = Depends(scope_participant_id),
+    _: User = Depends(require_staff),
 ):
     doc = session.get(ComplianceDocument, document_id)
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
-    require_own_participant(doc.participant_id, scope)
     data = get_file(doc.storage_key)
     return StreamingResponse(
         iter([data]),
@@ -83,9 +88,8 @@ def download_document(
 def documents_for_participant(
     participant_id: int,
     session: Session = Depends(get_session),
-    scope: Optional[int] = Depends(scope_participant_id),
+    _: User = Depends(require_staff),
 ):
-    require_own_participant(participant_id, scope)
     doc_types = session.exec(select(RequiredDocumentType)).all()
     docs = session.exec(
         select(ComplianceDocument).where(ComplianceDocument.participant_id == participant_id)

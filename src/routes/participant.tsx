@@ -5,7 +5,7 @@ import { AppShell, SecondaryButton, SectionCard } from "@/components/AppShell";
 import { StatusBadge, type Status } from "@/components/StatusBadge";
 import { useRole } from "@/context/RoleContext";
 import { useAuth } from "@/context/AuthContext";
-import { canManage } from "@/lib/roles";
+import { canManage, canUploadOnBehalf } from "@/lib/roles";
 import { api, errorMessage } from "@/lib/api";
 import { useIntegrations, useIssues, useParticipants, useSubmissions } from "@/lib/queries";
 import type { IntegrationStatus, ParticipantDocumentRow } from "@/lib/types";
@@ -73,8 +73,9 @@ export function Participant360() {
   const docsAttention = (documents.data ?? []).filter((d) => d.status !== "On File").length;
   const historyMonths = current ? monthsSince(current.created_at) : 0;
 
-  // Only the participant uploads their own documents (enforced by the API).
-  const isOwnRecord = user?.participantId != null && user.participantId === current?.id;
+  // Documents arrive from the participant offline; Compliance or Technical/Admin
+  // staff upload them on the participant's behalf (enforced by the API).
+  const canUploadDocs = canUploadOnBehalf(user?.role);
 
   const loadError = participants.error ?? integrations.error ?? issues.error;
 
@@ -235,7 +236,7 @@ export function Participant360() {
                           {row.document.expiry_date && <span className="text-slate-400"> · exp. {row.document.expiry_date}</span>}
                         </button>
                       )}
-                      {isOwnRecord && (
+                      {canUploadDocs && (
                         <DocumentUpload
                           participantId={current.id}
                           docTypeId={row.doc_type.id}

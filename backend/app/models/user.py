@@ -14,9 +14,8 @@ class User(SQLModel, table=True):
     hashed_password: str
     role: UserRole = UserRole.compliance
     is_active: bool = True
-    # Set only for role == participant — the one participant this login is
-    # scoped to. Every participant-role request is filtered to this id,
-    # server-side, regardless of what the client asks for.
+    # Legacy: participant logins were removed (participants never sign in).
+    # Kept only so existing databases still map; always None for new users.
     participant_id: Optional[int] = Field(default=None, foreign_key="participant.id")
     # TOTP two-factor. The secret is set at setup time; mfa_enabled flips only
     # after the user proves they can generate a valid code.

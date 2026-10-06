@@ -24,7 +24,6 @@ import { useState, useEffect, useRef, type ReactNode } from "react";
 
 type Item = { key: ModuleKey; label: string; to: string; icon: typeof Plug; desc?: string };
 
-const PARTICIPANT_ROUTES: string[] = ["/integrations", "/participant-360", "/profile"];
 
 const CLUSTERS: { title: string; items: Item[] }[] = [
   {
@@ -104,17 +103,12 @@ export function AppShell({
 
   const [roleOpen, setRoleOpen] = useState(false);
 
-  // Participant logins get the participant portal only: their own
-  // integration/uploads and their Participant 360 profile.
-  const isParticipant = user?.participantId != null;
-  const canSee = (i: { key: ModuleKey; to: string }) =>
-    isParticipant ? PARTICIPANT_ROUTES.includes(i.to) : visible(role, i.key);
+  const canSee = (i: { key: ModuleKey; to: string }) => visible(role, i.key);
 
   // Every page renders inside AppShell, so this is the single auth gate.
   useEffect(() => {
     if (!isAuthenticated) navigate({ to: "/login" });
-    else if (isParticipant && !PARTICIPANT_ROUTES.includes(pathname)) navigate({ to: "/integrations" });
-  }, [isAuthenticated, isParticipant, pathname, navigate]);
+  }, [isAuthenticated, navigate]);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);

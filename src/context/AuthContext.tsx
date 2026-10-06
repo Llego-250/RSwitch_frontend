@@ -11,7 +11,6 @@ export interface UserProfile {
   roleTitle: string;
   institution: string;
   mfaEnabled: boolean;
-  participantId: number | null;
   avatarUrl?: string;
   lastLogin?: string;
 }
@@ -22,8 +21,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   mfaPending: boolean;
   /** mfaRequired=false means the session is already open. */
-  login: (email: string, pass: string) => Promise<{ mfaRequired: boolean; isParticipant: boolean; mfaSetupRequired: boolean }>;
-  verifyMfa: (code: string) => Promise<{ isParticipant: boolean }>;
+  login: (email: string, pass: string) => Promise<{ mfaRequired: boolean; mfaSetupRequired: boolean }>;
+  verifyMfa: (code: string) => Promise<void>;
   logout: () => void;
   /** Re-reads /auth/me (after profile or MFA changes). */
   refreshUser: () => Promise<void>;
@@ -33,13 +32,12 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const STORAGE_KEY = "rdip_auth_session";
 
-// The backend has five roles; the UI permission matrix (lib/roles) has three.
+// The backend has four roles; the UI permission matrix (lib/roles) has three.
 const ROLE_MAP: Record<BackendRole, Role> = {
   "Technical / Admin": "technical",
   Compliance: "compliance",
   Business: "business",
   Board: "business",
-  Participant: "business",
 };
 
 function toProfile(me: Me): UserProfile {
@@ -49,9 +47,8 @@ function toProfile(me: Me): UserProfile {
     fullName: me.full_name || me.email,
     role: ROLE_MAP[me.role] ?? "business",
     roleTitle: me.role,
-    institution: me.participant_id ? `Participant #${me.participant_id}` : "RSwitch HQ",
+    institution: "RSwitch HQ",
     mfaEnabled: me.mfa_enabled,
-    participantId: me.participant_id,
     lastLogin: me.last_login_at ?? undefined,
   };
 }
@@ -111,16 +108,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (result.mfa_required) {
       setMfaToken(result.mfa_token);
       setMfaPending(true);
-      return { mfaRequired: true, isParticipant: false, mfaSetupRequired: false };
+      return { mfaRequired: true, mfaSetupRequired: false };
     }
-    const profile = await startSession(result.access_token);
-    return { mfaRequired: false, isParticipant: profile.participantId != null, mfaSetupRequired: result.mfa_setup_required };
+    await startSession(result.access_token);
+    return { mfaRequired: false, mfaSetupRequired: result.mfa_setup_required };
   };
 
   const verifyMfa = async (code: string) => {
     if (!mfaToken) throw new Error("Your sign-in expired. Enter your password again.");
-    const profile = await startSession(await api.verifyMfa(mfaToken, code));
-    return { isParticipant: profile.participantId != null };
+    await startSession(await api.verifyMfa(mfaToken, code));
   };
 
   const refreshUser = async () => {

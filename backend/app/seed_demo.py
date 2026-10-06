@@ -1,5 +1,5 @@
 """Seed realistic multi-month demo data so the board trend graphs and
-participant portal have something real to show. Every submission is a real
+participant views have something real to show. Every submission is a real
 generated CSV run through the actual validation/summarization code — the
 only thing that's synthetic is the underlying transaction data itself, not
 the pipeline that processes it.
@@ -61,7 +61,7 @@ def month_floor(dt: datetime) -> datetime:
     return dt.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
 
-def get_or_create_user(session: Session, email: str, full_name: str, role: UserRole, participant_id=None) -> User:
+def get_or_create_user(session: Session, email: str, full_name: str, role: UserRole) -> User:
     user = session.exec(select(User).where(User.email == email)).first()
     if user:
         return user
@@ -70,7 +70,6 @@ def get_or_create_user(session: Session, email: str, full_name: str, role: UserR
         full_name=full_name,
         hashed_password=hash_password("changeme123"),
         role=role,
-        participant_id=participant_id,
     )
     session.add(user)
     session.commit()
@@ -187,9 +186,6 @@ def main() -> None:
             session.refresh(participant)
             session.add(Integration(participant_id=participant.id))
             session.commit()
-
-            login_email = f"ops@{spec['code'].lower()}.rw"
-            get_or_create_user(session, login_email, f"{spec['name']} Ops", UserRole.participant, participant.id)
 
             template = IngestionTemplate(
                 participant_id=participant.id, name="Monthly transaction report", version=1, applies_to=spec["name"]
