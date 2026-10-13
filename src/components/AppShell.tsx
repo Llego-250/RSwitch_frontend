@@ -2,8 +2,18 @@ import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { useRole } from "@/context/RoleContext";
 import { useAuth } from "@/context/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, apiUrl } from "@/lib/api";
+import { useOrganization } from "@/lib/queries";
 import type { NotificationRow } from "@/lib/types";
+import { ROLES, hasCap, type Action } from "@/lib/roles";
+import {
+  LayoutDashboard, Plug, GitBranch, Workflow, Users2, Brain,
+  Sparkles, FileCheck2, FileText, Lock, Settings, UserPlus,
+  Search, Bell, ChevronUp, LogOut, Moon, Sun, Menu, X,
+  PanelLeftClose, PanelLeftOpen, Command, CheckCheck,
+  Trash2, Scale, ChevronDown, ScrollText, History,
+} from "lucide-react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 
 function timeAgo(iso: string) {
   const mins = Math.floor((Date.now() - new Date(iso + (iso.endsWith("Z") ? "" : "Z")).getTime()) / 60_000);
@@ -12,51 +22,49 @@ function timeAgo(iso: string) {
   if (mins < 1440) return `${Math.floor(mins / 60)}h ago`;
   return `${Math.floor(mins / 1440)}d ago`;
 }
-import { ROLES, visible, type ModuleKey } from "@/lib/roles";
-import {
-  LayoutDashboard, Plug, GitBranch, Workflow, Users2, Brain,
-  AlertTriangle, Sparkles, FileCheck2, FileText, Lock, Settings, UserPlus,
-  Search, Bell, ChevronUp, LogOut, Moon, Sun, Menu, X, ShieldAlert,
-  TrendingUp, PanelLeftClose, PanelLeftOpen, Command, CheckCheck,
-  Trash2, Filter, Scale, ChevronDown
-} from "lucide-react";
-import { useState, useEffect, useRef, type ReactNode } from "react";
 
-type Item = { key: ModuleKey; label: string; to: string; icon: typeof Plug; desc?: string };
-
+// Each entry needs a capability (SRS §12.1); the sidebar and the ⌘K palette
+// only list what the signed-in role may open (REQ-AUTH-008). Sub-items sit
+// under their parent module.
+type Item = { label: string; to: string; icon: typeof Plug; desc?: string; cap: Action; sub?: Item[] };
 
 const CLUSTERS: { title: string; items: Item[] }[] = [
   {
     title: "Connect & Ingest",
     items: [
-      { key: "dashboard", label: "Dashboard", to: "/", icon: LayoutDashboard, desc: "System performance overview & key KPIs" },
-      { key: "integrations", label: "Integrations", to: "/integrations", icon: Plug, desc: "Manage participant connections & APIs" },
-      { key: "mapping", label: "Mapping & Schemas", to: "/mapping", icon: GitBranch, desc: "ISO 20022 schemas & transformations" },
-      { key: "pipelines", label: "Pipelines", to: "/pipelines", icon: Workflow, desc: "Real-time ETL execution & status" },
+      { label: "Dashboard", to: "/", icon: LayoutDashboard, desc: "Role-aware KPIs and attention queue", cap: "dashboard.view" },
+      {
+        label: "Integrations", to: "/integrations", icon: Plug, desc: "Participant connections and data sources", cap: "integrations.view",
+        // REQ-MAP-009: Standards & Mapping is a Technical/Admin tool, not a primary module.
+        sub: [{ label: "Standards & Mapping", to: "/mapping", icon: GitBranch, desc: "Field mappings and schemas", cap: "mapping.view" }],
+      },
+      { label: "Pipelines", to: "/pipelines", icon: Workflow, desc: "Pipeline jobs, logs and reprocessing", cap: "pipelines.view" },
     ],
   },
   {
     title: "Govern & Comply",
     items: [
-      { key: "participant360", label: "Participant 360", to: "/participant-360", icon: Users2, desc: "Unified institution profile & risk data" },
-      { key: "governance", label: "Governance", to: "/governance", icon: Scale, desc: "Board documents & action tracking" },
-      { key: "compliance", label: "Compliance", to: "/compliance", icon: FileCheck2, desc: "Regulatory deadlines & incident tracking" },
+      { label: "Participant 360", to: "/participant-360", icon: Users2, desc: "Unified institution profile & risk data", cap: "participant360.view" },
+      { label: "Governance", to: "/governance", icon: Scale, desc: "Committee documents, meetings & action items", cap: "governance.view" },
+      { label: "Compliance", to: "/compliance", icon: FileCheck2, desc: "Regulatory deadlines & incident tracking", cap: "compliance.view" },
     ],
   },
   {
     title: "Intelligence & Reports",
     items: [
-      { key: "ai", label: "AI Intelligence", to: "/ai", icon: Brain, desc: "Anomaly alerts & operational risk ranking" },
-      { key: "inclusion", label: "Financial Inclusion", to: "/inclusion", icon: Sparkles, desc: "National reach & telemetry reports" },
-      { key: "reports", label: "Reports", to: "/reports", icon: FileText, desc: "Automated regulatory & operational export" },
+      { label: "AI Decision Support", to: "/ai", icon: Brain, desc: "Explainable anomaly alerts & risk ranking", cap: "ai.view" },
+      { label: "Financial Inclusion", to: "/inclusion", icon: Sparkles, desc: "Reach by institution type, region & channel", cap: "inclusion.view" },
+      { label: "Reports", to: "/reports", icon: FileText, desc: "Generate, download & schedule reports", cap: "reports.view" },
     ],
   },
   {
     title: "Administration",
     items: [
-      { key: "users", label: "Users & Security", to: "/users", icon: Lock, desc: "Role permissions & security audit log" },
-      { key: "users", label: "Onboarding Wizard", to: "/onboarding", icon: UserPlus, desc: "5-step participant registration" },
-      { key: "settings", label: "Settings", to: "/settings", icon: Settings, desc: "Global configuration & API policies" },
+      { label: "Users & Security", to: "/users", icon: Lock, desc: "Invitations, roles & account status", cap: "users.manage" },
+      { label: "Participant Onboarding", to: "/onboarding", icon: UserPlus, desc: "Register a participant institution", cap: "integrations.manage" },
+      { label: "Audit Log", to: "/audit", icon: ScrollText, desc: "Who changed what, when and from where", cap: "audit.view" },
+      { label: "Notifications", to: "/notifications", icon: History, desc: "Your notification history (90 days)", cap: "notifications.view" },
+      { label: "Settings", to: "/settings", icon: Settings, desc: "Organization, security & notification policy", cap: "settings.view" },
     ],
   },
 ];
@@ -103,7 +111,8 @@ export function AppShell({
 
   const [roleOpen, setRoleOpen] = useState(false);
 
-  const canSee = (i: { key: ModuleKey; to: string }) => visible(role, i.key);
+  const canSee = (i: Item) => hasCap(role, i.cap);
+  const org = useOrganization(isAuthenticated && !user?.mfaSetupRequired);
 
   // Every page renders inside AppShell, so this is the single auth gate.
   useEffect(() => {
@@ -116,13 +125,13 @@ export function AppShell({
   const [notifFilter, setNotifFilter] = useState<"all" | "alert" | "warning" | "info">("all");
   const [headerCollapsed, setHeaderCollapsed] = useState<boolean>(false);
 
-  // Notifications come from the API (generated from alerts, integrations,
-  // document expiry and issue due dates) and refresh every minute.
+  // REQ-NOTIF-001: the bell polls every minute. Each poll reports how long
+  // the user has been idle, so polling never counts as activity (REQ-AUTH-005).
   const queryClient = useQueryClient();
   const notifQuery = useQuery({
     queryKey: ["notifications"],
     queryFn: () => api.get<NotificationRow[]>("/notifications"),
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && !user?.mfaSetupRequired,
     refetchInterval: 60_000,
   });
   const notifs: (NotificationItem & { link: string })[] = (notifQuery.data ?? []).map((n) => ({
@@ -135,6 +144,8 @@ export function AppShell({
     link: n.link,
   }));
   const refreshNotifs = () => queryClient.invalidateQueries({ queryKey: ["notifications"] });
+  const orgName = org.data?.name;
+  const logoUrl = org.data?.logo_url ? apiUrl(org.data.logo_url) : null;
 
   // Dark mode state with persistence
   const [isDark, setIsDark] = useState<boolean>(() => {
@@ -208,12 +219,12 @@ export function AppShell({
     api.delete("/notifications/read").then(refreshNotifs);
   };
 
-  const toggleRead = (id: string) => {
+  const markRead = (id: string) => {
     api.post(`/notifications/${id}/read`).then(refreshNotifs);
   };
 
   const openNotification = (n: { id: string; read: boolean; link: string }) => {
-    if (!n.read) toggleRead(n.id);
+    if (!n.read) markRead(n.id);
     setNotifOpen(false);
     if (n.link) navigate({ to: n.link });
   };
@@ -225,7 +236,7 @@ export function AppShell({
   const avatarInitial = (user?.fullName ?? roleLabel).charAt(0).toUpperCase();
 
   // Filter items for search command palette
-  const allNavItems = CLUSTERS.flatMap((c) => c.items).filter(canSee);
+  const allNavItems = CLUSTERS.flatMap((c) => c.items.flatMap((i) => [i, ...(i.sub ?? [])])).filter(canSee);
   const filteredSearchItems = searchQuery.trim() === ""
     ? allNavItems
     : allNavItems.filter((i) =>
@@ -309,10 +320,9 @@ export function AppShell({
                     {c.title}
                   </div>
                 )}
-                {items.map((it) => {
-                  const active =
-                    pathname === it.to ||
-                    (it.to !== "/" && pathname.startsWith(it.to));
+                {items.flatMap((parent) => [parent, ...(parent.sub ?? []).filter(canSee)]).map((it) => {
+                  const isSub = !items.includes(it);
+                  const active = pathname === it.to || (it.to !== "/" && pathname.startsWith(it.to + "/"));
                   const Icon = it.icon;
                   return (
                     <Link
@@ -321,14 +331,14 @@ export function AppShell({
                       onClick={() => setMobileNavOpen(false)}
                       title={isCollapsed ? it.label : undefined}
                       className={`
-                        w-full rounded-xl ${isCollapsed ? "px-0 justify-center h-10" : "px-3.5 py-2.5"} text-[15px] flex items-center gap-3 transition-all duration-200 relative group
+                        w-full rounded-xl ${isCollapsed ? "px-0 justify-center h-10" : isSub ? "pl-10 pr-3.5 py-2 text-[13px]" : "px-3.5 py-2.5 text-[15px]"} flex items-center gap-3 transition-all duration-200 relative group
                         ${active
                           ? "bg-[#073B4C] text-white font-semibold shadow-md"
                           : "text-white/95 hover:bg-white/15 hover:text-white font-medium"
                         }
                       `}
                     >
-                      <Icon className={`h-5 w-5 shrink-0 ${active ? "text-[#168FA8]" : "text-white"}`} />
+                      <Icon className={`${isSub ? "h-4 w-4" : "h-5 w-5"} shrink-0 ${active ? "text-[#168FA8]" : "text-white"}`} />
                       {!isCollapsed && <span className="truncate">{it.label}</span>}
                     </Link>
                   );
@@ -383,7 +393,7 @@ export function AppShell({
                 Profile &amp; 2FA Settings
               </button>
               <button
-                onClick={() => { setRoleOpen(false); logout(); navigate({ to: "/login" }); }}
+                onClick={() => { setRoleOpen(false); logout("manual"); navigate({ to: "/login" }); }}
                 className="w-full text-left px-3 py-2 rounded-xl text-xs flex items-center gap-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors font-semibold"
               >
                 <LogOut className="h-3.5 w-3.5" />
@@ -416,6 +426,16 @@ export function AppShell({
           >
             <Menu className="h-5 w-5" />
           </button>
+
+          {/* Organization branding (REQ-SET-001) */}
+          {orgName && (
+            <div className="hidden md:flex items-center gap-2 min-w-0 max-w-[260px] shrink" title={orgName}>
+              {logoUrl && (
+                <img src={logoUrl} alt={`${orgName} logo`} className="h-9 w-9 rounded-xl bg-white object-contain p-1 border border-white/60 shadow-sm shrink-0" />
+              )}
+              <span className={`text-xs font-semibold truncate ${isDark ? "text-slate-200" : "text-[#334155]"}`}>{orgName}</span>
+            </div>
+          )}
 
           {/* Search Input Trigger Bar */}
           <div
@@ -559,12 +579,19 @@ export function AppShell({
                     )}
                   </div>
 
-                  <div className="pt-3 border-t border-slate-200 dark:border-slate-800 text-center">
+                  <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                    <Link
+                      to="/notifications"
+                      onClick={() => setNotifOpen(false)}
+                      className="text-xs font-semibold text-[#168FA8] hover:underline"
+                    >
+                      View history (90 days)
+                    </Link>
                     <button
                       onClick={() => setNotifOpen(false)}
                       className="text-xs font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
                     >
-                      Close Notifications
+                      Close
                     </button>
                   </div>
                 </div>

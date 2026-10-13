@@ -1,389 +1,601 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useMemo, useState, type ReactNode } from "react";
 import {
-  AppShell,
-  PrimaryButton,
-  FilterChip,
-  SectionCard,
-} from "@/components/AppShell";
-import { KpiCard } from "@/components/KpiCard";
-import {
-  BarChart,
   Bar,
-  AreaChart,
-  Area,
+  BarChart,
+  CartesianGrid,
+  LabelList,
+  Line,
+  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
-  Legend,
 } from "recharts";
-import { Download } from "lucide-react";
+import { BookOpen, Download, FileSpreadsheet, Info, Lock } from "lucide-react";
+import { AppShell, SectionCard, SecondaryButton } from "@/components/AppShell";
+import { useRole } from "@/context/RoleContext";
+import { hasCap } from "@/lib/roles";
+import { api, errorMessage } from "@/lib/api";
+import {
+  formatMetric,
+  inclusionQuery,
+  periodLabel,
+  useInclusionDashboard,
+  useInclusionRegistry,
+  type InclusionDashboard,
+  type InclusionFilters,
+  type InclusionMetric,
+  type MetricValues,
+} from "@/lib/inclusion";
 
 export const Route = createFileRoute("/inclusion")({
   component: Inclusion,
 });
 
-/* ─── Data ─── */
+const selectCls =
+  "h-9 px-3 rounded-xl bg-white dark:bg-slate-800 border border-[#DCE3E8] dark:border-slate-700 text-xs text-[#172033] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#168FA8]/40";
+const AXIS_TICK = { fontSize: 10, fill: "#7B8798" };
 
-const demoData = [
-  { group: "18–25", banked: 58, mobile: 72, excluded: 28 },
-  { group: "26–35", banked: 74, mobile: 82, excluded: 18 },
-  { group: "36–45", banked: 69, mobile: 74, excluded: 23 },
-  { group: "46–55", banked: 52, mobile: 58, excluded: 41 },
-  { group: "55+",   banked: 38, mobile: 41, excluded: 59 },
-];
-
-const SERVICES = [
-  { name: "Mobile Money",          rate: 72, color: "#168FA8" },
-  { name: "Basic Savings Account", rate: 67, color: "#172033" },
-  { name: "Micro-credit",          rate: 34, color: "#0F6F83" },
-  { name: "Insurance",             rate: 18, color: "#D97706" },
-  { name: "Pension / Savings",     rate: 12, color: "#00A3E0" },
-];
-
-const trendData = [
-  { m: "Jan", rate: 28 },
-  { m: "Feb", rate: 30 },
-  { m: "Mar", rate: 31 },
-  { m: "Apr", rate: 33 },
-  { m: "May", rate: 35 },
-  { m: "Jun", rate: 38 },
-];
-
-const COHORTS = [
-  { id: "thin-file", name: "Thin-file applicants",  size: "12,401", approval: "38%", fairness: "0.92" },
-  { id: "rural",     name: "Rural applicants",       size: "8,220",  approval: "31%", fairness: "0.88" },
-  { id: "youth",     name: "Youth (18–25)",          size: "15,803", approval: "42%", fairness: "0.94" },
-  { id: "women",     name: "Women-led households",   size: "9,108",  approval: "36%", fairness: "0.91" },
-];
-
-/* ─── Helpers ─── */
-
-function fairnessColor(val: string) {
-  const n = parseFloat(val);
-  if (n >= 0.93) return "var(--ok)";
-  if (n >= 0.89) return "var(--warn)";
-  return "var(--fail)";
-}
-
-/* ─── Component ─── */
+const fmtDate = (iso: string | null | undefined) =>
+  iso
+    ? new Date(iso.endsWith("Z") ? iso : `${iso}Z`).toLocaleDateString(undefined, {
+        dateStyle: "medium",
+      })
+    : "—";
 
 function Inclusion() {
+  const { role } = useRole();
+  const canExport = hasCap(role, "inclusion.manage");
+  const [filters, setFilters] = useState<InclusionFilters>({});
+  const [chartKey, setChartKey] = useState<string>("accounts");
+  const [exporting, setExporting] = useState<"xlsx" | "pdf" | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const dash = useInclusionDashboard(filters);
+  const d = dash.data;
+
+  const set = (patch: InclusionFilters) => setFilters((f) => ({ ...f, ...patch }));
+  const periods = d?.options.periods ?? [];
+
+  const doExport = async (format: "xlsx" | "pdf") => {
+    setExporting(format);
+    setExportError(null);
+    try {
+      const q = inclusionQuery(filters);
+      await api.download(
+        `/inclusion/export?format=${format}${q ? `&${q.slice(1)}` : ""}`,
+        `financial_inclusion.${format}`,
+      );
+    } catch (e) {
+      setExportError(errorMessage(e));
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const available = (d?.metrics ?? []).filter((m) => m.available);
+  const chartMetric = available.find((m) => m.key === chartKey) ?? available[0];
+
   return (
     <AppShell
       title="Financial Inclusion"
-      subtitle="Coverage & Demographics"
-      breadcrumb="DECIDE › INCLUSION"
-      scope="all-regions"
+      subtitle="Aggregated inclusion metrics by institution type and region"
+      breadcrumb="DECIDE › FINANCIAL INCLUSION"
+      scope="Indicative"
       primaryAction={
-        <PrimaryButton icon={<Download className="h-4 w-4" />}>
-          Export Report
-        </PrimaryButton>
+        canExport ? (
+          <div className="flex gap-2">
+            <SecondaryButton
+              icon={<FileSpreadsheet className="h-4 w-4" />}
+              onClick={() => doExport("xlsx")}
+            >
+              {exporting === "xlsx" ? "Exporting…" : "Excel"}
+            </SecondaryButton>
+            <SecondaryButton
+              icon={<Download className="h-4 w-4" />}
+              onClick={() => doExport("pdf")}
+            >
+              {exporting === "pdf" ? "Exporting…" : "PDF"}
+            </SecondaryButton>
+          </div>
+        ) : undefined
       }
       toolbar={
-        <>
-          <FilterChip label="Region" value="All regions" />
-          <FilterChip label="Segment" value="All segments" />
-          <FilterChip label="Period" value="Jan – Jun 2026" />
-        </>
+        <div className="flex flex-wrap items-center gap-2 w-full">
+          <select
+            aria-label="Institution type"
+            className={selectCls}
+            value={filters.institution_type ?? ""}
+            onChange={(e) => set({ institution_type: e.target.value || undefined })}
+          >
+            <option value="">All institution types</option>
+            {(d?.options.institution_types ?? []).map((t) => (
+              <option key={t}>{t}</option>
+            ))}
+          </select>
+          <select
+            aria-label="Region"
+            className={selectCls}
+            value={filters.region ?? ""}
+            onChange={(e) => set({ region: e.target.value || undefined })}
+          >
+            <option value="">All regions</option>
+            {(d?.options.regions ?? []).map((r) => (
+              <option key={r}>{r}</option>
+            ))}
+          </select>
+          <label className="text-xs text-[#526174] dark:text-slate-400 inline-flex items-center gap-1">
+            From
+            <select
+              aria-label="Period from"
+              className={selectCls}
+              value={filters.period_from ?? ""}
+              onChange={(e) => set({ period_from: e.target.value || undefined })}
+            >
+              <option value="">Earliest</option>
+              {periods.map((p) => (
+                <option key={p} value={p}>
+                  {periodLabel(p)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-xs text-[#526174] dark:text-slate-400 inline-flex items-center gap-1">
+            To
+            <select
+              aria-label="Period to"
+              className={selectCls}
+              value={filters.period_to ?? ""}
+              onChange={(e) => set({ period_to: e.target.value || undefined })}
+            >
+              <option value="">Latest</option>
+              {periods.map((p) => (
+                <option key={p} value={p}>
+                  {periodLabel(p)}
+                </option>
+              ))}
+            </select>
+          </label>
+          {Object.values(filters).some(Boolean) && (
+            <button
+              onClick={() => setFilters({})}
+              className="text-xs font-semibold text-[#168FA8] hover:underline cursor-pointer"
+            >
+              Clear filters
+            </button>
+          )}
+          {!canExport && (
+            <span className="ml-auto text-[11px] text-[#526174] dark:text-slate-400 inline-flex items-center gap-1">
+              <Lock className="h-3.5 w-3.5" /> Export is available to Business users
+            </span>
+          )}
+        </div>
       }
     >
-      {/* ── ROW 1: KPI cards ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
-        <KpiCard
-          label="Total unbanked population"
-          value="2.1M"
-          delta={{ dir: "down", text: "−8%", tone: "good" }}
-          context="Reduction vs prior period"
-          freshness="live"
-          updated="12:00"
-        />
-        <KpiCard
-          label="Financial access rate"
-          value="67.3%"
-          delta={{ dir: "up", text: "+4.2 pp", tone: "good" }}
-          context="Share of adult population"
-          freshness="live"
-          updated="12:00"
-        />
-        <KpiCard
-          label="Mobile money users"
-          value="1.4M"
-          delta={{ dir: "up", text: "+12%", tone: "good" }}
-          context="Active wallets, last 30 d"
-          freshness="live"
-          updated="11:50"
-        />
-        <KpiCard
-          label="Approval rate (Thin-file)"
-          value="38%"
-          delta={{ dir: "up", text: "+5 pp", tone: "good" }}
-          context="Alt-data scoring enabled"
-          freshness="live"
-          updated="11:30"
-        />
-      </div>
+      {exportError && (
+        <p className="mb-4 text-xs text-[#B4233F] dark:text-rose-300">{exportError}</p>
+      )}
+      {dash.error ? (
+        <p className="text-sm text-[#B4233F] dark:text-rose-300">{errorMessage(dash.error)}</p>
+      ) : !d ? (
+        <p className="text-sm text-[#526174]">Loading inclusion metrics…</p>
+      ) : (
+        <>
+          <IndicativeBanner d={d} />
 
-      {/* ── ROW 2: Demographics + Service Penetration ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+            {d.metrics.map((m) => (
+              <MetricTile key={m.key} m={m} />
+            ))}
+          </div>
 
-        {/* Left — grouped bar chart */}
-        <div className="lg:col-span-8">
-          <SectionCard title="Access by Demographic Group">
-            <div style={{ height: 240 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={demoData}
-                  margin={{ top: 4, right: 12, left: -16, bottom: 0 }}
-                  barCategoryGap="28%"
-                  barGap={2}
-                >
-                  <XAxis
-                    dataKey="group"
-                    tick={{ fontSize: 12, fill: "var(--neutral-500)", fontFamily: "monospace" }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 11, fill: "var(--neutral-400)", fontFamily: "monospace" }}
-                    axisLine={false}
-                    tickLine={false}
-                    tickFormatter={(v) => `${v}%`}
-                    domain={[0, 100]}
-                  />
-                  <Tooltip
-                    formatter={(value: number, name: string) => [
-                      `${value}%`,
-                      name.charAt(0).toUpperCase() + name.slice(1),
-                    ]}
-                    contentStyle={{
-                      backgroundColor: "var(--card)",
-                      border: "1px solid var(--border)",
-                      borderRadius: 6,
-                      fontSize: 12,
-                      fontFamily: "monospace",
-                    }}
-                    cursor={{ fill: "var(--neutral-100)" }}
-                  />
-                  <Legend
-                    iconType="square"
-                    iconSize={8}
-                    wrapperStyle={{ fontSize: 12, fontFamily: "monospace", paddingTop: 8 }}
-                    formatter={(v) => v.charAt(0).toUpperCase() + v.slice(1)}
-                  />
-                  <Bar dataKey="banked"   fill="#172033" radius={[3, 3, 0, 0]} name="banked"   maxBarSize={20} />
-                  <Bar dataKey="mobile"   fill="#168FA8" radius={[3, 3, 0, 0]} name="mobile"   maxBarSize={20} />
-                  <Bar dataKey="excluded" fill="#E11D48" radius={[3, 3, 0, 0]} name="excluded" maxBarSize={20} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </SectionCard>
-        </div>
-
-        {/* Right — service penetration */}
-        <div className="lg:col-span-4">
-          <SectionCard title="Service Penetration">
-            <div className="flex flex-col gap-4">
-              {SERVICES.map((s) => (
-                <div key={s.name}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span
-                      className="text-[13px] truncate mr-2"
-                      style={{ color: "var(--neutral-700)" }}
+          {available.length === 0 ? (
+            <SectionCard>
+              <p className="text-sm text-[#526174] dark:text-slate-400">
+                No inclusion data has been submitted for this selection yet — every metric is
+                awaiting data.
+              </p>
+            </SectionCard>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                <span className="text-xs font-semibold text-[#526174] dark:text-slate-400">
+                  Chart metric
+                </span>
+                <div className="flex flex-wrap gap-1" role="tablist">
+                  {available.map((m) => (
+                    <button
+                      key={m.key}
+                      role="tab"
+                      aria-selected={chartMetric?.key === m.key}
+                      onClick={() => setChartKey(m.key)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border cursor-pointer ${
+                        chartMetric?.key === m.key
+                          ? "bg-[#168FA8] text-white border-[#168FA8]"
+                          : "bg-white dark:bg-slate-800 text-[#526174] dark:text-slate-300 border-[#DCE3E8] dark:border-slate-700"
+                      }`}
                     >
-                      {s.name}
-                    </span>
-                    <span
-                      className="font-mono text-[12px] tabular-nums shrink-0 font-semibold"
-                      style={{ color: "var(--neutral-900)", fontVariantNumeric: "tabular-nums" }}
-                    >
-                      {s.rate}%
-                    </span>
-                  </div>
-                  <div
-                    className="h-1.5 rounded-full overflow-hidden"
-                    style={{ backgroundColor: "var(--neutral-100)" }}
-                  >
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{ width: `${s.rate}%`, backgroundColor: s.color }}
-                    />
-                  </div>
+                      {m.label}
+                    </button>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </SectionCard>
-        </div>
+              </div>
+              {chartMetric && <Charts d={d} metric={chartMetric} />}
+            </>
+          )}
+
+          <div className="grid grid-cols-1 2xl:grid-cols-2 gap-6 mt-6">
+            <SegmentTable
+              title="By institution type"
+              metrics={d.metrics}
+              rows={d.by_institution_type.map((r) => ({
+                key: r.institution_type,
+                label: r.institution_type,
+                sub: `${r.reporting} of ${r.institutions} reporting`,
+                values: r.values,
+              }))}
+            />
+            <SegmentTable
+              title="By region"
+              note={d.region_basis_note}
+              metrics={d.metrics}
+              rows={d.by_region.map((r) => ({
+                key: r.region,
+                label: r.region,
+                sub: r.reporting
+                  ? `${r.reporting} institution${r.reporting === 1 ? "" : "s"} · ${
+                      r.region_basis === "registered"
+                        ? "registered region"
+                        : r.region_basis === "mixed"
+                          ? "reported + registered"
+                          : "reported in returns"
+                    }`
+                  : "No data",
+                values: r.values,
+              }))}
+            />
+          </div>
+
+          {chartMetric && <Matrix d={d} metric={chartMetric} />}
+          <Registry />
+        </>
+      )}
+    </AppShell>
+  );
+}
+
+function IndicativeBanner({ d }: { d: InclusionDashboard }) {
+  return (
+    <div className="mb-6 rounded-2xl border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 text-xs text-amber-950 dark:text-amber-100 space-y-1">
+      <div className="font-bold flex items-center gap-1.5">
+        <Info className="h-4 w-4 text-amber-600" /> {d.indicative_label}
       </div>
+      <p>{d.indicative_note}</p>
+      <p className="text-amber-900/80 dark:text-amber-200/80">
+        {d.coverage.institutions_reporting} of {d.coverage.institutions_registered} institutions
+        reporting · {d.coverage.submissions} submission{d.coverage.submissions === 1 ? "" : "s"}
+        {d.coverage.periods.length > 0 &&
+          ` · ${periodLabel(d.coverage.periods[0])} – ${periodLabel(d.coverage.periods[d.coverage.periods.length - 1])}`}{" "}
+        · last updated {fmtDate(d.coverage.last_updated)} · aggregated institution data only, no
+        customer-level records.
+      </p>
+    </div>
+  );
+}
 
-      {/* ── ROW 3: Trend + Cohort Analysis ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-
-        {/* Left — approval rate trend */}
-        <div className="lg:col-span-6">
-          <SectionCard title="Program Impact — Approval Rate Trend">
-            <div style={{ height: 220 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart
-                  data={trendData}
-                  margin={{ top: 8, right: 12, left: -16, bottom: 0 }}
-                >
-                  <defs>
-                    <linearGradient id="approvalGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%"  stopColor="#172033" stopOpacity={0.18} />
-                      <stop offset="95%" stopColor="#172033" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis
-                    dataKey="m"
-                    tick={{ fontSize: 12, fill: "var(--neutral-500)", fontFamily: "monospace" }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 11, fill: "var(--neutral-400)", fontFamily: "monospace" }}
-                    axisLine={false}
-                    tickLine={false}
-                    tickFormatter={(v: number) => `${v}%`}
-                    domain={[20, 45]}
-                  />
-                  <Tooltip
-                    formatter={(value: number) => [`${value}%`, "Approval rate"]}
-                    contentStyle={{
-                      backgroundColor: "var(--card)",
-                      border: "1px solid var(--border)",
-                      borderRadius: 6,
-                      fontSize: 12,
-                      fontFamily: "monospace",
-                    }}
-                    cursor={{ stroke: "var(--neutral-200)", strokeWidth: 1 }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="rate"
-                    stroke="#172033"
-                    strokeWidth={2}
-                    fill="url(#approvalGradient)"
-                    dot={false}
-                    activeDot={{ r: 4, fill: "#172033", strokeWidth: 0 }}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </SectionCard>
+function MetricTile({ m }: { m: InclusionMetric }) {
+  return (
+    <div className="rounded-2xl p-4 bg-white dark:bg-slate-900 border border-[#DCE3E8] dark:border-slate-800 shadow-2xs flex flex-col gap-1.5">
+      <div className="text-[13px] font-semibold text-[#526174] dark:text-slate-300">{m.label}</div>
+      {m.available ? (
+        <div className="text-2xl font-bold text-[#172033] dark:text-white tracking-tight">
+          {formatMetric(m.value, m.unit, true)}
         </div>
+      ) : (
+        <div className="text-sm font-semibold text-[#7B8798]">{m.status}</div>
+      )}
+      <div className="text-[11px] text-[#526174] dark:text-slate-400">{m.description}</div>
+      <div className="mt-auto pt-1 border-t border-[#DCE3E8] dark:border-slate-800 text-[10px] text-[#7B8798] space-y-0.5">
+        <div>Source: {m.data_source}</div>
+        <div>Last updated: {fmtDate(m.last_updated)}</div>
+      </div>
+    </div>
+  );
+}
 
-        {/* Right — cohort analysis table */}
-        <div className="lg:col-span-6">
-          <SectionCard title="Cohort Analysis" noPad>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead
-                  style={{
-                    backgroundColor: "var(--neutral-100)",
-                    borderBottom: "1px solid var(--border)",
-                  }}
+function ChartCard({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <SectionCard title={<span className="text-sm">{title}</span>}>
+      <div className="h-56 text-[#168FA8] dark:text-[#2AA3BE]">{children}</div>
+    </SectionCard>
+  );
+}
+
+function Charts({ d, metric }: { d: InclusionDashboard; metric: InclusionMetric }) {
+  const fmt = (v: unknown) => (typeof v === "number" ? formatMetric(v, metric.unit, true) : "");
+  const tip = (v: unknown) => [
+    typeof v === "number" ? formatMetric(v, metric.unit) : "n/a",
+    metric.label,
+  ];
+  const byType = d.by_institution_type.map((r) => ({
+    name: r.institution_type,
+    value: r.values[metric.key],
+  }));
+  const byRegion = d.by_region.map((r) => ({
+    name: r.region.replace(" Province", ""),
+    value: r.values[metric.key],
+  }));
+  const trend = d.trend.map((t) => ({ name: t.label, value: t.values[metric.key] }));
+  return (
+    <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <ChartCard title={`${metric.label} by institution type`}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={byType} margin={{ top: 18, right: 8, left: 8, bottom: 0 }}>
+            <XAxis dataKey="name" tick={AXIS_TICK} axisLine={false} tickLine={false} interval={0} />
+            <YAxis hide />
+            <Tooltip
+              formatter={tip}
+              cursor={{ fill: "rgba(123,135,152,0.12)" }}
+              contentStyle={{ fontSize: 11, borderRadius: 8 }}
+            />
+            <Bar dataKey="value" fill="currentColor" radius={[4, 4, 0, 0]} maxBarSize={44}>
+              <LabelList
+                dataKey="value"
+                position="top"
+                formatter={fmt}
+                style={{ fontSize: 10, fill: "#526174" }}
+              />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </ChartCard>
+      <ChartCard title={`${metric.label} by region`}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={byRegion} margin={{ top: 18, right: 8, left: 8, bottom: 0 }}>
+            <XAxis dataKey="name" tick={AXIS_TICK} axisLine={false} tickLine={false} interval={0} />
+            <YAxis hide />
+            <Tooltip
+              formatter={tip}
+              cursor={{ fill: "rgba(123,135,152,0.12)" }}
+              contentStyle={{ fontSize: 11, borderRadius: 8 }}
+            />
+            <Bar dataKey="value" fill="currentColor" radius={[4, 4, 0, 0]} maxBarSize={44}>
+              <LabelList
+                dataKey="value"
+                position="top"
+                formatter={fmt}
+                style={{ fontSize: 10, fill: "#526174" }}
+              />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </ChartCard>
+      <ChartCard title={`${metric.label} by reported period`}>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={trend} margin={{ top: 12, right: 12, left: 8, bottom: 0 }}>
+            <CartesianGrid vertical={false} stroke="rgba(123,135,152,0.2)" />
+            <XAxis dataKey="name" tick={AXIS_TICK} axisLine={false} tickLine={false} />
+            <YAxis
+              tick={AXIS_TICK}
+              axisLine={false}
+              tickLine={false}
+              width={48}
+              tickFormatter={fmt}
+            />
+            <Tooltip formatter={tip} contentStyle={{ fontSize: 11, borderRadius: 8 }} />
+            <Line
+              type="monotone"
+              dataKey="value"
+              stroke="currentColor"
+              strokeWidth={2}
+              dot={{ r: 4, fill: "currentColor" }}
+              connectNulls={false}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </ChartCard>
+    </div>
+  );
+}
+
+type SegmentRow = { key: string; label: string; sub: string; values: MetricValues };
+
+function SegmentTable({
+  title,
+  note,
+  metrics,
+  rows,
+}: {
+  title: string;
+  note?: string;
+  metrics: InclusionMetric[];
+  rows: SegmentRow[];
+}) {
+  return (
+    <SectionCard title={<span className="text-sm">{title}</span>} noPad>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead className="bg-slate-50 dark:bg-slate-800/50 text-[#526174] dark:text-slate-400">
+            <tr>
+              <th className="text-left px-4 py-2 font-semibold">Segment</th>
+              {metrics.map((m) => (
+                <th
+                  key={m.key}
+                  className="text-right px-3 py-2 font-semibold whitespace-nowrap"
+                  title={m.description}
                 >
+                  {m.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#DCE3E8] dark:divide-slate-800">
+            {rows.map((r) => (
+              <tr key={r.key}>
+                <td className="px-4 py-2">
+                  <div className="font-semibold text-[#172033] dark:text-white whitespace-nowrap">
+                    {r.label}
+                  </div>
+                  <div className="text-[10px] text-[#7B8798]">{r.sub}</div>
+                </td>
+                {metrics.map((m) => (
+                  <td
+                    key={m.key}
+                    className="px-3 py-2 text-right font-mono whitespace-nowrap text-[#172033] dark:text-slate-200"
+                  >
+                    {m.available ? (
+                      formatMetric(r.values[m.key], m.unit, true)
+                    ) : (
+                      <span className="text-[10px] font-sans text-[#7B8798]" title={m.data_source}>
+                        Awaiting data
+                      </span>
+                    )}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {note && (
+        <p className="px-4 py-2 text-[10px] text-[#7B8798] border-t border-[#DCE3E8] dark:border-slate-800">
+          {note}
+        </p>
+      )}
+    </SectionCard>
+  );
+}
+
+function Matrix({ d, metric }: { d: InclusionDashboard; metric: InclusionMetric }) {
+  const types = useMemo(() => [...new Set(d.matrix.map((r) => r.institution_type))], [d.matrix]);
+  const regions = useMemo(() => [...new Set(d.matrix.map((r) => r.region))], [d.matrix]);
+  if (!d.matrix.length) return null;
+  const cell = (t: string, r: string) =>
+    d.matrix.find((m) => m.institution_type === t && m.region === r);
+  return (
+    <div className="mt-6">
+      <SectionCard
+        title={<span className="text-sm">{metric.label}: institution type × region</span>}
+        noPad
+      >
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead className="bg-slate-50 dark:bg-slate-800/50 text-[#526174] dark:text-slate-400">
+              <tr>
+                <th className="text-left px-4 py-2 font-semibold">Institution type</th>
+                {regions.map((r) => (
+                  <th key={r} className="text-right px-3 py-2 font-semibold whitespace-nowrap">
+                    {r}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#DCE3E8] dark:divide-slate-800">
+              {types.map((t) => (
+                <tr key={t}>
+                  <td className="px-4 py-2 font-semibold text-[#172033] dark:text-white whitespace-nowrap">
+                    {t}
+                  </td>
+                  {regions.map((r) => {
+                    const c = cell(t, r);
+                    return (
+                      <td
+                        key={r}
+                        className="px-3 py-2 text-right font-mono text-[#172033] dark:text-slate-200"
+                        title={c ? `Last updated ${fmtDate(c.last_updated)}` : "No data"}
+                      >
+                        {c ? formatMetric(c.values[metric.key], metric.unit, true) : "—"}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="px-4 py-2 text-[10px] text-[#7B8798] border-t border-[#DCE3E8] dark:border-slate-800">
+          Source: {metric.data_source}. "—" = no institution of that type reported in that region.
+        </p>
+      </SectionCard>
+    </div>
+  );
+}
+
+function Registry() {
+  const registry = useInclusionRegistry();
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mt-6">
+      <SectionCard
+        title={
+          <span className="text-sm flex items-center gap-2">
+            <BookOpen className="h-4 w-4 text-[#168FA8]" /> Metric definitions
+          </span>
+        }
+        action={
+          <button
+            onClick={() => setOpen((o) => !o)}
+            className="text-xs font-semibold text-[#168FA8] hover:underline cursor-pointer"
+          >
+            {open ? "Hide" : "Show"}
+          </button>
+        }
+        noPad
+      >
+        {open && (
+          <div className="overflow-x-auto">
+            {registry.error ? (
+              <p className="p-4 text-xs text-[#B4233F]">{errorMessage(registry.error)}</p>
+            ) : (
+              <table className="w-full text-xs">
+                <thead className="bg-slate-50 dark:bg-slate-800/50 text-[#526174] dark:text-slate-400">
                   <tr>
-                    <th
-                      className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide"
-                      style={{ color: "var(--neutral-500)" }}
-                    >
-                      Cohort
+                    <th className="text-left px-4 py-2 font-semibold">Metric</th>
+                    <th className="text-left px-3 py-2 font-semibold">Unit</th>
+                    <th className="text-left px-3 py-2 font-semibold">Aggregation</th>
+                    <th className="text-left px-3 py-2 font-semibold">
+                      Submitted columns (priority order)
                     </th>
-                    <th
-                      className="text-right px-4 py-3 text-[11px] font-medium uppercase tracking-wide"
-                      style={{ color: "var(--neutral-500)" }}
-                    >
-                      Size
-                    </th>
-                    <th
-                      className="text-right px-4 py-3 text-[11px] font-medium uppercase tracking-wide"
-                      style={{ color: "var(--neutral-500)" }}
-                    >
-                      Approval
-                    </th>
-                    <th
-                      className="text-right px-4 py-3 text-[11px] font-medium uppercase tracking-wide"
-                      style={{ color: "var(--neutral-500)" }}
-                    >
-                      Fairness
-                    </th>
-                    <th
-                      className="text-right px-4 py-3 text-[11px] font-medium uppercase tracking-wide"
-                      style={{ color: "var(--neutral-500)" }}
-                    >
-                      Action
-                    </th>
+                    <th className="text-left px-3 py-2 font-semibold">Definition</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {COHORTS.map((c, i) => (
-                    <tr
-                      key={c.id}
-                      style={{
-                        borderBottom: "1px solid var(--border)",
-                        backgroundColor:
-                          i % 2 === 0 ? "transparent" : "var(--neutral-50)",
-                      }}
-                    >
-                      <td
-                        className="px-4 py-3 text-[13px] font-medium"
-                        style={{ color: "var(--neutral-900)" }}
-                      >
-                        {c.name}
+                <tbody className="divide-y divide-[#DCE3E8] dark:divide-slate-800">
+                  {(registry.data?.metrics ?? []).map((m) => (
+                    <tr key={m.key} className="align-top">
+                      <td className="px-4 py-2 font-semibold text-[#172033] dark:text-white">
+                        {m.label}
                       </td>
-                      <td
-                        className="px-4 py-3 text-right font-mono text-[13px]"
-                        style={{
-                          color: "var(--neutral-700)",
-                          fontVariantNumeric: "tabular-nums",
-                        }}
-                      >
-                        {c.size}
+                      <td className="px-3 py-2">{m.unit}</td>
+                      <td className="px-3 py-2">
+                        {m.kind === "stock"
+                          ? "Latest period per institution"
+                          : m.kind === "flow"
+                            ? "Sum over periods"
+                            : "Ratio"}
                       </td>
-                      <td
-                        className="px-4 py-3 text-right font-mono text-[13px] font-semibold"
-                        style={{
-                          color: "var(--neutral-900)",
-                          fontVariantNumeric: "tabular-nums",
-                        }}
-                      >
-                        {c.approval}
+                      <td className="px-3 py-2 font-mono text-[11px]">
+                        {m.sources.length
+                          ? m.sources
+                              .map((s) => (s.column === "@rows" ? "transactions loaded" : s.column))
+                              .join(" → ")
+                          : `${m.numerator} ÷ ${m.denominator}`}
                       </td>
-                      <td
-                        className="px-4 py-3 text-right font-mono text-[13px] font-semibold"
-                        style={{
-                          color: fairnessColor(c.fairness),
-                          fontVariantNumeric: "tabular-nums",
-                        }}
-                      >
-                        {c.fairness}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <button
-                          className="text-[12px] font-medium transition-colors"
-                          style={{ color: "var(--primary-500)" }}
-                          onMouseEnter={(e) =>
-                            ((e.currentTarget as HTMLElement).style.color =
-                              "var(--primary-700)")
-                          }
-                          onMouseLeave={(e) =>
-                            ((e.currentTarget as HTMLElement).style.color =
-                              "var(--primary-500)")
-                          }
-                        >
-                          View Details
-                        </button>
+                      <td className="px-3 py-2 text-[#526174] dark:text-slate-400">
+                        {m.description}
+                        {m.awaiting && (
+                          <span className="block text-[#9A5300] dark:text-amber-300">
+                            {m.awaiting}
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </div>
-          </SectionCard>
-        </div>
-      </div>
-    </AppShell>
+            )}
+          </div>
+        )}
+      </SectionCard>
+    </div>
   );
 }

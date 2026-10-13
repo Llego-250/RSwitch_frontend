@@ -1,6 +1,7 @@
 // Shapes returned by the FastAPI backend (see backend/app/models and routers).
 
-export type BackendRole = "Compliance" | "Business" | "Board" | "Technical / Admin";
+// The three roles of SRS §4.1 (the legacy Board role no longer exists).
+export type BackendRole = "Compliance" | "Business" | "Technical / Admin";
 export type IntegrationStatus = "Connected" | "Degraded" | "Disconnected" | "Maintenance";
 export type IssueSeverity = "Critical" | "High" | "Medium" | "Low";
 export type IssueStatus = "Open" | "In Progress" | "Resolved" | "Closed";
@@ -11,8 +12,13 @@ export interface Me {
   email: string;
   full_name: string;
   role: BackendRole;
+  is_senior: boolean;
   mfa_enabled: boolean;
   last_login_at: string | null;
+  /** "mfa_setup" until two-factor is enrolled (REQ-AUTH-002). */
+  session_scope: "access" | "mfa_setup" | "api_key";
+  session_timeout_minutes: number;
+  mfa_enforced: boolean;
 }
 
 export interface Participant {
@@ -137,15 +143,22 @@ export interface TrendPoint {
   issues_raised: number;
 }
 
+export type UserStatus = "Active" | "Inactive" | "Invited";
+
 export interface UserRow {
   id: number;
   email: string;
   full_name: string;
   role: BackendRole;
+  status: UserStatus;
   is_active: boolean;
+  is_senior: boolean;
   mfa_enabled: boolean;
   last_login_at: string | null;
   created_at: string;
+  invited_at: string | null;
+  locked: boolean;
+  locked_until: string | null;
 }
 
 export interface AuditEvent {
@@ -157,6 +170,7 @@ export interface AuditEvent {
   action: string;
   resource: string;
   ip_address: string;
+  user_agent: string;
   status: "SUCCESS" | "WARNING" | "FAILED";
 }
 
@@ -171,22 +185,94 @@ export interface ApiKeyRow {
   key?: string;
 }
 
+export interface OrganizationSettings {
+  name: string;
+  logo_url: string;
+  timezone: string;
+  date_format: string;
+}
+
+export interface SecuritySettings {
+  mfa_enforced: boolean;
+  session_timeout_minutes: number;
+  min_password_length: number;
+  require_uppercase: boolean;
+  require_lowercase: boolean;
+  require_digit: boolean;
+  require_special: boolean;
+  password_history: number;
+  lockout_attempts: number;
+  lockout_minutes: number;
+  trusted_device_days: number;
+  reset_link_minutes: number;
+  invite_link_hours: number;
+}
+
+/** GET /settings — module sections (anomaly, pipelines, …) are read by their own components. */
 export interface SystemSettings {
-  organization: { name: string; timezone: string; date_format: string };
-  security: { mfa_enforced: boolean; session_timeout_minutes: number; min_password_length: number };
-  reminders: { days_before: number[] };
+  organization: OrganizationSettings;
+  security: SecuritySettings;
+  reminders: { days_before: number[]; action_item_days_before: number[] };
   risk_weights: { integration: number; compliance: number; incidents: number; overdue: number };
-  anomaly: { volume_deviation_pct: number; error_rate_pct: number; auto_escalate_days: number };
+  notifications: { events: Record<string, boolean> };
+  anomaly: { volume_deviation_pct: number; error_rate_pct: number; auto_escalate_days: number } & Record<string, unknown>;
+  pipelines: { log_retention_days: number } & Record<string, unknown>;
+}
+
+export interface PasswordPolicy {
+  min_length: number;
+  require_uppercase: boolean;
+  require_lowercase: boolean;
+  require_digit: boolean;
+  require_special: boolean;
+  special_characters: string;
+  history: number;
+  reset_link_minutes: number;
+  trusted_device_days: number;
+}
+
+/** REQ-NOTIF-003: one SRS §13 event and whether it's switched on. */
+export interface NotificationEventSetting {
+  key: string;
+  label: string;
+  recipient: string;
+  channels: ("In-app" | "Email")[];
+  always_on: boolean;
+  enabled: boolean;
+}
+
+export interface EmailLogRow {
+  id: number;
+  to_address: string;
+  subject: string;
+  body: string;
+  event: string;
+  event_label: string;
+  status: "Sent" | "Logged" | "Failed";
+  error: string;
+  attachments: string[];
+  created_at: string;
+}
+
+export interface TrustedDeviceRow {
+  id: number;
+  user_agent: string;
+  created_at: string;
+  expires_at: string;
+  last_used_at: string | null;
 }
 
 export interface NotificationRow {
   id: number;
+  event: string;
+  event_label: string;
   title: string;
   message: string;
   severity: "alert" | "warning" | "info";
   link: string;
   created_at: string;
   read: boolean;
+  dismissed: boolean;
 }
 
 export interface GovDocument {

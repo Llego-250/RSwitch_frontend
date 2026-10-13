@@ -60,10 +60,14 @@ def report_rows(session: Session, report: str, participant_id=None, date_from=No
             rows = [r for r in rows if r.participant_id == participant_id]
         columns = ["participant_id", "doc_type_id", "filename", "expiry_date"]
     elif report == "inclusion":
-        from app.services.inclusion import by_institution_type
+        # §14.4 columns; the period filter is the reported month.
+        from app.services.inclusion import report_rows as inclusion_rows
 
-        rows = by_institution_type(session, date_from, date_to)
-        columns = ["institution_type", "participants", "transactions", "volume", "volume_share_pct"]
+        rows, columns, _ = inclusion_rows(
+            session,
+            period_from=date_from.strftime("%Y-%m") if date_from else None,
+            period_to=date_to.strftime("%Y-%m") if date_to else None,
+        )
     else:
         query = select(Issue)
         if participant_id:

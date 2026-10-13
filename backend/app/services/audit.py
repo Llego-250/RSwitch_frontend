@@ -28,6 +28,7 @@ def record(
                 action=action,
                 resource=resource,
                 ip_address=(request.client.host if request and request.client else ""),
+                user_agent=(request.headers.get("user-agent", "")[:300] if request else ""),
                 status=status,
             )
         )

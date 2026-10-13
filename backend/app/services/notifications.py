@@ -1,71 +1,111 @@
-"""Builds per-user notifications from live state: new anomaly alerts,
-degraded integrations, document expiry reminders (lead times from
-settings) and issues nearing their due date. Deduplicated by key, so it's
-safe to run on every scheduler tick."""
+"""Scheduled notification checks over live state, run every scheduler tick.
+Each notice goes only to the people SRS §13 names, through notify.dispatch
+(which applies the channel rules and the admin on/off switches). Stable
+dedupe keys make every tick idempotent.
+
+AI alerts are not raised here: the AI module dispatches ai_alert_generated
+when it creates an alert."""
 
 from datetime import date
 
 from sqlmodel import Session, select
 
-from app.models.admin import Notification
-from app.models.alert import AnomalyAlert
 from app.models.document import ComplianceDocument, RequiredDocumentType
-from app.models.enums import IntegrationStatus, IssueStatus
+from app.models.enums import IssueStatus, UserRole
 from app.models.integration import Integration
 from app.models.issue import Issue
 from app.models.participant import Participant
-from app.models.user import User
+from app.services import notify
 from app.services.settings_store import get_setting
+
+# Integration statuses that mean "the integration fails" (§13). Both the
+# original names and the §9 names are recognised.
+_FAILED = {"Disconnected", "Failed"}
+_DEGRADED = {"Degraded", "Warning"}
+
+
+def _status_value(status) -> str:
+    return getattr(status, "value", status) or ""
+
+
+def _dispatch_each(session: Session, event: str, recipients: list, title: str, message: str, **kwargs) -> int:
+    """One dispatch per recipient. Same result as a single multi-recipient
+    call, but each delivery commits on its own, so SQLite (dev/tests) never
+    sees two writers at once."""
+    return sum(notify.dispatch(session, event, [r], title, message, **kwargs) for r in recipients)
+
+
+def _integrations(session: Session, participants: dict) -> int:
+    technical = notify.users_with_roles(session, UserRole.technical)
+    sent = 0
+    for i in session.exec(select(Integration)).all():
+        status = _status_value(i.status)
+        if status not in _FAILED | _DEGRADED:
+            continue
+        p = participants.get(i.participant_id)
+        name = p.name if p else f"Participant #{i.participant_id}"
+        updated = getattr(i, "updated_at", None)
+        sent += _dispatch_each(
+            session, "integration_failed", technical,
+            f"Integration {status.lower()}: {name}",
+            f"{name}'s integration is {status}. {getattr(i, 'note', '') or 'No note recorded.'}",
+            link="/integrations",
+            severity="alert" if status in _FAILED else "warning",
+            dedupe_key=f"integration_failed:{i.id}:{status}:{updated:%Y%m%d}" if updated else f"integration_failed:{i.id}:{status}",
+        )
+    return sent
+
+
+def _document_expiry(session: Session, participants: dict) -> int:
+    """Compliance documents nearing expiry, at each configured lead time
+    (REQ-SET-004), and once more when expired."""
+    compliance = notify.users_with_roles(session, UserRole.compliance)
+    leads = sorted(int(d) for d in get_setting(session, "reminders")["days_before"])
+    types = {t.id: t.name for t in session.exec(select(RequiredDocumentType)).all()}
+    today = date.today()
+    sent = 0
+    for d in session.exec(select(ComplianceDocument).where(ComplianceDocument.expiry_date != None)).all():  # noqa: E711
+        left = (d.expiry_date - today).days
+        p = participants.get(d.participant_id)
+        what = f"{p.name if p else 'A participant'}: {types.get(d.doc_type_id, 'document')}"
+        if left < 0:
+            sent += _dispatch_each(session, "document_expiry_reminder", compliance, "Compliance document expired",
+                                    f"{what} expired on {d.expiry_date}.", link="/compliance", severity="alert",
+                                    dedupe_key=f"document_expiry:{d.id}:{d.expiry_date}:expired")
+            continue
+        # The tightest lead time already reached, so 14 → 7 → 1 each fire once.
+        lead = next((n for n in leads if left <= n), None)
+        if lead is not None:
+            sent += _dispatch_each(session, "document_expiry_reminder", compliance,
+                                    f"Document expires in {left} day{'s' if left != 1 else ''}",
+                                    f"{what} expires on {d.expiry_date}.", link="/compliance", severity="warning",
+                                    dedupe_key=f"document_expiry:{d.id}:{d.expiry_date}:lead{lead}")
+    return sent
+
+
+def _issues(session: Session) -> int:
+    """Interim: issue due / overdue to its assignee, else to Compliance users.
+    The compliance module replaces this with incident remediation rules."""
+    today = date.today()
+    sent = 0
+    open_states = [IssueStatus.open, IssueStatus.in_progress]
+    for iss in session.exec(select(Issue).where(Issue.status.in_(open_states), Issue.due_date != None)).all():  # noqa: E711
+        days = (iss.due_date - today).days
+        if days > 1:
+            continue
+        assignee = notify.user_by_name_or_email(session, iss.assignee)
+        recipients = [assignee] if assignee and assignee.is_active else notify.users_with_roles(session, UserRole.compliance)
+        overdue = days < 0
+        sent += _dispatch_each(
+            session, "incident_remediation_overdue" if overdue else "compliance_deadline_reminder", recipients,
+            "Issue overdue" if overdue else "Issue due soon",
+            f"{iss.description} (due {iss.due_date}).",
+            link="/compliance", severity="alert" if overdue else "warning",
+            dedupe_key=f"issue:{iss.id}:{iss.due_date}:{'overdue' if overdue else 'due'}",
+        )
+    return sent
 
 
 def generate(session: Session) -> int:
     participants = {p.id: p for p in session.exec(select(Participant)).all()}
-    notices: list[tuple[str, str, str, str, str, int | None]] = []  # key, title, msg, severity, link, participant
-
-    for a in session.exec(select(AnomalyAlert).where(AnomalyAlert.status != "Closed")).all():
-        p = participants.get(a.participant_id)
-        notices.append((f"alert:{a.id}:{a.status}", f"Anomaly {a.status.lower()}: {a.severity}",
-                        f"{p.name if p else ''} — {a.indicator}", "alert" if a.severity in ("CRITICAL", "HIGH") else "warning", "/ai", a.participant_id))
-
-    for i in session.exec(select(Integration)).all():
-        if i.status in (IntegrationStatus.degraded, IntegrationStatus.disconnected):
-            p = participants.get(i.participant_id)
-            notices.append((f"integration:{i.id}:{i.status.value}:{i.updated_at:%Y%m%d}", f"Integration {i.status.value.lower()}",
-                            f"{p.name if p else ''}: {i.note or 'no note'}", "alert" if i.status == IntegrationStatus.disconnected else "warning",
-                            "/integrations", i.participant_id))
-
-    lead_days = sorted(get_setting(session, "reminders")["days_before"], reverse=True)
-    types = {t.id: t.name for t in session.exec(select(RequiredDocumentType)).all()}
-    today = date.today()
-    for d in session.exec(select(ComplianceDocument)).all():
-        if not d.expiry_date:
-            continue
-        left = (d.expiry_date - today).days
-        p = participants.get(d.participant_id)
-        if left < 0:
-            notices.append((f"doc:{d.id}:expired", "Compliance document expired",
-                            f"{p.name if p else ''}: {types.get(d.doc_type_id)} expired {d.expiry_date}", "alert", "/compliance", d.participant_id))
-        else:
-            for lead in lead_days:
-                if left <= lead:
-                    notices.append((f"doc:{d.id}:lead{lead}", f"Document expires in {left} day(s)",
-                                    f"{p.name if p else ''}: {types.get(d.doc_type_id)} expires {d.expiry_date}", "warning", "/compliance", d.participant_id))
-                    break
-
-    for iss in session.exec(select(Issue).where(Issue.status.in_([IssueStatus.open, IssueStatus.in_progress]))).all():
-        if iss.due_date and (iss.due_date - today).days <= 1:
-            overdue = iss.due_date < today
-            notices.append((f"issue:{iss.id}:{'overdue' if overdue else 'due'}", "Issue overdue" if overdue else "Issue due soon",
-                            iss.description, "alert" if overdue else "warning", "/compliance", iss.participant_id))
-
-    users = session.exec(select(User).where(User.is_active == True)).all()  # noqa: E712
-    existing = {(n.user_id, n.dedupe_key) for n in session.exec(select(Notification)).all()}
-    created = 0
-    for user in users:
-        for key, title, msg, sev, link, pid in notices:
-            if (user.id, key) in existing:
-                continue
-            session.add(Notification(user_id=user.id, dedupe_key=key, title=title, message=msg, severity=sev, link=link))
-            created += 1
-    session.commit()
-    return created
+    return _integrations(session, participants) + _document_expiry(session, participants) + _issues(session)

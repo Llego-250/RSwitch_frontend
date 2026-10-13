@@ -14,6 +14,15 @@ import type {
   AnomalyAlert,
   RiskRow,
   SystemSettings,
+  ApiKeyRow,
+  AuditEvent,
+  EmailLogRow,
+  NotificationEventSetting,
+  NotificationRow,
+  OrganizationSettings,
+  PasswordPolicy,
+  TrustedDeviceRow,
+  UserRow,
 } from "./types";
 
 // One hook per backend read endpoint, so pages share cache keys.
@@ -67,3 +76,77 @@ export const useAlerts = () =>
 
 export const useRiskRanking = () =>
   useQuery({ queryKey: ["risk-ranking"], queryFn: () => api.get<RiskRow[]>("/alerts/risk-ranking") });
+
+// ---- auth, users, settings, notifications ----------------------------------
+
+/** Branding + formats, readable by every signed-in user. */
+export const useOrganization = (enabled = true) =>
+  useQuery({
+    queryKey: ["settings", "organization"],
+    queryFn: () => api.get<OrganizationSettings>("/settings/organization"),
+    enabled,
+    staleTime: 5 * 60_000,
+  });
+
+/** Public: the §11.1 rules as currently configured. */
+export const usePasswordPolicy = () =>
+  useQuery({ queryKey: ["password-policy"], queryFn: () => api.get<PasswordPolicy>("/auth/password-policy") });
+
+export const useUsers = (enabled = true) =>
+  useQuery({ queryKey: ["users"], queryFn: () => api.get<UserRow[]>("/users"), enabled });
+
+export interface AuditFilters {
+  q?: string;
+  action?: string;
+  status?: string;
+  date_from?: string;
+  date_to?: string;
+  limit?: number;
+}
+
+export const auditQueryString = (f: AuditFilters) => {
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(f)) if (v !== undefined && v !== "") params.set(k, String(v));
+  return params.toString();
+};
+
+export const useAuditLog = (filters: AuditFilters) =>
+  useQuery({
+    queryKey: ["audit", filters],
+    queryFn: () => api.get<AuditEvent[]>(`/audit-log?${auditQueryString({ limit: 500, ...filters })}`),
+  });
+
+export const useAuditActions = () =>
+  useQuery({ queryKey: ["audit", "actions"], queryFn: () => api.get<string[]>("/audit-log/actions") });
+
+export const useNotificationEvents = (enabled = true) =>
+  useQuery({
+    queryKey: ["settings", "notification-events"],
+    queryFn: () => api.get<NotificationEventSetting[]>("/settings/notification-events"),
+    enabled,
+  });
+
+export const useEmailLog = (enabled = true) =>
+  useQuery({ queryKey: ["settings", "email-log"], queryFn: () => api.get<EmailLogRow[]>("/settings/email-log"), enabled });
+
+export const useApiKeys = (enabled = true) =>
+  useQuery({ queryKey: ["settings", "api-keys"], queryFn: () => api.get<ApiKeyRow[]>("/settings/api-keys"), enabled });
+
+export interface NotificationFilters {
+  status?: "all" | "read" | "unread";
+  severity?: string;
+  q?: string;
+}
+
+export const useNotificationHistory = (filters: NotificationFilters) =>
+  useQuery({
+    queryKey: ["notifications", "history", filters],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      for (const [k, v] of Object.entries(filters)) if (v) params.set(k, v);
+      return api.get<NotificationRow[]>(`/notifications/history?${params}`);
+    },
+  });
+
+export const useTrustedDevices = () =>
+  useQuery({ queryKey: ["trusted-devices"], queryFn: () => api.get<TrustedDeviceRow[]>("/auth/trusted-devices") });

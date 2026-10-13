@@ -11,12 +11,14 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UsersRouteImport } from './routes/users'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as PipelinesRouteImport } from './routes/pipelines'
 import { Route as Participant360RouteImport } from './routes/participant-360'
 import { Route as ParticipantRouteImport } from './routes/participant'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as MappingRouteImport } from './routes/mapping'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IntegrationsRouteImport } from './routes/integrations'
@@ -25,7 +27,9 @@ import { Route as GovernanceRouteImport } from './routes/governance'
 import { Route as FraudRouteImport } from './routes/fraud'
 import { Route as CreditRiskRouteImport } from './routes/credit-risk'
 import { Route as ComplianceRouteImport } from './routes/compliance'
+import { Route as AuditRouteImport } from './routes/audit'
 import { Route as AiRouteImport } from './routes/ai'
+import { Route as AcceptInviteRouteImport } from './routes/accept-invite'
 import { Route as IndexRouteImport } from './routes/index'
 
 const UsersRoute = UsersRouteImport.update({
@@ -36,6 +40,11 @@ const UsersRoute = UsersRouteImport.update({
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReportsRoute = ReportsRouteImport.update({
@@ -66,6 +75,11 @@ const ParticipantRoute = ParticipantRouteImport.update({
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotificationsRoute = NotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MappingRoute = MappingRouteImport.update({
@@ -108,9 +122,19 @@ const ComplianceRoute = ComplianceRouteImport.update({
   path: '/compliance',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuditRoute = AuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AiRoute = AiRouteImport.update({
   id: '/ai',
   path: '/ai',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AcceptInviteRoute = AcceptInviteRouteImport.update({
+  id: '/accept-invite',
+  path: '/accept-invite',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -121,7 +145,9 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/accept-invite': typeof AcceptInviteRoute
   '/ai': typeof AiRoute
+  '/audit': typeof AuditRoute
   '/compliance': typeof ComplianceRoute
   '/credit-risk': typeof CreditRiskRoute
   '/fraud': typeof FraudRoute
@@ -130,18 +156,22 @@ export interface FileRoutesByFullPath {
   '/integrations': typeof IntegrationsRoute
   '/login': typeof LoginRoute
   '/mapping': typeof MappingRoute
+  '/notifications': typeof NotificationsRoute
   '/onboarding': typeof OnboardingRoute
   '/participant': typeof ParticipantRoute
   '/participant-360': typeof Participant360Route
   '/pipelines': typeof PipelinesRoute
   '/profile': typeof ProfileRoute
   '/reports': typeof ReportsRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/users': typeof UsersRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/accept-invite': typeof AcceptInviteRoute
   '/ai': typeof AiRoute
+  '/audit': typeof AuditRoute
   '/compliance': typeof ComplianceRoute
   '/credit-risk': typeof CreditRiskRoute
   '/fraud': typeof FraudRoute
@@ -150,19 +180,23 @@ export interface FileRoutesByTo {
   '/integrations': typeof IntegrationsRoute
   '/login': typeof LoginRoute
   '/mapping': typeof MappingRoute
+  '/notifications': typeof NotificationsRoute
   '/onboarding': typeof OnboardingRoute
   '/participant': typeof ParticipantRoute
   '/participant-360': typeof Participant360Route
   '/pipelines': typeof PipelinesRoute
   '/profile': typeof ProfileRoute
   '/reports': typeof ReportsRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/users': typeof UsersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/accept-invite': typeof AcceptInviteRoute
   '/ai': typeof AiRoute
+  '/audit': typeof AuditRoute
   '/compliance': typeof ComplianceRoute
   '/credit-risk': typeof CreditRiskRoute
   '/fraud': typeof FraudRoute
@@ -171,12 +205,14 @@ export interface FileRoutesById {
   '/integrations': typeof IntegrationsRoute
   '/login': typeof LoginRoute
   '/mapping': typeof MappingRoute
+  '/notifications': typeof NotificationsRoute
   '/onboarding': typeof OnboardingRoute
   '/participant': typeof ParticipantRoute
   '/participant-360': typeof Participant360Route
   '/pipelines': typeof PipelinesRoute
   '/profile': typeof ProfileRoute
   '/reports': typeof ReportsRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/users': typeof UsersRoute
 }
@@ -184,7 +220,9 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/accept-invite'
     | '/ai'
+    | '/audit'
     | '/compliance'
     | '/credit-risk'
     | '/fraud'
@@ -193,18 +231,22 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/login'
     | '/mapping'
+    | '/notifications'
     | '/onboarding'
     | '/participant'
     | '/participant-360'
     | '/pipelines'
     | '/profile'
     | '/reports'
+    | '/reset-password'
     | '/settings'
     | '/users'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/accept-invite'
     | '/ai'
+    | '/audit'
     | '/compliance'
     | '/credit-risk'
     | '/fraud'
@@ -213,18 +255,22 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/login'
     | '/mapping'
+    | '/notifications'
     | '/onboarding'
     | '/participant'
     | '/participant-360'
     | '/pipelines'
     | '/profile'
     | '/reports'
+    | '/reset-password'
     | '/settings'
     | '/users'
   id:
     | '__root__'
     | '/'
+    | '/accept-invite'
     | '/ai'
+    | '/audit'
     | '/compliance'
     | '/credit-risk'
     | '/fraud'
@@ -233,19 +279,23 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/login'
     | '/mapping'
+    | '/notifications'
     | '/onboarding'
     | '/participant'
     | '/participant-360'
     | '/pipelines'
     | '/profile'
     | '/reports'
+    | '/reset-password'
     | '/settings'
     | '/users'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AcceptInviteRoute: typeof AcceptInviteRoute
   AiRoute: typeof AiRoute
+  AuditRoute: typeof AuditRoute
   ComplianceRoute: typeof ComplianceRoute
   CreditRiskRoute: typeof CreditRiskRoute
   FraudRoute: typeof FraudRoute
@@ -254,12 +304,14 @@ export interface RootRouteChildren {
   IntegrationsRoute: typeof IntegrationsRoute
   LoginRoute: typeof LoginRoute
   MappingRoute: typeof MappingRoute
+  NotificationsRoute: typeof NotificationsRoute
   OnboardingRoute: typeof OnboardingRoute
   ParticipantRoute: typeof ParticipantRoute
   Participant360Route: typeof Participant360Route
   PipelinesRoute: typeof PipelinesRoute
   ProfileRoute: typeof ProfileRoute
   ReportsRoute: typeof ReportsRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   SettingsRoute: typeof SettingsRoute
   UsersRoute: typeof UsersRoute
 }
@@ -278,6 +330,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reports': {
@@ -320,6 +379,13 @@ declare module '@tanstack/react-router' {
       path: '/onboarding'
       fullPath: '/onboarding'
       preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notifications': {
+      id: '/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof NotificationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/mapping': {
@@ -378,11 +444,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ComplianceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/audit': {
+      id: '/audit'
+      path: '/audit'
+      fullPath: '/audit'
+      preLoaderRoute: typeof AuditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/ai': {
       id: '/ai'
       path: '/ai'
       fullPath: '/ai'
       preLoaderRoute: typeof AiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/accept-invite': {
+      id: '/accept-invite'
+      path: '/accept-invite'
+      fullPath: '/accept-invite'
+      preLoaderRoute: typeof AcceptInviteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -397,7 +477,9 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AcceptInviteRoute: AcceptInviteRoute,
   AiRoute: AiRoute,
+  AuditRoute: AuditRoute,
   ComplianceRoute: ComplianceRoute,
   CreditRiskRoute: CreditRiskRoute,
   FraudRoute: FraudRoute,
@@ -406,12 +488,14 @@ const rootRouteChildren: RootRouteChildren = {
   IntegrationsRoute: IntegrationsRoute,
   LoginRoute: LoginRoute,
   MappingRoute: MappingRoute,
+  NotificationsRoute: NotificationsRoute,
   OnboardingRoute: OnboardingRoute,
   ParticipantRoute: ParticipantRoute,
   Participant360Route: Participant360Route,
   PipelinesRoute: PipelinesRoute,
   ProfileRoute: ProfileRoute,
   ReportsRoute: ReportsRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   SettingsRoute: SettingsRoute,
   UsersRoute: UsersRoute,
 }

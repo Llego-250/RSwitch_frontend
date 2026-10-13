@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select
 
 from app.config import settings
+from app.core.errors import register_error_handlers
+from app.core.ratelimit import RateLimitMiddleware
 from app.core.security import hash_password
 from app.db import engine, init_db
 from app.models.enums import UserRole
@@ -10,12 +12,15 @@ from app.models.user import User
 from app.routers import (
     alerts,
     auth,
+    compliance,
     documents,
     governance,
+    inclusion,
     integrations,
     issues,
     notifications,
     participants,
+    pipelines,
     reports,
     settings as settings_router,
     submissions,
@@ -26,7 +31,10 @@ from app.services.scheduler import start_scheduler
 from app.storage import init_bucket
 
 app = FastAPI(title="RDIP API")
+# SRS §20: structured validation errors, no internals in 500s.
+register_error_handlers(app)
 
+app.add_middleware(RateLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[origin.strip() for origin in settings.cors_origins.split(",")],
@@ -38,7 +46,8 @@ app.add_middleware(
 
 for router in (auth.router, participants.router, templates.router, submissions.router,
                integrations.router, documents.router, issues.router, reports.router, users.router,
-               settings_router.router, governance.router, alerts.router, notifications.router):
+               settings_router.router, governance.router, alerts.router, notifications.router,
+               compliance.router, pipelines.router, inclusion.router):
     app.include_router(router)
 
 
@@ -50,7 +59,7 @@ def _seed_admin() -> None:
             User(
                 email="admin@rswitch.rw",
                 full_name="RDIP Admin",
-                hashed_password=hash_password("changeme123"),
+                hashed_password=hash_password("Rdip-Demo-2026!"),
                 role=UserRole.technical,
             )
         )

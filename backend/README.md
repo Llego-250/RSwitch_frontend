@@ -35,8 +35,9 @@ uvicorn app.main:app --reload
 
 Without Docker/MinIO, set `STORAGE_BACKEND=local` in `.env` and uploaded
 files are stored on disk under `LOCAL_STORAGE_DIR`. Seed demo data with
-`python -m app.seed_demo` (logins: `admin@`, `compliance@`, `board@rswitch.rw`,
-and participant logins `ops@<code>.rw`, e.g. `ops@kvu.rw` — all `changeme123`).
+`python -m app.seed_demo` (staff logins: `admin@`, `compliance@`,
+`compliance.lead@`, `business@`, `business.lead@rswitch.rw` — all
+`Rdip-Demo-2026!`). Participant institutions never log in.
 
 The web app (repo root, `npm run dev` on :5173) talks to this API at
 `VITE_API_URL` (default `http://localhost:8000`); keep its origin in
@@ -45,7 +46,7 @@ The web app (repo root, `npm run dev` on :5173) talks to this API at
 - API docs (Swagger UI): http://localhost:8000/docs
 - Health check: http://localhost:8000/health
 
-A default admin user (`admin@rswitch.rw` / `changeme123`) is seeded on first
+A default admin user (`admin@rswitch.rw` / `Rdip-Demo-2026!`) is seeded on first
 startup — change the password immediately in anything beyond local dev.
 
 ## Data model

@@ -24,27 +24,33 @@ from app.models.enums import (
     SubmissionResult,
     UserRole,
 )
-from app.models.integration import Integration
+from app.models.integration import Integration, IntegrationMode
 from app.models.issue import Issue
 from app.models.participant import Participant
 from app.models.submission import Submission
 from app.models.template import IngestionTemplate, TemplateColumn
 from app.models.user import User
-from app.services.ingestion import breakdown_rows, read_rows, summarize_rows, validate_rows
+from app.services.ingestion import aggregate, read_rows, template_columns, validate_rows
+from app.services.mapping import resolve_plan
 from app.storage import init_bucket, put_file
 from fpdf import FPDF
 from app.models.admin import ParticipantNote
-from app.models.governance import ActionItem, GovDocument, Meeting, WorkingGroup
 from app.services import anomaly
+from app.seeds import run_all as run_module_seeds
 
 random.seed(7)
 
 PARTICIPANTS = [
-    dict(name="Kivu Commercial Bank", code="KVU", type="Commercial bank", freq=30),
-    dict(name="Akagera Savings & Credit", code="AKS", type="Microfinance", freq=7),
-    dict(name="MobiPesa Rwanda", code="MOB", type="Mobile money", freq=1),
-    dict(name="Nyanza Microfinance", code="NYM", type="Microfinance", freq=30),
-    dict(name="Rubavu Union SACCO", code="RUS", type="SACCO", freq=30),
+    dict(name="Kivu Commercial Bank", code="KVU", type="Commercial Bank", freq=30, region="Kigali City",
+         contact=("Aline Uwase", "aline.uwase@kivubank.rw")),
+    dict(name="Akagera Savings & Credit", code="AKS", type="MFI", freq=7, region="Eastern Province",
+         contact=("Jean Bosco Habimana", "ops@akagera-sc.rw")),
+    dict(name="MobiPesa Rwanda", code="MOB", type="E-money Issuer", freq=1, region="Kigali City",
+         contact=("Diane Mukamana", "integrations@mobipesa.rw")),
+    dict(name="Nyanza Microfinance", code="NYM", type="MFI", freq=30, region="Southern Province",
+         contact=("Eric Niyonzima", "compliance@nyanzamfi.rw")),
+    dict(name="Rubavu Union SACCO", code="RUS", type="SACCO", freq=30, region="Western Province",
+         contact=("Claudine Ingabire", "manager@rubavusacco.rw")),
 ]
 
 DOC_TYPES = [
@@ -61,15 +67,20 @@ def month_floor(dt: datetime) -> datetime:
     return dt.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
 
-def get_or_create_user(session: Session, email: str, full_name: str, role: UserRole) -> User:
+# Meets the SRS §11.1 password policy; change it after first login.
+DEMO_PASSWORD = "Rdip-Demo-2026!"
+
+
+def get_or_create_user(session: Session, email: str, full_name: str, role: UserRole, is_senior: bool = False) -> User:
     user = session.exec(select(User).where(User.email == email)).first()
     if user:
         return user
     user = User(
         email=email,
         full_name=full_name,
-        hashed_password=hash_password("changeme123"),
+        hashed_password=hash_password(DEMO_PASSWORD),
         role=role,
+        is_senior=is_senior,
     )
     session.add(user)
     session.commit()
@@ -86,6 +97,118 @@ def generate_csv(row_count: int, avg_amount: float) -> bytes:
     return "\n".join(lines).encode()
 
 
+# Expected submission schedule of each participant's manual data source:
+# monthly by the 10th; Akagera reports weekly.
+EXPECTED_SCHEDULE = {"KVU": "0 9 10 * *", "AKS": "0 9 * * 1", "MOB": "0 9 10 * *", "NYM": "0 9 10 * *", "RUS": "0 9 10 * *"}
+
+
+def _record_upload(session: Session, participant: Participant, integration: Integration, data: bytes, uploaded_at: datetime,
+                   uploaded_by: str, *, approved: bool, replaces: "Submission | None" = None) -> Submission:
+    """One monthly return through the real validation code; a file that
+    passes has its aggregates loaded exactly as the pipeline's Load step
+    does (seeds/pipelines.py adds the job history)."""
+    columns = template_columns(session, integration.template_id)
+    table = read_rows("demo.csv", data)
+    errors, warnings = validate_rows(table, columns)
+    passed = not errors
+    transactions, totals, breakdowns = 0, {}, {}
+    if passed:
+        plan = resolve_plan(session, None, columns)
+        canonical, _, _ = plan.apply(table.rows, [c.name for c in columns])
+        transactions, totals, breakdowns = aggregate(canonical, plan.numeric, plan.categorical, plan.weight_field)
+    suffix = f"-r{replaces.id}" if replaces else ""
+    storage_key = f"submissions/{participant.id}/demo-{participant.code}-{uploaded_at:%Y%m}{suffix}.csv"
+    put_file(storage_key, data, "text/csv")
+    status = ("Approved" if approved else "Submitted") if passed else "Validation Failed"
+    submission = Submission(
+        participant_id=participant.id,
+        integration_id=integration.id,
+        template_id=integration.template_id,
+        period=uploaded_at.strftime("%B %Y"),
+        filename=f"{participant.code}_{uploaded_at:%Y%m}.csv",
+        storage_key=storage_key,
+        uploaded_at=uploaded_at,
+        uploaded_by=uploaded_by,
+        result=SubmissionResult.passed if passed else SubmissionResult.failed,
+        status=status,
+        replaces_submission_id=replaces.id if replaces else None,
+        records_received=len(table.rows),
+        error_count=len(errors),
+        errors=errors,
+        warning_count=len(warnings),
+        warnings=warnings,
+        row_count=transactions,
+        numeric_totals=totals,
+        breakdowns=breakdowns,
+        loaded_at=uploaded_at + timedelta(minutes=2) if passed else None,
+        # Older periods have been reviewed; the current month awaits review.
+        review_status="Approved" if approved and passed else "Pending Review",
+        reviewed_by="Compliance Officer" if approved and passed else "",
+        reviewed_at=uploaded_at + timedelta(days=3) if approved and passed else None,
+    )
+    session.add(submission)
+    session.commit()
+    session.refresh(submission)
+    return submission
+
+
+def seed_transfers(session: Session, participant: Participant, admin: User) -> None:
+    """Up to six monthly returns per participant. About one in eight fails
+    validation (a corrupted amount) and is corrected by a re-upload two days
+    later (§6.4); Nyanza's current return failed and still awaits its
+    corrected file."""
+    integration = session.exec(
+        select(Integration).where(Integration.participant_id == participant.id,
+                                  Integration.integration_mode == IntegrationMode.manual.value).order_by(Integration.id)
+    ).first()
+    if integration is None or session.exec(select(Submission.id).where(Submission.participant_id == participant.id)).first():
+        return
+    base_rows = {"KVU": 220, "AKS": 60, "MOB": 900, "NYM": 45, "RUS": 70}[participant.code]
+    avg_amount = {"KVU": 180000, "AKS": 25000, "MOB": 4000, "NYM": 18000, "RUS": 30000}[participant.code]
+    now = datetime.utcnow()
+    for offset in range(MONTHS_BACK - 1, -1, -1):
+        month_start = month_floor(now) - relativedelta(months=offset)
+        if month_start < month_floor(participant.created_at):
+            continue  # not onboarded yet this month
+        uploaded_at = min(month_start + timedelta(days=random.randint(1, 9), hours=random.randint(8, 16)),
+                          now - timedelta(hours=6))
+        fails = random.random() < 0.12 or (participant.code == "NYM" and offset == 0)
+        data = generate_csv(int(base_rows * random.uniform(0.7, 1.3)), avg_amount)
+        if fails:
+            # corrupt one row's amount to trigger a real validation failure
+            lines = data.decode().splitlines()
+            lines[len(lines) // 2] = lines[len(lines) // 2].rsplit(",", 2)[0] + ",not-a-number,POS"
+            data = "\n".join(lines).encode()
+        attempt = _record_upload(session, participant, integration, data, uploaded_at, admin.full_name, approved=offset > 0)
+        corrected_at = uploaded_at + timedelta(days=2)
+        if fails and participant.code != "NYM" and corrected_at < now:
+            clean = generate_csv(int(base_rows * random.uniform(0.7, 1.3)), avg_amount)
+            _record_upload(session, participant, integration, clean, corrected_at, "Compliance Officer",
+                           approved=offset > 0, replaces=attempt)
+
+    # Where the history leaves the data source; seeds/pipelines.py and the
+    # overdue check refine it.
+    history = session.exec(
+        select(Submission).where(Submission.integration_id == integration.id).order_by(Submission.uploaded_at)
+    ).all()
+    passed = [s for s in history if s.result == SubmissionResult.passed]
+    if history:
+        last = history[-1]
+        integration.last_sync_at = last.uploaded_at
+        integration.last_sync_records = last.records_received
+        integration.last_sync_errors = last.error_count
+        integration.last_submission_at = passed[-1].uploaded_at if passed else None
+        ok = last.result == SubmissionResult.passed
+        integration.status = IntegrationStatus.healthy if ok else IntegrationStatus.failed
+        integration.note = (f"SUB-{last.id} ({last.period}) loaded" if ok else
+                            f"SUB-{last.id} ({last.period}) failed validation with {last.error_count} error(s)")
+        integration.source = IntegrationSource.pipeline
+        integration.updated_at = last.uploaded_at
+        integration.updated_by = "System"
+        session.add(integration)
+        session.commit()
+
+
 def demo_pdf(title: str) -> bytes:
     pdf = FPDF()
     pdf.add_page()
@@ -96,66 +219,16 @@ def demo_pdf(title: str) -> bytes:
     return bytes(pdf.output())
 
 
-def seed_governance(session: Session) -> None:
-    if session.exec(select(WorkingGroup)).first():
-        return
-    session.add_all(
-        [
-            WorkingGroup(name="Board of Directors", chair="RSwitch Chairman", members="9 RSwitch & board members"),
-            WorkingGroup(name="Steering Committee", chair="Head of Compliance", members="12 participant executives"),
-            WorkingGroup(name="Technical Working Group", chair="Chief Technology Officer", members="18 IT leads & architects"),
-            WorkingGroup(name="Operations Working Group", chair="Head of Operations", members="15 settlement officers"),
-        ]
-    )
-    now = datetime.utcnow()
-    docs = []
-    for title, category, committee, version, days_ago in [
-        ("National Switch Governance Charter", "Policy", "Board", "v2.0", 100),
-        ("Steering Committee Minutes - Q3", "Minutes", "Steering Committee", "v1.0", 20),
-        ("API Interoperability Technical Standard", "Working Paper", "Technical Working Group", "v3.1", 45),
-        ("Resolution on Mobile Money Settlement Window", "Decision", "Operations Working Group", "v1.2", 10),
-    ]:
-        key = f"governance/demo-{title.replace(' ', '_')}.pdf"
-        put_file(key, demo_pdf(title), "application/pdf")
-        doc = GovDocument(
-            title=title, category=category, committee=committee, version=version,
-            filename=f"{title.replace(' ', '_')}.pdf", storage_key=key,
-            uploaded_by="Compliance Officer", uploaded_at=now - timedelta(days=days_ago),
-        )
-        session.add(doc)
-        docs.append(doc)
-    session.commit()
-    session.add_all(
-        [
-            Meeting(title="Steering Committee Interoperability Review", committee="Steering Committee",
-                    scheduled_at=now - timedelta(days=21), attendees_count=11, decisions_count=3,
-                    minutes_document_id=docs[1].id, created_by="Compliance Officer"),
-            Meeting(title="Technical Working Group Sync", committee="Technical Working Group",
-                    scheduled_at=now + timedelta(days=5), attendees_count=14, created_by="Compliance Officer"),
-            Meeting(title="Board Quarterly Governance Session", committee="Board",
-                    scheduled_at=now + timedelta(days=18), attendees_count=9, created_by="Compliance Officer"),
-            ActionItem(description="Submit corrected schema mapping for MFI ingestion", owner="Nyanza Microfinance",
-                       committee="Technical Working Group", due_date=(now - timedelta(days=6)).date()),
-            ActionItem(description="Review settlement window resolution with participants", owner="RSwitch Compliance",
-                       committee="Steering Committee", due_date=(now + timedelta(days=9)).date()),
-            ActionItem(description="Update participant risk weights in Settings", owner="Risk Manager",
-                       committee="Operations Working Group", due_date=(now + timedelta(days=20)).date()),
-            ActionItem(description="Publish ISO 20022 message specs for SACCOs", owner="Data Architect",
-                       committee="Technical Working Group", due_date=(now - timedelta(days=15)).date(),
-                       completed=True, completed_at=now - timedelta(days=16)),
-        ]
-    )
-    session.commit()
-
-
 def main() -> None:
     init_db()
     init_bucket()
 
     with Session(engine) as session:
         admin = get_or_create_user(session, "admin@rswitch.rw", "RDIP Admin", UserRole.technical)
-        get_or_create_user(session, "board@rswitch.rw", "Board Viewer", UserRole.board)
+        get_or_create_user(session, "business@rswitch.rw", "Business Analyst", UserRole.business)
         get_or_create_user(session, "compliance@rswitch.rw", "Compliance Officer", UserRole.compliance)
+        get_or_create_user(session, "compliance.lead@rswitch.rw", "Head of Compliance", UserRole.compliance, is_senior=True)
+        get_or_create_user(session, "business.lead@rswitch.rw", "Head of Business", UserRole.business, is_senior=True)
 
         doc_type_ids = {}
         for dt in DOC_TYPES:
@@ -174,18 +247,22 @@ def main() -> None:
                 participants.append(existing)
                 continue
             onboarded_months_ago = {"KVU": 6, "AKS": 5, "MOB": 3, "NYM": 2, "RUS": 1}[spec["code"]]
+            joined = month_floor(datetime.utcnow()) - relativedelta(months=onboarded_months_ago) + timedelta(days=2)
             participant = Participant(
                 name=spec["name"],
+                short_name=spec["code"],
                 code=spec["code"],
                 type=spec["type"],
+                region=spec["region"],
+                registration_date=joined.date(),
+                primary_contact_name=spec["contact"][0],
+                primary_contact_email=spec["contact"][1],
                 expected_frequency_days=spec["freq"],
-                created_at=month_floor(datetime.utcnow()) - relativedelta(months=onboarded_months_ago) + timedelta(days=2),
+                created_at=joined,
             )
             session.add(participant)
             session.commit()
             session.refresh(participant)
-            session.add(Integration(participant_id=participant.id))
-            session.commit()
 
             template = IngestionTemplate(
                 participant_id=participant.id, name="Monthly transaction report", version=1, applies_to=spec["name"]
@@ -200,84 +277,26 @@ def main() -> None:
                 TemplateColumn(template_id=template.id, name="channel", type="string", required=False, position=3),
             ]
             session.add_all(columns)
+            # The participant's manual data source (§10.2): files sent to
+            # RSwitch offline and uploaded by staff, validated against the
+            # template, expected on the schedule below.
+            session.add(Integration(
+                participant_id=participant.id,
+                source_name="Monthly transaction report",
+                integration_mode=IntegrationMode.manual.value,
+                schedule_cron=EXPECTED_SCHEDULE[spec["code"]],
+                template_id=template.id,
+                note="Configured — awaiting the first transfer",
+                created_at=joined,
+                created_by=admin.full_name,
+                updated_by=admin.full_name,
+            ))
             session.commit()
 
             participants.append(participant)
 
         for participant in participants:
-            template = session.exec(
-                select(IngestionTemplate).where(IngestionTemplate.participant_id == participant.id)
-            ).first()
-            columns = session.exec(
-                select(TemplateColumn).where(TemplateColumn.template_id == template.id)
-            ).all()
-
-            base_rows = {"KVU": 220, "AKS": 60, "MOB": 900, "NYM": 45, "RUS": 70}[participant.code]
-            avg_amount = {"KVU": 180000, "AKS": 25000, "MOB": 4000, "NYM": 18000, "RUS": 30000}[participant.code]
-
-            last_passed_at = None
-            for offset in range(MONTHS_BACK - 1, -1, -1):
-                month_start = month_floor(datetime.utcnow()) - relativedelta(months=offset)
-                if month_start < month_floor(participant.created_at):
-                    continue  # not onboarded yet this month
-                uploaded_at = month_start + timedelta(days=random.randint(1, 20))
-                period_label = uploaded_at.strftime("%B %Y")
-
-                fails = random.random() < 0.12
-                row_count = int(base_rows * random.uniform(0.7, 1.3))
-                data = generate_csv(row_count, avg_amount)
-                if fails:
-                    # corrupt one row's amount to trigger a real validation failure
-                    lines = data.decode().splitlines()
-                    lines[len(lines) // 2] = lines[len(lines) // 2].rsplit(",", 2)[0] + ",not-a-number,POS"
-                    data = "\n".join(lines).encode()
-
-                rows = read_rows("demo.csv", data)
-                errors = validate_rows(rows, columns)
-                result = SubmissionResult.failed if errors else SubmissionResult.passed
-                row_count_actual, numeric_totals = summarize_rows(rows, columns) if not errors else (0, {})
-
-                storage_key = f"submissions/{participant.id}/demo-{participant.code}-{uploaded_at.strftime('%Y%m')}.csv"
-                put_file(storage_key, data, "text/csv")
-
-                submission = Submission(
-                    participant_id=participant.id,
-                    template_id=template.id,
-                    period=period_label,
-                    filename=f"{participant.code}_{uploaded_at.strftime('%Y%m')}.csv",
-                    storage_key=storage_key,
-                    uploaded_at=uploaded_at,
-                    uploaded_by=admin.full_name,
-                    result=result,
-                    error_count=len(errors),
-                    errors=errors[:5],
-                    row_count=row_count_actual,
-                    numeric_totals=numeric_totals,
-                    breakdowns=breakdown_rows(rows, columns) if not errors else {},
-                    # Older periods have been reviewed; the current month awaits review.
-                    review_status="Pending Review" if offset == 0 else "Approved",
-                    reviewed_by="" if offset == 0 else "Compliance Officer",
-                    reviewed_at=None if offset == 0 else uploaded_at + timedelta(days=3),
-                )
-                session.add(submission)
-                if result == SubmissionResult.passed:
-                    last_passed_at = uploaded_at
-            session.commit()
-
-            integration = session.exec(
-                select(Integration).where(Integration.participant_id == participant.id)
-            ).first()
-            integration.last_submission_at = last_passed_at
-            if participant.code == "NYM":
-                integration.status = IntegrationStatus.disconnected
-                integration.note = "Certificate expired on their side. Reconnection planned."
-                integration.source = IntegrationSource.schedule_check
-            elif participant.code == "AKS":
-                integration.status = IntegrationStatus.degraded
-                integration.note = "Two of four expected batches missing this cycle."
-                integration.source = IntegrationSource.schedule_check
-            session.add(integration)
-            session.commit()
+            seed_transfers(session, participant, admin)
 
             # Documents: vary status across participants for a believable roster
             doc_plan = {
@@ -331,11 +350,11 @@ def main() -> None:
             )
         session.commit()
 
-        seed_governance(session)
         if not session.exec(select(ParticipantNote)).first():
             session.add(ParticipantNote(participant_id=code_to_participant["KVU"].id, author="Compliance Officer",
                                         note="Annual audit signed off with no major discrepancies."))
             session.commit()
+        run_module_seeds(session)
         created = anomaly.detect(session)
         print(f"Anomaly scan raised {created} alert(s).")
 
