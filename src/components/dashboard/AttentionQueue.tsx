@@ -5,6 +5,7 @@
 // state, so it reappears if it changes.
 import { ArrowUpRight, Bell, X } from "lucide-react";
 import { SeverityPill } from "@/components/compliance/ui";
+import { useAuth } from "@/context/AuthContext";
 import {
   useOpenLink,
   useSessionState,
@@ -25,7 +26,8 @@ export function AttentionQueue({
   onSetting: (name: "period" | "scope", value: string | number) => void;
   busy?: boolean;
 }) {
-  const [dismissed, setDismissed] = useSessionState<string[]>("rdip_dash_dismissed", []);
+  const who = useAuth().user?.email ?? "anonymous";
+  const [dismissed, setDismissed] = useSessionState<string[]>(`rdip_dash_dismissed:${who}`, []);
   const open = useOpenLink();
   const data = widget.data;
   const hidden = new Set(dismissed);
