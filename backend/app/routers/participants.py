@@ -194,6 +194,38 @@ def participant_submissions(participant_id: int, session: Session = Depends(get_
     return [submission_out(session, s) for s in rows]
 
 
+@router.get("/{participant_id}/risk-score")
+def get_risk_score(
+    participant_id: int,
+    session: Session = Depends(get_session),
+    _: User = Depends(require_cap("participant360.view")),
+):
+    """REQ-P360-009..012: participant risk score with methodology.
+    Returns {status: 'insufficient_data', message: ...} when < 3 months history."""
+    from app.services import risk as risk_svc
+
+    result = risk_svc.participant_risk(session, participant_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Participant not found")
+    if result["status"] == "insufficient_data":
+        result["message"] = "Insufficient data — score pending."
+    return result
+
+
+@router.get("/{participant_id}/outstanding-actions")
+def get_outstanding_actions(
+    participant_id: int,
+    session: Session = Depends(get_session),
+    _: User = Depends(require_cap("participant360.view")),
+):
+    """REQ-P360-008: pending items assigned to RSwitch or the institution."""
+    from app.services import risk as risk_svc
+
+    if not session.get(Participant, participant_id):
+        raise HTTPException(status_code=404, detail="Participant not found")
+    return risk_svc.outstanding_actions(session, participant_id)
+
+
 @router.get("/{participant_id}/notes", response_model=list[ParticipantNote])
 def list_notes(participant_id: int, session: Session = Depends(get_session), _: User = Depends(require_staff)):
     return session.exec(
