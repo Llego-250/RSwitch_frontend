@@ -30,7 +30,12 @@ export function FilterBar({
     values: { value: string; label: string }[],
     apply: (v: string) => void,
   ) => (
-    <select aria-label={label} value={value ?? ""} onChange={(e) => apply(e.target.value)} className={ctl}>
+    <select
+      aria-label={label}
+      value={value ?? ""}
+      onChange={(e) => apply(e.target.value)}
+      className={ctl}
+    >
       <option value="">{label}: all</option>
       {values.map((v) => (
         <option key={v.value} value={v.value}>
