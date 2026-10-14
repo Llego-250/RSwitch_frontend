@@ -12,6 +12,7 @@ from app.models.user import User
 
 # Modules whose tables aren't re-exported by name still register on import.
 import app.models.pipeline  # noqa: E402,F401
+import app.models.risk  # noqa: E402,F401
 
 __all__ = [
     "ApiKey",
