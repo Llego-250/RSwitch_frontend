@@ -557,43 +557,52 @@ def engine_status(session: Session) -> dict:
 
 SEVERITY_POINTS = {"CRITICAL": 40, "HIGH": 25, "MEDIUM": 15, "LOW": 5}
 PRIORITY_WEIGHTS = {"risk_score": 0.6, "open_alerts": 0.4}
-RISK_FACTOR_LABELS = {
-    "integration": "integration health",
-    "compliance": "compliance documents",
-    "incidents": "open incidents",
-    "overdue": "overdue reporting",
-}
 
 
 def priority_list(session: Session) -> dict:
     """REQ-AI-005: participants ranked by composite risk signal strength —
-    the participant risk score (§11.5 weights) blended with the severity of
-    their open AI alerts. Every input is shown so the ranking is explainable."""
+    the participant risk score (services.risk, REQ-P360-009..012) blended
+    with the severity of their open AI alerts. A participant without 3
+    months of submission history has no risk score (REQ-P360-012): it is
+    labelled, not scored, and ranked on its alerts alone. Every input is
+    shown so the ranking is explainable."""
+    from app.services import risk
+
     cfg = config(session)
     ctx = build_context(session, cfg, cfg["baseline_method"])
     open_alerts = session.exec(select(AnomalyAlert).where(AnomalyAlert.status != CLOSED)).all()
-    participants = {p.id: p for p in session.exec(select(Participant)).all()}
     rows = []
-    for r in risk_scores(session):
+    for r in risk.latest_scores(session):
         pid = r["participant_id"]
         mine = sorted((a for a in open_alerts if a.participant_id == pid), key=lambda a: RANK.get(a.severity, 0), reverse=True)
         points = min(100, sum(SEVERITY_POINTS.get(a.severity, 0) for a in mine))
-        composite = round(PRIORITY_WEIGHTS["risk_score"] * r["score"] + PRIORITY_WEIGHTS["open_alerts"] * points, 1)
+        scored = r["composite"] is not None
+        if scored:
+            composite = PRIORITY_WEIGHTS["risk_score"] * r["composite"] + PRIORITY_WEIGHTS["open_alerts"] * points
+        else:
+            composite = PRIORITY_WEIGHTS["open_alerts"] * points
         signals = []
-        if r["top_factor"]:
-            signals.append(f"Risk score driven by {RISK_FACTOR_LABELS[r['top_factor']]} "
-                           f"({r['components'][r['top_factor']]:.0f}/100)")
+        if scored and r["top_factor"]:
+            top = next(c["indicators"][r["top_factor"]] for c in r["categories"].values() if r["top_factor"] in c["indicators"])
+            signals.append(f"Risk score {r['composite']:g} ({r['band']}) driven by {top['label'].lower()} "
+                           f"({top['score']:.0f}/100)")
+        elif not scored:
+            signals.append(f"Risk score: {risk.INSUFFICIENT_MESSAGE}")
         signals += [f"{a.severity} alert ALT-{a.id}: {a.indicator}" for a in mine[:3]]
         h = ctx.histories.get(pid)
         rows.append({
             "participant_id": pid,
             "participant_name": r["participant_name"],
             "participant_type": r["participant_type"],
-            "region": participants[pid].region if pid in participants else "",
-            "composite_score": composite,
+            "region": r["region"],
+            "composite_score": round(composite, 1),
             "signal_strength": "High" if composite >= 60 else "Medium" if composite >= 30 else "Low",
-            "risk_score": r["score"],
+            "risk_score": r["composite"],
+            "risk_status": r["status"],
+            "risk_message": r["message"],
+            "risk_band": r["band"],
             "risk_components": r["components"],
+            "risk_categories": {k: v["score"] for k, v in r["categories"].items()},
             "alert_points": points,
             "open_alerts": len(mine),
             "highest_severity": mine[0].severity if mine else None,
@@ -603,7 +612,7 @@ def priority_list(session: Session) -> dict:
             "insufficient_history_reason": h.suppressed_reason if h else "",
             "history_months": h.history_months if h else 0,
         })
-    rows.sort(key=lambda x: (x["composite_score"], x["risk_score"]), reverse=True)
+    rows.sort(key=lambda x: (x["composite_score"], x["risk_score"] or 0), reverse=True)
     for i, row in enumerate(rows, start=1):
         row["rank"] = i
     return {
@@ -611,17 +620,18 @@ def priority_list(session: Session) -> dict:
             f"Composite signal = {PRIORITY_WEIGHTS['risk_score']:.0%} × participant risk score + "
             f"{PRIORITY_WEIGHTS['open_alerts']:.0%} × open-alert points (CRITICAL {SEVERITY_POINTS['CRITICAL']}, "
             f"HIGH {SEVERITY_POINTS['HIGH']}, MEDIUM {SEVERITY_POINTS['MEDIUM']}, LOW {SEVERITY_POINTS['LOW']}; capped at 100). "
-            "The risk score weighs integration health, compliance documents, open incidents and overdue reporting "
-            "using the weights in Settings. Strength: High ≥ 60, Medium ≥ 30."
+            "The risk score is the Participant 360 risk assessment (compliance, operational and technical risk, "
+            "weighted per Settings, recalculated nightly); participants with less than 3 months of submission history "
+            "have none yet and are ranked on their alerts alone. Strength: High ≥ 60, Medium ≥ 30."
         ),
         "data_sources": [
-            "Participant risk score: integrations, compliance documents, incidents (issue register), submissions",
+            "Participant risk score (Participant 360): Compliance Register, incidents, data source status history, pipeline jobs, submissions",
             "Open AI alerts (this module)",
-            "Settings: risk_weights",
+            "Settings: risk methodology",
         ],
         "weights": PRIORITY_WEIGHTS,
         "severity_points": SEVERITY_POINTS,
-        "risk_weights": get_setting(session, "risk_weights"),
+        "risk_methodology": risk.config(session),
         "rows": rows,
     }
 
@@ -747,70 +757,3 @@ def _trend_sentences(operational: list[dict], compliance: list[dict]) -> list[st
         out.append(f"Reporting coverage was {cover[-1]['reporting_coverage_pct']}% in {cover[-1]['label']}"
                    + (f" (vs {cover[0]['reporting_coverage_pct']}% in {cover[0]['label']})." if len(cover) > 1 else "."))
     return out
-
-
-# ---- participant risk score (Participant 360 owns the formula) --------------------
-
-
-def risk_scores(session: Session) -> list[dict]:
-    """0–100 per participant (higher = riskier), weighted per settings."""
-    weights = get_setting(session, "risk_weights")
-    total_weight = sum(weights.values()) or 1
-    doc_types = session.exec(select(RequiredDocumentType)).all()
-    integrations = {i.participant_id: i for i in session.exec(select(Integration)).all()}
-    docs = session.exec(select(ComplianceDocument)).all()
-    issues = session.exec(select(Issue)).all()
-    subs = session.exec(select(Submission)).all()
-
-    integration_risk = {
-        IntegrationStatus.connected: 0,
-        IntegrationStatus.maintenance: 25,
-        IntegrationStatus.degraded: 60,
-        IntegrationStatus.disconnected: 100,
-    }
-    severity_points = {IssueSeverity.critical: 50, IssueSeverity.high: 30, IssueSeverity.medium: 15, IssueSeverity.low: 5}
-
-    rows = []
-    for p in session.exec(select(Participant)).all():
-        integ = integrations.get(p.id)
-        c_integration = integration_risk.get(integ.status, 0) if integ else 100
-
-        my_docs = {d.doc_type_id: d for d in docs if d.participant_id == p.id}
-        bad = 0.0
-        for t in doc_types:
-            d = my_docs.get(t.id)
-            st = "Missing" if d is None else document_status(d).value
-            bad += {"Missing": 1, "Expired": 1, "Expiring Soon": 0.4}.get(st, 0)
-        c_compliance = bad / len(doc_types) * 100 if doc_types else 0
-
-        open_issues = [i for i in issues if i.participant_id == p.id and i.status in UNRESOLVED_INCIDENT_STATUSES]
-        c_incidents = min(100, sum(severity_points[i.severity] for i in open_issues))
-
-        my_subs = [s for s in subs if s.participant_id == p.id]
-        if my_subs:
-            age = (datetime.utcnow() - max(s.uploaded_at for s in my_subs)).days
-            c_overdue = max(0.0, min(100.0, (age - p.expected_frequency_days) / p.expected_frequency_days * 100))
-        else:
-            c_overdue = 100.0
-
-        score = (
-            c_integration * weights["integration"]
-            + c_compliance * weights["compliance"]
-            + c_incidents * weights["incidents"]
-            + c_overdue * weights["overdue"]
-        ) / total_weight
-        components = {"integration": c_integration, "compliance": c_compliance, "incidents": c_incidents, "overdue": c_overdue}
-        top = max(components, key=components.get)
-        rows.append(
-            {
-                "participant_id": p.id,
-                "participant_name": p.name,
-                "participant_type": p.type,
-                "score": round(score, 1),
-                "components": {k: round(v, 1) for k, v in components.items()},
-                "top_factor": top if components[top] > 0 else None,
-                "history_months": round((datetime.utcnow() - p.created_at).days / 30, 1),
-            }
-        )
-    rows.sort(key=lambda r: r["score"], reverse=True)
-    return rows
