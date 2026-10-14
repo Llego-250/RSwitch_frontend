@@ -12,7 +12,7 @@ from sqlmodel import Session, select
 
 from app.core.permissions import has_cap
 from app.models.alert import AnomalyAlert
-from app.models.enums import IntegrationStatus, IssueSeverity, SubmissionResult, UNRESOLVED_INCIDENT_STATUSES
+from app.models.enums import IntegrationStatus, IssueSeverity, SubmissionResult
 from app.models.governance import ActionItem
 from app.models.integration import Integration
 from app.models.issue import Issue, RemediationAction
@@ -252,5 +252,3 @@ def profile(session: Session, participant: Participant, viewer: User) -> dict:
         "scope_notice": SCOPE_NOTICE,
     }
 
-
-__all__ = ["profile", "outstanding_actions", "incidents", "submission_summary", "expected_due", "UNRESOLVED_INCIDENT_STATUSES"]
