@@ -23,9 +23,8 @@ from app.core.errors import problem
 from app.core.permissions import has_cap
 from app.models.alert import AnomalyAlert
 from app.models.compliance import ComplianceRequirement
-from app.models.document import ComplianceDocument, RequiredDocumentType
-from app.models.enums import UNRESOLVED_INCIDENT_STATUSES, IntegrationStatus, IssueSeverity, SubmissionResult, UserRole
-from app.models.integration import Integration
+from app.models.document import ComplianceDocument
+from app.models.enums import UNRESOLVED_INCIDENT_STATUSES, SubmissionResult, UserRole
 from app.models.issue import Issue
 from app.models.participant import Participant
 from app.models.submission import Submission
