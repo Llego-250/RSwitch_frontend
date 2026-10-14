@@ -4,7 +4,7 @@
 // settings, which persist for the browser session (DASH-009/010).
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { api } from "./api";
 
 export interface DashboardFilters {
@@ -292,17 +292,27 @@ function readSession<T>(key: string, fallback: T): T {
 }
 
 /** useState backed by sessionStorage: survives navigation and reloads within
- * the browser session, gone when the session ends. */
+ * the browser session, gone when the session ends. Switching `key` (another
+ * user signs in) reads that key's own value; nothing is written until set. */
 export function useSessionState<T>(key: string, initial: T) {
-  const [value, setValue] = useState<T>(() => readSession(key, initial));
-  useEffect(() => {
-    try {
-      sessionStorage.setItem(key, JSON.stringify(value));
-    } catch {
-      /* storage unavailable */
-    }
-  }, [key, value]);
-  return [value, setValue] as const;
+  const fallback = useRef(initial);
+  const [state, setState] = useState(() => ({ key, value: readSession(key, initial) }));
+  const value = state.key === key ? state.value : readSession(key, fallback.current);
+  const set = useCallback(
+    (next: T | ((prev: T) => T)) =>
+      setState((s) => {
+        const prev = s.key === key ? s.value : readSession(key, fallback.current);
+        const v = typeof next === "function" ? (next as (p: T) => T)(prev) : next;
+        try {
+          sessionStorage.setItem(key, JSON.stringify(v));
+        } catch {
+          /* storage unavailable */
+        }
+        return { key, value: v };
+      }),
+    [key],
+  );
+  return [value, set] as const;
 }
 
 export function dashboardQuery(filters: DashboardFilters, settings: WidgetSettings): string {
