@@ -49,10 +49,21 @@ class IssueSeverity(str, Enum):
 
 
 class IssueStatus(str, Enum):
-    open = "Open"
-    in_progress = "In Progress"
-    resolved = "Resolved"
-    closed = "Closed"
+    """SRS §9.4 / REQ-COMP-007 incident status, worded exactly as the SRS.
+    The database stores member names (open, under_investigation, ...)."""
+
+    open = "Open"  # raised; the assigned owner has not acknowledged it yet
+    under_investigation = "Under Investigation"  # the assigned owner acknowledged it
+    remediation_in_progress = "Remediation In Progress"  # remediation action items are active
+    resolved = "Resolved"  # remediation complete; pending closure
+    closed = "Closed"  # formally closed by a Compliance user; read-only
+    # Pre-SRS "In Progress", kept only as an import alias; stored rows are
+    # converted by db._upgrade_compliance. Do not use.
+    in_progress = "Under Investigation"
+
+
+# Everything not yet Resolved or Closed — "open incidents" for counts.
+UNRESOLVED_INCIDENT_STATUSES = (IssueStatus.open, IssueStatus.under_investigation, IssueStatus.remediation_in_progress)
 
 
 class UserRole(str, Enum):
@@ -84,7 +95,8 @@ class ParticipantStatus(str, Enum):
 REGIONS = ["Kigali City", "Northern Province", "Southern Province", "Eastern Province", "Western Province"]
 
 
-# SRS §9.2 — status of a compliance requirement's current cycle.
+# SRS §9.2 — status of a compliance requirement's cycle (see
+# app.services.compliance for exactly when each applies).
 class ComplianceStatus(str, Enum):
     pending = "Pending"
     submitted = "Submitted"
@@ -101,3 +113,11 @@ class ComplianceFrequency(str, Enum):
     quarterly = "Quarterly"
     annual = "Annual"
     ad_hoc = "Ad hoc"
+
+
+class ComplianceKind(str, Enum):
+    """What satisfies a Compliance Register entry: a data file validated
+    against an expected schema, or a document such as a licence."""
+
+    data_return = "Data Return"
+    document = "Document"

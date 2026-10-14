@@ -117,11 +117,12 @@ def _upgrade_integrations() -> None:
             conn.execute(text(f"UPDATE integration SET status = '{new}' WHERE {status} = '{old}'"))
         # Pre-data-source rows have no expected schema linked; use the
         # participant's latest ingestion template (what uploads fell back to).
-        conn.execute(text(
-            "UPDATE integration SET template_id = (SELECT t.id FROM ingestiontemplate t"
-            " WHERE t.participant_id = integration.participant_id ORDER BY t.version DESC, t.id DESC LIMIT 1)"
-            " WHERE template_id IS NULL"
-        ))
+        if insp.has_table("ingestiontemplate"):
+            conn.execute(text(
+                "UPDATE integration SET template_id = (SELECT t.id FROM ingestiontemplate t"
+                " WHERE t.participant_id = integration.participant_id ORDER BY t.version DESC, t.id DESC LIMIT 1)"
+                " WHERE template_id IS NULL"
+            ))
 
 
 def _upgrade_existing_schema() -> None:

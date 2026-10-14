@@ -244,6 +244,14 @@ def main() -> None:
         for spec in PARTICIPANTS:
             existing = session.exec(select(Participant).where(Participant.code == spec["code"])).first()
             if existing:
+                # A demo database created before §10.1 fields existed: fill
+                # only what is still blank, never overwrite real edits.
+                for field, value in (("region", spec["region"]), ("primary_contact_name", spec["contact"][0]),
+                                     ("primary_contact_email", spec["contact"][1]), ("short_name", spec["code"])):
+                    if not getattr(existing, field):
+                        setattr(existing, field, value)
+                session.add(existing)
+                session.commit()
                 participants.append(existing)
                 continue
             onboarded_months_ago = {"KVU": 6, "AKS": 5, "MOB": 3, "NYM": 2, "RUS": 1}[spec["code"]]
