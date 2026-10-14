@@ -28,13 +28,6 @@ def _status_value(status) -> str:
     return getattr(status, "value", status) or ""
 
 
-def _dispatch_each(session: Session, event: str, recipients: list, title: str, message: str, **kwargs) -> int:
-    """One dispatch per recipient. Same result as a single multi-recipient
-    call, but each delivery commits on its own, so SQLite (dev/tests) never
-    sees two writers at once."""
-    return sum(notify.dispatch(session, event, [r], title, message, **kwargs) for r in recipients)
-
-
 def _integrations(session: Session, participants: dict) -> int:
     technical = notify.users_with_roles(session, UserRole.technical)
     sent = 0
@@ -45,7 +38,7 @@ def _integrations(session: Session, participants: dict) -> int:
         p = participants.get(i.participant_id)
         name = p.name if p else f"Participant #{i.participant_id}"
         updated = getattr(i, "updated_at", None)
-        sent += _dispatch_each(
+        sent += notify.dispatch(
             session, "integration_failed", technical,
             f"Integration {status.lower()}: {name}",
             f"{name}'s integration is {status}. {getattr(i, 'note', '') or 'No note recorded.'}",
@@ -69,14 +62,14 @@ def _document_expiry(session: Session, participants: dict) -> int:
         p = participants.get(d.participant_id)
         what = f"{p.name if p else 'A participant'}: {types.get(d.doc_type_id, 'document')}"
         if left < 0:
-            sent += _dispatch_each(session, "document_expiry_reminder", compliance, "Compliance document expired",
+            sent += notify.dispatch(session, "document_expiry_reminder", compliance, "Compliance document expired",
                                     f"{what} expired on {d.expiry_date}.", link="/compliance", severity="alert",
                                     dedupe_key=f"document_expiry:{d.id}:{d.expiry_date}:expired")
             continue
         # The tightest lead time already reached, so 14 → 7 → 1 each fire once.
         lead = next((n for n in leads if left <= n), None)
         if lead is not None:
-            sent += _dispatch_each(session, "document_expiry_reminder", compliance,
+            sent += notify.dispatch(session, "document_expiry_reminder", compliance,
                                     f"Document expires in {left} day{'s' if left != 1 else ''}",
                                     f"{what} expires on {d.expiry_date}.", link="/compliance", severity="warning",
                                     dedupe_key=f"document_expiry:{d.id}:{d.expiry_date}:lead{lead}")
@@ -96,7 +89,7 @@ def _issues(session: Session) -> int:
         assignee = notify.user_by_name_or_email(session, iss.assignee)
         recipients = [assignee] if assignee and assignee.is_active else notify.users_with_roles(session, UserRole.compliance)
         overdue = days < 0
-        sent += _dispatch_each(
+        sent += notify.dispatch(
             session, "incident_remediation_overdue" if overdue else "compliance_deadline_reminder", recipients,
             "Issue overdue" if overdue else "Issue due soon",
             f"{iss.description} (due {iss.due_date}).",

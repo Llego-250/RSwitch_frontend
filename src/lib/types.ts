@@ -2,7 +2,16 @@
 
 // The three roles of SRS §4.1 (the legacy Board role no longer exists).
 export type BackendRole = "Compliance" | "Business" | "Technical / Admin";
-export type IntegrationStatus = "Connected" | "Degraded" | "Disconnected" | "Maintenance";
+// SRS §9.1 / REQ-INTG-003, worded exactly as the SRS.
+export type IntegrationStatus =
+  | "Healthy"
+  | "Warning"
+  | "Failed"
+  | "Pending"
+  | "Not Configured"
+  | "Running"
+  | "Queued"
+  | "Paused";
 export type IssueSeverity = "Critical" | "High" | "Medium" | "Low";
 export type IssueStatus = "Open" | "In Progress" | "Resolved" | "Closed";
 export type DocumentStatus = "On File" | "Expiring Soon" | "Expired" | "Missing";
@@ -21,24 +30,69 @@ export interface Me {
   mfa_enforced: boolean;
 }
 
+// SRS §10.1. type is one of INSTITUTION_TYPES, region one of REGIONS.
 export interface Participant {
   id: number;
   name: string;
+  short_name: string;
   code: string;
   type: string;
+  country: string;
+  region: string;
+  registration_date: string | null;
+  primary_contact_name: string;
+  primary_contact_email: string;
+  status: "Active" | "Inactive" | "Suspended";
   is_active: boolean;
   expected_frequency_days: number;
   created_at: string;
 }
 
+export type ValidationIssue = { row: number; column: string; rule: string; description: string };
+
+/** One data source of a participant (SRS §10.2). Secrets come back masked only. */
 export interface IntegrationRow {
   id: number;
   participant_id: number;
   participant_name: string;
   participant_code: string;
+  participant_type: string;
+  source_name: string;
+  integration_mode: "Manual" | "Automated API";
+  auth_type: "None" | "API Key" | "OAuth 2.0";
+  endpoint_url_masked: string;
+  credentials_masked: Partial<
+    Record<"api_key" | "client_id" | "client_secret" | "token_url", string>
+  >;
+  configured: boolean;
+  schedule_cron: string;
+  next_run_at: string | null;
+  template_id: number | null;
+  template_name: string | null;
+  mapping_id: number | null;
+  mapping_code: string | null;
+  mapping_version: string | null;
   status: IntegrationStatus;
+  paused: boolean;
   note: string;
-  source: "Manual" | "Schedule check";
+  source: "Manual" | "Schedule check" | "Pipeline";
+  warnings: ValidationIssue[];
+  last_sync_at: string | null;
+  last_sync_records: number;
+  last_sync_errors: number;
+  last_success_at: string | null;
+  last_submission: {
+    id: number;
+    period: string;
+    status: string;
+    uploaded_at: string;
+    records_received: number;
+    error_count: number;
+    warning_count: number;
+  } | null;
+  active_job: { id: number; status: string; progress: number } | null;
+  created_at: string;
+  created_by: string;
   updated_at: string;
   updated_by: string;
 }
@@ -55,19 +109,37 @@ export interface Issue {
   created_at: string;
 }
 
+/** One transfer (upload or API pull). errors/warnings come with GET /submissions/{id}. */
 export interface Submission {
   id: number;
   participant_id: number;
+  participant_name: string;
+  participant_code: string;
+  integration_id: number | null;
+  source_name: string | null;
+  integration_mode: string | null;
   template_id: number | null;
+  requirement_id: number | null;
+  requirement_name: string | null;
   period: string;
   filename: string;
   uploaded_at: string;
   uploaded_by: string;
   result: "Passed" | "Failed";
+  status: "Submitted" | "Validation Failed" | "Under Review" | "Approved" | "Rejected";
+  records_received: number;
   error_count: number;
-  errors: unknown[];
+  warning_count: number;
+  errors?: ValidationIssue[];
+  warnings?: ValidationIssue[];
   row_count: number;
   numeric_totals: Record<string, number>;
+  breakdowns: Record<string, Record<string, { count: number; amount: number }>>;
+  loaded_at: string | null;
+  replaces_submission_id: number | null;
+  replaced_by_id: number | null;
+  rejection_reason: string;
+  job: { id: number; status: string; progress: number } | null;
   review_status: "Pending Review" | "Approved" | "Rejected";
   review_note: string;
   reviewed_by: string;
@@ -82,6 +154,7 @@ export interface SubmissionRosterRow {
   last_period: string | null;
   last_uploaded_at: string | null;
   last_result: "Passed" | "Failed" | null;
+  last_status: Submission["status"] | null;
 }
 
 export interface DocumentRosterRow {
@@ -100,7 +173,13 @@ export interface DocumentType {
 
 export interface ParticipantDocumentRow {
   doc_type: DocumentType;
-  document: { id: number; filename: string; uploaded_at: string; expiry_date: string | null; notes: string } | null;
+  document: {
+    id: number;
+    filename: string;
+    uploaded_at: string;
+    expiry_date: string | null;
+    notes: string;
+  } | null;
   status: DocumentStatus;
 }
 
@@ -215,7 +294,11 @@ export interface SystemSettings {
   reminders: { days_before: number[]; action_item_days_before: number[] };
   risk_weights: { integration: number; compliance: number; incidents: number; overdue: number };
   notifications: { events: Record<string, boolean> };
-  anomaly: { volume_deviation_pct: number; error_rate_pct: number; auto_escalate_days: number } & Record<string, unknown>;
+  anomaly: {
+    volume_deviation_pct: number;
+    error_rate_pct: number;
+    auto_escalate_days: number;
+  } & Record<string, unknown>;
   pipelines: { log_retention_days: number } & Record<string, unknown>;
 }
 
@@ -315,7 +398,12 @@ export interface WorkingGroup {
   members: string;
 }
 
-export type AlertStatus = "Generated" | "Acknowledged" | "Under Investigation" | "Escalated" | "Closed";
+export type AlertStatus =
+  | "Generated"
+  | "Acknowledged"
+  | "Under Investigation"
+  | "Escalated"
+  | "Closed";
 
 export interface AnomalyAlert {
   id: number;
@@ -387,7 +475,18 @@ export interface InclusionSummary {
   inclusion_volume_share_pct: number | null;
   digital_share_pct: number | null;
   avg_transaction_value: number | null;
-  by_institution_type: { institution_type: string; participants: number; transactions: number; volume: number; volume_share_pct: number }[];
+  by_institution_type: {
+    institution_type: string;
+    participants: number;
+    transactions: number;
+    volume: number;
+    volume_share_pct: number;
+  }[];
   by_channel: { channel: string; transactions: number; volume: number; share_pct: number }[];
-  trend: { month: string; inclusion_share_pct: number | null; digital_share_pct: number | null; transactions: number }[];
+  trend: {
+    month: string;
+    inclusion_share_pct: number | null;
+    digital_share_pct: number | null;
+    transactions: number;
+  }[];
 }

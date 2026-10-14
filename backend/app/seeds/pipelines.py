@@ -26,6 +26,7 @@ from app.models.pipeline import PipelineConfig, PipelineJob, PipelineLog
 from app.models.submission import Submission
 from app.models.template import FieldMapping, IngestionTemplate, MappingVersion, TemplateColumn
 from app.services import mapping as svc
+from app.services.ingestion import resolve_template
 from app.services import pipeline_jobs, pipeline_runner
 
 ADMIN = "RDIP Admin"
@@ -159,7 +160,7 @@ def seed(session: Session) -> None:
     if not all((kvu, aks, mob, nym, rus)):
         return
     now = datetime.utcnow()
-    templates = {p.code: session.get(IngestionTemplate, _manual_source(session, p).template_id) for p in (kvu, aks, mob, nym, rus)}
+    templates = {p.code: resolve_template(session, p.id, integration=_manual_source(session, p)) for p in (kvu, aks, mob, nym, rus)}
 
     # ---- Standards & Mapping (MAP-001..) -----------------------------------
     # KVU → ISO 20022, with history: v1.0 left channel unmapped, v2.0 maps it.

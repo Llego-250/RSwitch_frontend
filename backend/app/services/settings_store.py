@@ -55,7 +55,9 @@ DEFAULTS: dict[str, dict] = {
         "failure_rate_change_pp": 15,  # R2/R3: failure-rate change vs own/peer baseline
         "auto_escalate_days": 3,  # REQ-AI-006b
         "min_history_months": 3,  # §8.3 "Insufficient history"
-        "baseline_method": "threshold",  # REQ-AI-011: threshold (R1) | rolling (R2) | peer (R3)
+        # REQ-AI-011: threshold (R1) | rolling (R2) | peer (R3). Rolling by
+        # default: participants without 6 months of history fall back to R1.
+        "baseline_method": "rolling",
         "rolling_window_months": 6,  # R2 window; never below the SRS minimum of 6
         "peer_min_peers": 2,  # R3 needs this many same-type peers with data
         "cadence_multiplier": 2,  # overdue when silent for N × expected frequency

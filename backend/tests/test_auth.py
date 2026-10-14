@@ -34,7 +34,7 @@ from app.core.security import create_access_token, hash_password  # noqa: E402
 from app.db import engine  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models.admin import AuditEvent, EmailOutbox, Notification, UserSession, UserToken  # noqa: E402
-from app.models.enums import IntegrationStatus, UserRole  # noqa: E402
+from app.models.enums import UserRole  # noqa: E402
 from app.models.integration import Integration  # noqa: E402
 from app.models.user import User  # noqa: E402
 from app.services import notifications as notification_jobs  # noqa: E402

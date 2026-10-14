@@ -206,13 +206,20 @@ def _method(v):
     return v.strip(), ""
 
 
-def _detectors(v):
+def _detector_paths(v):
     if not isinstance(v, list) or not v or not all(isinstance(p, str) and p.strip() for p in v):
         return None, "List at least one detector import path"
-    broken = [d for d in load_detectors(v) if d.detector is None]
+    return [p.strip() for p in v], ""
+
+
+def _detectors(v):
+    paths, err = _detector_paths(v)
+    if err:
+        return None, err
+    broken = [d for d in load_detectors(paths) if d.detector is None]
     if broken:
         return None, "; ".join(f"{d.path}: {d.error}" for d in broken)
-    return [p.strip() for p in v], ""
+    return paths, ""
 
 
 VALIDATORS = {
@@ -259,6 +266,10 @@ def config(session: Session) -> dict:
     defaults = DEFAULTS["anomaly"]
     cfg = {}
     for key, check in VALIDATORS.items():
+        if key == "detectors":
+            # Keep the configured list even if one path is broken: the
+            # loader skips (and reports) it without dropping the others.
+            check = _detector_paths
         value, err = check(raw.get(key, defaults[key]))
         if err:
             log.warning("Ignoring invalid anomaly.%s (%s); using default", key, err)

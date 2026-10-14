@@ -8,19 +8,13 @@ import { useAuth } from "@/context/AuthContext";
 import { canManage, canUploadOnBehalf } from "@/lib/roles";
 import { api, errorMessage } from "@/lib/api";
 import { useIntegrations, useIssues, useParticipants, useSubmissions } from "@/lib/queries";
-import type { IntegrationStatus, ParticipantDocumentRow } from "@/lib/types";
+import type { ParticipantDocumentRow } from "@/lib/types";
+import { INTEGRATION_BADGE } from "@/lib/integrations";
 import { Search, Clock, Download, Upload } from "lucide-react";
 
 export const Route = createFileRoute("/participant")({
   component: Participant360,
 });
-
-const INTEGRATION_BADGE: Record<IntegrationStatus, Status> = {
-  Connected: "healthy",
-  Degraded: "warning",
-  Disconnected: "failed",
-  Maintenance: "paused",
-};
 
 function monthsSince(iso: string) {
   return (Date.now() - new Date(iso).getTime()) / (30 * 86_400_000);

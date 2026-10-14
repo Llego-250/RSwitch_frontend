@@ -83,8 +83,8 @@ function Dashboard() {
 
   const ov = overview.data;
   const ints = integrations.data ?? [];
-  const failedInts = ints.filter((i) => i.status === "Disconnected");
-  const degradedInts = ints.filter((i) => i.status === "Degraded");
+  const failedInts = ints.filter((i) => i.status === "Failed");
+  const degradedInts = ints.filter((i) => i.status === "Warning");
   const openIssues = (issues.data ?? []).filter((i) => i.status === "Open" || i.status === "In Progress");
   const latestTrend = trends.data?.at(-1);
   const prevTrend = trends.data?.at(-2);
@@ -115,10 +115,10 @@ function Dashboard() {
   const alertItems = useMemo(() => {
     const items: { id: string; sev: AlertSev; title: string; institution: string; to: string }[] = [];
     for (const i of ints) {
-      if (i.status === "Disconnected" || i.status === "Degraded") {
+      if (i.status === "Failed" || i.status === "Warning") {
         items.push({
           id: `int-${i.id}`,
-          sev: i.status === "Disconnected" ? "failed" : "warning",
+          sev: i.status === "Failed" ? "failed" : "warning",
           title: `Integration ${i.status.toLowerCase()}${i.note ? `: ${i.note}` : ""}`,
           institution: i.participant_name,
           to: "/integrations",

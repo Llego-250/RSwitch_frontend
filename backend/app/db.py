@@ -104,13 +104,24 @@ def _upgrade_integrations() -> None:
             with engine.begin() as conn:
                 conn.execute(text("DROP INDEX ix_integration_participant_id"))
                 conn.execute(text("CREATE INDEX ix_integration_participant_id ON integration (participant_id)"))
+    # Compare as text: on a database created fresh, the Postgres enum type
+    # has no old labels, and `status = 'connected'` would be an invalid
+    # enum literal rather than simply matching nothing.
+    status = "CAST(status AS VARCHAR)"
     with engine.begin() as conn:
         # "Connected" said nothing about data received: Healthy only if a
         # transfer ever succeeded, otherwise Pending.
-        conn.execute(text("UPDATE integration SET status = 'healthy' WHERE status = 'connected' AND last_submission_at IS NOT NULL"))
-        conn.execute(text("UPDATE integration SET status = 'pending' WHERE status = 'connected'"))
+        conn.execute(text(f"UPDATE integration SET status = 'healthy' WHERE {status} = 'connected' AND last_submission_at IS NOT NULL"))
+        conn.execute(text(f"UPDATE integration SET status = 'pending' WHERE {status} = 'connected'"))
         for old, new in (("degraded", "warning"), ("disconnected", "failed"), ("maintenance", "paused")):
-            conn.execute(text(f"UPDATE integration SET status = '{new}' WHERE status = '{old}'"))
+            conn.execute(text(f"UPDATE integration SET status = '{new}' WHERE {status} = '{old}'"))
+        # Pre-data-source rows have no expected schema linked; use the
+        # participant's latest ingestion template (what uploads fell back to).
+        conn.execute(text(
+            "UPDATE integration SET template_id = (SELECT t.id FROM ingestiontemplate t"
+            " WHERE t.participant_id = integration.participant_id ORDER BY t.version DESC, t.id DESC LIMIT 1)"
+            " WHERE template_id IS NULL"
+        ))
 
 
 def _upgrade_existing_schema() -> None:

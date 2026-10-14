@@ -184,9 +184,9 @@ def _walk_lifecycle(session: Session) -> None:
 def seed(session: Session) -> None:
     uploader = (_user(session, "compliance@rswitch.rw") or _user(session, "admin@rswitch.rw"))
     _seed_saccos(session, uploader.full_name if uploader else "Compliance Officer")
-    # One run per baseline method so the demo shows alerts from R2 and R3;
-    # the configured method (R1 by default) runs after all module seeds.
+    # One run per baseline method so the demo shows alerts from R1, R2 and
+    # R3; the configured method runs again after all module seeds.
     anomaly.detect(session, method="rolling")
     anomaly.detect(session, method="peer")
-    anomaly.detect(session)
+    anomaly.detect(session, method="threshold")
     _walk_lifecycle(session)

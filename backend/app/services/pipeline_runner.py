@@ -261,6 +261,9 @@ def start_worker() -> None:
         if _worker is not None and _worker.is_alive():
             return
         _recover_orphans()
+        with Session(engine) as session:  # pick up what was waiting at once
+            for job_id in session.exec(select(PipelineJob.id).where(PipelineJob.status == Q).order_by(PipelineJob.queued_at)).all():
+                _queue.put(job_id)
         _worker = threading.Thread(target=_work_loop, name="rdip-pipeline-worker", daemon=True)
         _worker.start()
 

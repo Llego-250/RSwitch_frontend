@@ -342,19 +342,23 @@ def dashboard(
             "institutions": len(set().union(*c.sources.values())) if c.sources else 0,
         })
 
-    by_type = []
+    by_type, type_cells = [], []
     for t in INSTITUTION_TYPES + sorted({f.institution_type for f in facts} - set(INSTITUTION_TYPES)):
         cells, fed = segment(lambda f, t=t: f.institution_type == t)
         by_type.append({"institution_type": t,
                         "institutions": sum(1 for p in participants.values() if p.type == t),
                         "reporting": len({f.participant_id for f in fed}), "values": _values(cells),
                         "last_updated": max((f.uploaded_at for f in fed), default=None)})
+        if fed:
+            type_cells.append((t, cells))
 
-    by_region = []
+    by_region, region_cells = [], []
     for r in REGIONS + sorted({f.region for f in facts} - set(REGIONS)):
         cells, fed = segment(lambda f, r=r: f.region == r)
         by_region.append({"region": r, "reporting": len({f.participant_id for f in fed}), "values": _values(cells),
                           "region_basis": basis(fed), "last_updated": max((f.uploaded_at for f in fed), default=None)})
+        if fed:
+            region_cells.append((r, cells))
 
     matrix = []
     for t in sorted({f.institution_type for f in facts}):
@@ -396,8 +400,11 @@ def dashboard(
         "by_region": by_region,
         "matrix": [{k: v for k, v in row.items() if k != "cells"} for row in matrix],
         "trend": trend,
-        "_matrix_cells": matrix,  # internal: per-segment provenance for exports
+        # internal: per-segment provenance for exports
         "_totals": totals,
+        "_type_cells": type_cells,
+        "_region_cells": region_cells,
+        "_matrix_cells": matrix,
     }
 
 
@@ -441,16 +448,27 @@ def report_rows(
             if not c.available and not include_unavailable:
                 continue
             rows.append({
-                "Institution type": t, "Region": r, "Metric": f"{m.label} ({m.unit})",
+                "Institution type": t, "Region": r, "Metric": _metric_name(m),
                 "Value": _round(m, c.value) if c.available else NOT_AVAILABLE,
                 "Data source": _source_text(m, c),
                 "Last updated": c.last_updated.strftime("%Y-%m-%d") if c.last_updated else "",
             })
 
     add(institution_type or ALL_TYPES, region or ALL_REGIONS, dash["_totals"], include_unavailable=True)
+    for t, cells in dash["_type_cells"]:
+        add(t, region or ALL_REGIONS, cells)
+    for r, cells in dash["_region_cells"]:
+        add(institution_type or ALL_TYPES, r, cells)
     for row in dash["_matrix_cells"]:
         add(row["institution_type"], row["region"], row["cells"])
     return rows, REPORT_COLUMNS, dash
+
+
+def _metric_name(m: Metric) -> str:
+    """Label with its unit when the unit isn't obvious from the label."""
+    if m.unit not in ("RWF", "%"):
+        return m.label
+    return f"{m.label[:-1]}, {m.unit})" if m.label.endswith(")") else f"{m.label} ({m.unit})"
 
 
 def _latin1(text: str) -> str:

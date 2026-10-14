@@ -39,19 +39,49 @@ export const useTrends = (months = 6) =>
 export const useParticipants = () =>
   useQuery({ queryKey: ["participants"], queryFn: () => api.get<Participant[]>("/participants") });
 
-export const useIntegrations = () =>
-  useQuery({ queryKey: ["integrations"], queryFn: () => api.get<IntegrationRow[]>("/integrations") });
+/** Data sources (REQ-INTG-001); pass a participant to get only theirs (REQ-P360-003). */
+export const useIntegrations = (participantId?: number) =>
+  useQuery({
+    queryKey: ["integrations", participantId ?? "all"],
+    queryFn: () =>
+      api.get<IntegrationRow[]>(
+        participantId ? `/integrations?participant_id=${participantId}` : "/integrations",
+      ),
+  });
 
-export const useIssues = () => useQuery({ queryKey: ["issues"], queryFn: () => api.get<Issue[]>("/issues") });
+export const useIssues = () =>
+  useQuery({ queryKey: ["issues"], queryFn: () => api.get<Issue[]>("/issues") });
 
 export const useSubmissions = (participantId?: number) =>
   useQuery({
     queryKey: ["submissions", participantId ?? "all"],
-    queryFn: () => api.get<Submission[]>(participantId ? `/submissions?participant_id=${participantId}` : "/submissions"),
+    queryFn: () =>
+      api.get<Submission[]>(
+        participantId ? `/submissions?participant_id=${participantId}` : "/submissions",
+      ),
+  });
+
+/** §19.2 / REQ-INTG-011: every transfer from one participant, failed attempts included. */
+export const useParticipantSubmissions = (participantId: number | undefined) =>
+  useQuery({
+    queryKey: ["submissions", "participant", participantId],
+    queryFn: () => api.get<Submission[]>(`/participants/${participantId}/submissions`),
+    enabled: participantId !== undefined,
+  });
+
+/** One transfer with its full row/column error and warning report. */
+export const useSubmission = (submissionId: number | undefined) =>
+  useQuery({
+    queryKey: ["submissions", "detail", submissionId],
+    queryFn: () => api.get<Submission>(`/submissions/${submissionId}`),
+    enabled: submissionId !== undefined,
   });
 
 export const useSubmissionRoster = () =>
-  useQuery({ queryKey: ["submissions", "roster"], queryFn: () => api.get<SubmissionRosterRow[]>("/submissions/roster") });
+  useQuery({
+    queryKey: ["submissions", "roster"],
+    queryFn: () => api.get<SubmissionRosterRow[]>("/submissions/roster"),
+  });
 
 export const useDocumentRoster = () =>
   useQuery({
@@ -59,7 +89,8 @@ export const useDocumentRoster = () =>
     queryFn: () => api.get<DocumentRosterRow[]>("/documents/roster"),
   });
 
-export const useTemplates = () => useQuery({ queryKey: ["templates"], queryFn: () => api.get<Template[]>("/templates") });
+export const useTemplates = () =>
+  useQuery({ queryKey: ["templates"], queryFn: () => api.get<Template[]>("/templates") });
 
 export const useTemplateColumns = (templateId: number | undefined) =>
   useQuery({
@@ -75,7 +106,10 @@ export const useAlerts = () =>
   useQuery({ queryKey: ["alerts"], queryFn: () => api.get<AnomalyAlert[]>("/alerts") });
 
 export const useRiskRanking = () =>
-  useQuery({ queryKey: ["risk-ranking"], queryFn: () => api.get<RiskRow[]>("/alerts/risk-ranking") });
+  useQuery({
+    queryKey: ["risk-ranking"],
+    queryFn: () => api.get<RiskRow[]>("/alerts/risk-ranking"),
+  });
 
 // ---- auth, users, settings, notifications ----------------------------------
 
@@ -90,7 +124,10 @@ export const useOrganization = (enabled = true) =>
 
 /** Public: the §11.1 rules as currently configured. */
 export const usePasswordPolicy = () =>
-  useQuery({ queryKey: ["password-policy"], queryFn: () => api.get<PasswordPolicy>("/auth/password-policy") });
+  useQuery({
+    queryKey: ["password-policy"],
+    queryFn: () => api.get<PasswordPolicy>("/auth/password-policy"),
+  });
 
 export const useUsers = (enabled = true) =>
   useQuery({ queryKey: ["users"], queryFn: () => api.get<UserRow[]>("/users"), enabled });
@@ -113,11 +150,15 @@ export const auditQueryString = (f: AuditFilters) => {
 export const useAuditLog = (filters: AuditFilters) =>
   useQuery({
     queryKey: ["audit", filters],
-    queryFn: () => api.get<AuditEvent[]>(`/audit-log?${auditQueryString({ limit: 500, ...filters })}`),
+    queryFn: () =>
+      api.get<AuditEvent[]>(`/audit-log?${auditQueryString({ limit: 500, ...filters })}`),
   });
 
 export const useAuditActions = () =>
-  useQuery({ queryKey: ["audit", "actions"], queryFn: () => api.get<string[]>("/audit-log/actions") });
+  useQuery({
+    queryKey: ["audit", "actions"],
+    queryFn: () => api.get<string[]>("/audit-log/actions"),
+  });
 
 export const useNotificationEvents = (enabled = true) =>
   useQuery({
@@ -127,10 +168,18 @@ export const useNotificationEvents = (enabled = true) =>
   });
 
 export const useEmailLog = (enabled = true) =>
-  useQuery({ queryKey: ["settings", "email-log"], queryFn: () => api.get<EmailLogRow[]>("/settings/email-log"), enabled });
+  useQuery({
+    queryKey: ["settings", "email-log"],
+    queryFn: () => api.get<EmailLogRow[]>("/settings/email-log"),
+    enabled,
+  });
 
 export const useApiKeys = (enabled = true) =>
-  useQuery({ queryKey: ["settings", "api-keys"], queryFn: () => api.get<ApiKeyRow[]>("/settings/api-keys"), enabled });
+  useQuery({
+    queryKey: ["settings", "api-keys"],
+    queryFn: () => api.get<ApiKeyRow[]>("/settings/api-keys"),
+    enabled,
+  });
 
 export interface NotificationFilters {
   status?: "all" | "read" | "unread";
@@ -149,4 +198,7 @@ export const useNotificationHistory = (filters: NotificationFilters) =>
   });
 
 export const useTrustedDevices = () =>
-  useQuery({ queryKey: ["trusted-devices"], queryFn: () => api.get<TrustedDeviceRow[]>("/auth/trusted-devices") });
+  useQuery({
+    queryKey: ["trusted-devices"],
+    queryFn: () => api.get<TrustedDeviceRow[]>("/auth/trusted-devices"),
+  });
