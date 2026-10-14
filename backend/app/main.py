@@ -4,6 +4,7 @@ from sqlmodel import Session, select
 
 from app.config import settings
 from app.core.errors import register_error_handlers
+from app.core.metrics import MetricsMiddleware
 from app.core.ratelimit import RateLimitMiddleware
 from app.core.security import hash_password
 from app.db import engine, init_db
@@ -36,6 +37,8 @@ app = FastAPI(title="RDIP API")
 register_error_handlers(app)
 
 app.add_middleware(RateLimitMiddleware)
+# §15.3 System Health: uptime and 5xx rate of this API instance.
+app.add_middleware(MetricsMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[origin.strip() for origin in settings.cors_origins.split(",")],
