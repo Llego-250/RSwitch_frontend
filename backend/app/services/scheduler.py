@@ -121,6 +121,18 @@ def run_intelligence_jobs() -> None:
         run_due_schedules(session)
 
 
+def run_nightly_risk() -> None:
+    """§11.5: participant risk scores are recalculated nightly (from 02:00
+    in the organisation's timezone). Checked hourly and run once per night,
+    so a night missed while the server was down is caught up."""
+    from app.services import risk
+
+    with Session(engine) as session:
+        scored = risk.run_nightly_if_due(session)
+        if scored is not None:
+            log.info("Nightly risk recalculation scored %d participant(s)", scored)
+
+
 def start_scheduler() -> BackgroundScheduler:
     from app.services import pipeline_runner
 
@@ -128,6 +140,7 @@ def start_scheduler() -> BackgroundScheduler:
     scheduler.add_job(check_overdue_integrations, "interval", hours=1, id="overdue-check")
     scheduler.add_job(run_pipeline_schedules, "interval", minutes=1, id="pipeline-schedules")
     scheduler.add_job(run_intelligence_jobs, "interval", minutes=15, id="intelligence", next_run_time=datetime.now())
+    scheduler.add_job(run_nightly_risk, "cron", minute=5, id="risk-nightly", coalesce=True)
     scheduler.start()
     # §17.3 / §17.6.3: pipeline jobs run on a background queue, not in requests.
     pipeline_runner.start_worker()
