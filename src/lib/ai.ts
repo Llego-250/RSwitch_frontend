@@ -170,8 +170,12 @@ export interface PriorityRow {
   region: string;
   composite_score: number;
   signal_strength: "High" | "Medium" | "Low";
-  risk_score: number;
-  risk_components: { integration: number; compliance: number; incidents: number; overdue: number };
+  /** null until the participant has 3 months of submission history (REQ-P360-012). */
+  risk_score: number | null;
+  risk_status: "scored" | "insufficient_data";
+  risk_message: string | null;
+  risk_band: "Low" | "Medium" | "High" | null;
+  risk_components: Record<"integration" | "compliance" | "incidents" | "overdue", number | null>;
   alert_points: number;
   open_alerts: number;
   highest_severity: Severity | null;
