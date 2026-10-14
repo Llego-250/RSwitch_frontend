@@ -27,4 +27,8 @@ class Participant(SQLModel, table=True):
     status: str = "Active"
     is_active: bool = True
     expected_frequency_days: int = 30
+    # §10.1: the latest composite risk score 0–100, written by every
+    # recalculation (services.risk); None while the participant has less than
+    # 3 months of submission history (REQ-P360-012).
+    risk_score: Optional[float] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
