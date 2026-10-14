@@ -37,6 +37,7 @@ view = require_cap("dashboard.view")
 
 def _integration_health(session: Session) -> dict:
     integrations = session.exec(select(Integration)).all()
+    participants = {p.id: p for p in session.exec(select(Participant)).all()}
     healthy = sum(1 for i in integrations if i.status in (IntegrationStatus.healthy, IntegrationStatus.connected))
     warning = sum(1 for i in integrations if i.status in (IntegrationStatus.warning, IntegrationStatus.degraded))
     failed = sum(1 for i in integrations if i.status in (IntegrationStatus.failed, IntegrationStatus.disconnected))
@@ -46,7 +47,10 @@ def _integration_health(session: Session) -> dict:
         "warning": warning,
         "failed": failed,
         "failed_participants": [
-            {"participant_id": i.participant_id, "participant_name": i.participant_name}
+            {
+                "participant_id": i.participant_id,
+                "participant_name": participants[i.participant_id].name if i.participant_id in participants else "",
+            }
             for i in integrations
             if i.status in (IntegrationStatus.failed, IntegrationStatus.disconnected)
         ],
@@ -92,15 +96,17 @@ def _attention_queue(session: Session, role: str) -> list[dict]:
         })
 
     # Failed integrations
+    _participants = {p.id: p for p in session.exec(select(Participant)).all()}
     for intg in session.exec(select(Integration).where(
         Integration.status.in_([IntegrationStatus.failed, IntegrationStatus.disconnected])
     )).all():
+        pname = _participants[intg.participant_id].name if intg.participant_id in _participants else f"#{intg.participant_id}"
         items.append({
             "id": f"integration:{intg.id}",
             "type": "integration",
             "severity": "High",
-            "title": f"Integration failed: {intg.participant_name}",
-            "participant": intg.participant_name,
+            "title": f"Integration failed: {pname}",
+            "participant": pname,
             "link": "/integrations",
         })
 
@@ -238,16 +244,18 @@ def technical_dashboard(
     ).all()
 
     # Failed integrations
+    _all_participants = {p.id: p for p in session.exec(select(Participant)).all()}
     failed_integrations = session.exec(
         select(Integration).where(
             Integration.status.in_([IntegrationStatus.failed, IntegrationStatus.disconnected])
         )
     ).all()
 
-    # Data freshness per source (last submission per integration)
+    # Data freshness per source (last pipeline job per integration)
     integrations = session.exec(select(Integration)).all()
     freshness = []
     for intg in integrations:
+        p = _all_participants.get(intg.participant_id)
         last_job = session.exec(
             select(PipelineJob)
             .where(PipelineJob.integration_id == intg.id)
@@ -255,15 +263,15 @@ def technical_dashboard(
             .limit(1)
         ).first()
         freshness.append({
-            "participant_name": intg.participant_name,
-            "participant_code": intg.participant_code,
+            "participant_name": p.name if p else "",
+            "participant_code": p.code if p else "",
             "integration_id": intg.id,
             "status": intg.status.value,
             "last_run_at": last_job.started_at.isoformat() if last_job else None,
             "hours_since_last_run": round((now - last_job.started_at).total_seconds() / 3600, 1) if last_job else None,
         })
 
-    # Draft mappings count
+    # Draft mappings count (templates with version == 0 are drafts)
     from app.models.template import IngestionTemplate
     draft_mappings = session.exec(
         select(IngestionTemplate).where(IngestionTemplate.version == 0)
@@ -278,8 +286,8 @@ def technical_dashboard(
             "trigger": j.trigger,
             "started_at": j.started_at.isoformat() if j.started_at else None,
             "finished_at": j.finished_at.isoformat() if j.finished_at else None,
-            "records_loaded": j.records_loaded,
-            "error_message": j.error_message,
+            "records_processed": j.records_processed,
+            "error_count": j.error_count,
         }
         for j in session.exec(
             select(PipelineJob).order_by(PipelineJob.started_at.desc()).limit(10)
@@ -305,8 +313,8 @@ def technical_dashboard(
         "failed_integrations": [
             {
                 "id": i.id,
-                "participant_name": i.participant_name,
-                "participant_code": i.participant_code,
+                "participant_name": _all_participants[i.participant_id].name if i.participant_id in _all_participants else "",
+                "participant_code": _all_participants[i.participant_id].code if i.participant_id in _all_participants else "",
                 "status": i.status.value,
                 "note": i.note,
                 "updated_at": i.updated_at.isoformat() if i.updated_at else None,

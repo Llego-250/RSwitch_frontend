@@ -40,6 +40,7 @@ from app.models.enums import (
 from app.models.integration import Integration
 from app.models.issue import Issue, RemediationAction
 from app.models.participant import Participant
+from app.models.pipeline import PipelineJob
 from app.models.submission import Submission
 from app.services.settings_store import get_setting
 
@@ -184,8 +185,6 @@ def _technical_score(session: Session, participant_id: int) -> dict:
     we check whether integration status history exists before defining uptime;
     since only the current status is stored, we use it as a proxy).
     """
-    from app.models.pipeline import PipelineJob
-
     integration = session.exec(
         select(Integration).where(Integration.participant_id == participant_id)
     ).first()
@@ -426,23 +425,21 @@ def outstanding_actions(session: Session, participant_id: int) -> dict:
         for a in open_actions
     ]
 
-    # Governance action items (participant as assignee by name match)
-    participant = session.get(Participant, participant_id)
+    # Governance action items owned by the participant
     gov_items = []
-    if participant:
-        for item in session.exec(
-            select(ActionItem).where(
-                ActionItem.assignee.ilike(f"%{participant.name}%"),
-                ActionItem.status != "Completed",
-            )
-        ).all():
-            gov_items.append({
-                "type": "governance",
-                "id": item.id,
-                "title": item.title,
-                "status": item.status,
-                "due_date": item.due_date.isoformat() if item.due_date else None,
-            })
+    for item in session.exec(
+        select(ActionItem).where(
+            ActionItem.owner_participant_id == participant_id,
+            ActionItem.status != "Completed",
+        )
+    ).all():
+        gov_items.append({
+            "type": "governance",
+            "id": item.id,
+            "title": item.description,
+            "status": item.status,
+            "due_date": item.due_date.isoformat() if item.due_date else None,
+        })
 
     # Open AI alerts
     open_alerts = session.exec(
