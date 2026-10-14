@@ -105,7 +105,9 @@ class ReportSchedule(SQLModel, table=True):
     created_by: str = ""
     created_by_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    # UTC instant of the next slot; advanced by `frequency` from the start.
+    # First delivery slot (UTC); later slots are start_at + k·frequency, so a
+    # monthly schedule keeps its day of month.
+    start_at: Optional[datetime] = None
     next_run_at: Optional[datetime] = None
     last_run_at: Optional[datetime] = None
     last_run_id: Optional[int] = None
