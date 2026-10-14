@@ -45,8 +45,32 @@ DEFAULTS: dict[str, dict] = {
     # REQ-SET-004: compliance deadline reminder lead times; §6.3 / REQ-GOV-009:
     # governance action item reminders.
     "reminders": {"days_before": [14, 7, 1], "action_item_days_before": [7, 1]},
-    # §11.5 weights for the participant risk score (must sum to 100).
-    "risk_weights": {"integration": 30, "compliance": 30, "incidents": 20, "overdue": 20},
+    # Participant risk methodology (REQ-P360-009..012, §11.5), validated and
+    # explained by app.services.risk. Category weights × indicator weights give
+    # each indicator's share of the composite; these defaults reproduce §11.5
+    # exactly: integration reliability (uptime) 30, compliance adherence 30
+    # (50 × 60%), incident frequency 20, overdue submission rate 20 (50 × 40%).
+    # The other five indicators are measured and shown but weighted 0 until a
+    # Technical/Admin user gives them weight. good/bad: the indicator value
+    # scoring 0 and 100 (linear in between). Replaces the pre-P360 flat
+    # "risk_weights" key; a stored row of that key is migrated on read.
+    "risk": {
+        "category_weights": {"compliance": 50, "operational": 20, "technical": 30},
+        "indicators": {
+            "submission_adherence_rate": {"enabled": True, "weight": 60, "good": 100, "bad": 0},
+            "overdue_deadlines": {"enabled": True, "weight": 40, "good": 0, "bad": 100},
+            "rejection_history": {"enabled": True, "weight": 0, "good": 0, "bad": 50},
+            "incident_frequency": {"enabled": True, "weight": 100, "good": 0, "bad": 6},
+            "incident_severity": {"enabled": True, "weight": 0, "good": 0, "bad": 100},
+            "resolution_time": {"enabled": True, "weight": 0, "good": 7, "bad": 30},
+            "integration_uptime": {"enabled": True, "weight": 100, "good": 100, "bad": 80},
+            "pipeline_failure_rate": {"enabled": True, "weight": 0, "good": 0, "bad": 50},
+            "avg_submission_latency": {"enabled": True, "weight": 0, "good": 15, "bad": 240},
+        },
+        "severity_points": {"Critical": 100, "High": 75, "Medium": 50, "Low": 25},
+        "bands": {"medium": 33, "high": 66},  # composite ≥ medium → Medium, ≥ high → High
+        "lookback_months": 12,  # compliance and operational window
+    },
     # REQ-AI-006b, REQ-AI-007, REQ-AI-010..012, §8.3. Validated by
     # app.services.anomaly.validate_config.
     "anomaly": {
