@@ -659,7 +659,7 @@ def report_rows(session: Session, report: str, participant_id=None, date_from=No
 def _latin1(text: str) -> str:
     """Core PDF fonts are latin-1 only."""
     for a, b in (("—", "-"), ("–", "-"), ("≥", ">="), ("≤", "<="), ("→", "->"), ("÷", "/"), ("’", "'"), ("“", '"'),
-                 ("”", '"'), ("✗", "x"), ("✓", "v"), ("§", "S")):
+                 ("”", '"'), ("✗", "x"), ("✓", "v")):
         text = text.replace(a, b)
     return text.encode("latin-1", "replace").decode("latin-1")
 
