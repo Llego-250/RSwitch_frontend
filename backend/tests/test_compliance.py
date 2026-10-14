@@ -591,6 +591,9 @@ def test_issues_api_backward_compatible():
 def test_upgrade_converts_legacy_rows():
     participant = make_participant()
     now = datetime.utcnow().isoformat(sep=" ")
+    if engine.dialect.name == "postgresql":  # a database created fresh has no pre-SRS enum label; add it as an old one had
+        with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+            conn.execute(text("ALTER TYPE issuestatus ADD VALUE IF NOT EXISTS 'in_progress'"))
     with engine.begin() as conn:
         for description in ("legacy in progress", "legacy with remediation"):
             conn.execute(text(
