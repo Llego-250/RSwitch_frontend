@@ -39,8 +39,9 @@ export function SubmissionHistoryCard({ profile }: { profile: ParticipantProfile
       ) : (
         <>
           <div className="px-6 py-3 text-[11px] text-[#526174] dark:text-slate-400 border-b border-[#DCE3E8] dark:border-slate-800">
-            {summary.total} transfer(s): {summary.passed} passed, {summary.failed_validation} failed
-            validation · {summary.records_received.toLocaleString()} records · first{" "}
+            {summary.total} transfer(s), newest first: {summary.passed} passed,{" "}
+            {summary.failed_validation} failed validation ·{" "}
+            {summary.records_received.toLocaleString()} records · first{" "}
             {formatDateTime(summary.first_submission_at)}
             {summary.expected_due && ` · next expected ${fmtDay(summary.expected_due.date)}`}
           </div>
