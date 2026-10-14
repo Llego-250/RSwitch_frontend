@@ -211,7 +211,7 @@ def _check(key: str, value: dict) -> list[dict]:
 
 # Modules that own a settings section validate it themselves; their
 # validate_config(value, current) returns [{field, error}] problems.
-_MODULE_VALIDATORS = {"anomaly": "app.services.anomaly"}
+_MODULE_VALIDATORS = {"anomaly": "app.services.anomaly", "risk": "app.services.risk"}
 
 
 def _module_problems(session: Session, key: str, value: dict) -> list[dict]:
