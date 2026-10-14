@@ -12,6 +12,7 @@ import { downloadRun, type ReportRun } from "@/lib/reports";
 import {
   fmtDuration,
   timeAgo,
+  useOpenLink,
   type ActionItemsData,
   type ActivityData,
   type AlertsData,
@@ -30,7 +31,7 @@ import {
   type SeverityCounts,
   type SystemHealthData,
 } from "@/lib/dashboard";
-import { Caption, Empty, SegmentBar, Stat, useOpenLink } from "./WidgetCard";
+import { Caption, Empty, SegmentBar, Stat } from "./WidgetCard";
 
 const rowCls =
   "flex items-start gap-3 py-2 border-b border-slate-100 dark:border-slate-800 last:border-0 text-xs";
@@ -52,12 +53,13 @@ function Badge({ status }: { status: string }) {
   return <StatusBadge status={STATUS_FOR[status] ?? "draft"}>{status}</StatusBadge>;
 }
 
-const pct = (v: number | null | undefined) => (v === null || v === undefined ? "—" : `${v.toFixed(1)}%`);
+const pct = (v: number | null | undefined) =>
+  v === null || v === undefined ? "—" : `${v.toFixed(1)}%`;
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 // ---- §15.1 Compliance ----------------------------------------------------------------
 
-function OverdueSubmissions({ data }: { data: CountList<OverdueItem> }) {
+export function OverdueSubmissions({ data }: { data: CountList<OverdueItem> }) {
   return (
     <div>
       <Stat
@@ -70,7 +72,9 @@ function OverdueSubmissions({ data }: { data: CountList<OverdueItem> }) {
           {data.items.map((i, n) => (
             <li key={n} className={rowCls}>
               <span className="flex-1 min-w-0">
-                <span className="font-semibold text-[#172033] dark:text-slate-100">{i.participant_name}</span>
+                <span className="font-semibold text-[#172033] dark:text-slate-100">
+                  {i.participant_name}
+                </span>
                 <span className="block text-[#526174] dark:text-slate-400 truncate">
                   {i.requirement_name} · {i.period}
                 </span>
@@ -112,7 +116,11 @@ export function UpcomingDeadlines({ data }: { data: CountList<DeadlineItem> }) {
               <span className="flex flex-col items-end gap-1 shrink-0">
                 <StatusPill status={d.status} />
                 <span className="text-[10.5px] text-[#7B8798]">
-                  {d.days_until_due === 0 ? "due today" : d.days_until_due > 0 ? `in ${plural(d.days_until_due, "day")}` : `${-d.days_until_due}d ago`}
+                  {d.days_until_due === 0
+                    ? "due today"
+                    : d.days_until_due > 0
+                      ? `in ${plural(d.days_until_due, "day")}`
+                      : `${-d.days_until_due}d ago`}
                 </span>
               </span>
             </li>
@@ -128,14 +136,23 @@ export function UpcomingDeadlines({ data }: { data: CountList<DeadlineItem> }) {
   );
 }
 
-function OpenIncidents({ data }: { data: SeverityCounts }) {
+export function OpenIncidents({ data }: { data: SeverityCounts }) {
   return (
     <div>
-      <Stat value={data.total} label={`unresolved incidents · ${data.period_label}`} tone={data.Critical ? "bad" : "default"} />
+      <Stat
+        value={data.total}
+        label={`unresolved incidents · ${data.period_label}`}
+        tone={data.Critical ? "bad" : "default"}
+      />
       <div className="mt-4 grid grid-cols-4 gap-2">
         {(["Critical", "High", "Medium", "Low"] as Severity[]).map((s) => (
-          <div key={s} className="rounded-xl border border-[#DCE3E8] dark:border-slate-800 p-2.5 text-center">
-            <div className="text-xl font-bold tabular-nums text-[#172033] dark:text-white">{data[s]}</div>
+          <div
+            key={s}
+            className="rounded-xl border border-[#DCE3E8] dark:border-slate-800 p-2.5 text-center"
+          >
+            <div className="text-xl font-bold tabular-nums text-[#172033] dark:text-white">
+              {data[s]}
+            </div>
             <div className="mt-1">
               <SeverityPill severity={s} />
             </div>
@@ -146,22 +163,35 @@ function OpenIncidents({ data }: { data: SeverityCounts }) {
   );
 }
 
-function ComplianceRate({ data }: { data: RateData }) {
+export function ComplianceRate({ data }: { data: RateData }) {
   return (
     <div>
       <Stat
         value={pct(data.rate_pct)}
-        label={data.total ? `${data.on_time} of ${plural(data.total, "deadline")} met on time` : "No deadline fell due in this period"}
-        tone={data.rate_pct === null ? "default" : data.rate_pct >= 90 ? "good" : data.rate_pct >= 70 ? "warn" : "bad"}
+        label={
+          data.total
+            ? `${data.on_time} of ${plural(data.total, "deadline")} met on time`
+            : "No deadline fell due in this period"
+        }
+        tone={
+          data.rate_pct === null
+            ? "default"
+            : data.rate_pct >= 90
+              ? "good"
+              : data.rate_pct >= 70
+                ? "warn"
+                : "bad"
+        }
       />
       <Caption>
-        {data.period_label}: deadlines due in the window whose submission was approved and arrived by the due date.
+        {data.period_label}: deadlines due in the window whose submission was approved and arrived
+        by the due date.
       </Caption>
     </div>
   );
 }
 
-function OverdueActionItems({ data }: { data: ActionItemsData }) {
+export function OverdueActionItems({ data }: { data: ActionItemsData }) {
   const open = useOpenLink();
   return (
     <div>
@@ -176,12 +206,16 @@ function OverdueActionItems({ data }: { data: ActionItemsData }) {
             <li key={n}>
               <button className={linkRowCls} onClick={() => open(i.link)}>
                 <span className="flex-1 min-w-0">
-                  <span className="block font-semibold text-[#172033] dark:text-slate-100 truncate">{i.description}</span>
+                  <span className="block font-semibold text-[#172033] dark:text-slate-100 truncate">
+                    {i.description}
+                  </span>
                   <span className="block text-[#526174] dark:text-slate-400">
                     {i.kind} · {i.owner || "No owner"}
                   </span>
                 </span>
-                <span className="text-[#DC3154] font-semibold whitespace-nowrap">{i.days_overdue}d overdue</span>
+                <span className="text-[#DC3154] font-semibold whitespace-nowrap">
+                  {i.days_overdue}d overdue
+                </span>
               </button>
             </li>
           ))}
@@ -196,7 +230,12 @@ function OverdueActionItems({ data }: { data: ActionItemsData }) {
 export function RecentActivity({ data }: { data: ActivityData }) {
   const open = useOpenLink();
   if (!data.items.length)
-    return <Empty>No {data.source === "compliance" ? "compliance events" : "relevant activity"} in this period ({data.period_label}).</Empty>;
+    return (
+      <Empty>
+        No {data.source === "compliance" ? "compliance events" : "relevant activity"} in this period
+        ({data.period_label}).
+      </Empty>
+    );
   return (
     <ol>
       {data.items.map((e, n) => (
@@ -206,13 +245,17 @@ export function RecentActivity({ data }: { data: ActivityData }) {
               {timeAgo(e.at)}
             </span>
             <span className="flex-1 min-w-0">
-              <span className="block font-semibold text-[#172033] dark:text-slate-100 truncate">{e.title}</span>
+              <span className="block font-semibold text-[#172033] dark:text-slate-100 truncate">
+                {e.title}
+              </span>
               <span className="block text-[#526174] dark:text-slate-400 truncate">
                 {[e.participant_name, e.actor, e.detail].filter(Boolean).join(" · ")}
               </span>
             </span>
             {e.status === "FAILED" || e.status === "WARNING" ? (
-              <span className="text-[10.5px] font-semibold text-[#B45309]">{e.status.toLowerCase()}</span>
+              <span className="text-[10.5px] font-semibold text-[#B45309]">
+                {e.status.toLowerCase()}
+              </span>
             ) : null}
           </button>
         </li>
@@ -250,12 +293,16 @@ export function IntegrationHealth({ data }: { data: HealthData }) {
   );
 }
 
-function AiAlerts({ data }: { data: AlertsData }) {
+export function AiAlerts({ data }: { data: AlertsData }) {
   const open = useOpenLink();
   return (
     <div>
       <div className="grid grid-cols-2 gap-3">
-        <Stat value={data.unacknowledged} label={`awaiting acknowledgement · ${data.period_label}`} tone={data.unacknowledged ? "warn" : "good"} />
+        <Stat
+          value={data.unacknowledged}
+          label={`awaiting acknowledgement · ${data.period_label}`}
+          tone={data.unacknowledged ? "warn" : "good"}
+        />
         <Stat value={data.escalated} label="escalated" tone={data.escalated ? "bad" : "default"} />
       </div>
       {data.items.length > 0 ? (
@@ -263,9 +310,13 @@ function AiAlerts({ data }: { data: AlertsData }) {
           {data.items.map((a) => (
             <li key={a.id}>
               <button className={linkRowCls} onClick={() => open(a.link)}>
-                <SeverityPill severity={(a.severity.charAt(0) + a.severity.slice(1).toLowerCase()) as Severity} />
+                <SeverityPill
+                  severity={(a.severity.charAt(0) + a.severity.slice(1).toLowerCase()) as Severity}
+                />
                 <span className="flex-1 min-w-0">
-                  <span className="block font-semibold text-[#172033] dark:text-slate-100 truncate">{a.indicator}</span>
+                  <span className="block font-semibold text-[#172033] dark:text-slate-100 truncate">
+                    {a.indicator}
+                  </span>
                   <span className="block text-[#526174] dark:text-slate-400">
                     {a.ref} · {a.participant_name} · {timeAgo(a.created_at)}
                   </span>
@@ -281,12 +332,14 @@ function AiAlerts({ data }: { data: AlertsData }) {
   );
 }
 
-function InclusionSnapshot({ data }: { data: InclusionSnapshotData }) {
+export function InclusionSnapshot({ data }: { data: InclusionSnapshotData }) {
   const metrics = data.metrics;
   return (
     <div>
       <div className="flex items-center justify-between gap-2 mb-3">
-        <span className="text-xs font-semibold text-[#172033] dark:text-slate-100">{data.period_label}</span>
+        <span className="text-xs font-semibold text-[#172033] dark:text-slate-100">
+          {data.period_label}
+        </span>
         <span className="text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-[#FFF3DF] text-[#B45309] border border-[#D97706]/30">
           {data.indicative_label}
         </span>
@@ -294,10 +347,20 @@ function InclusionSnapshot({ data }: { data: InclusionSnapshotData }) {
       {metrics.length ? (
         <div className="grid grid-cols-2 gap-2">
           {metrics.map((m) => (
-            <div key={m.key} className="rounded-xl border border-[#DCE3E8] dark:border-slate-800 p-2.5 min-w-0" title={m.data_source}>
-              <div className="text-[10.5px] text-[#526174] dark:text-slate-400 truncate">{m.label}</div>
+            <div
+              key={m.key}
+              className="rounded-xl border border-[#DCE3E8] dark:border-slate-800 p-2.5 min-w-0"
+              title={m.data_source}
+            >
+              <div className="text-[10.5px] text-[#526174] dark:text-slate-400 truncate">
+                {m.label}
+              </div>
               <div className="text-sm font-bold tabular-nums text-[#172033] dark:text-white mt-0.5">
-                {m.available ? formatMetric(m.value, m.unit, true) : <span className="text-[11px] font-medium text-[#7B8798]">{m.status}</span>}
+                {m.available ? (
+                  formatMetric(m.value, m.unit, true)
+                ) : (
+                  <span className="text-[11px] font-medium text-[#7B8798]">{m.status}</span>
+                )}
               </div>
             </div>
           ))}
@@ -306,14 +369,15 @@ function InclusionSnapshot({ data }: { data: InclusionSnapshotData }) {
         <Empty>No inclusion return has been received yet.</Empty>
       )}
       <Caption>
-        {data.coverage.institutions_reporting} of {data.coverage.institutions_registered} institutions reporting
+        {data.coverage.institutions_reporting} of {data.coverage.institutions_registered}{" "}
+        institutions reporting
         {data.coverage.last_updated ? ` · updated ${timeAgo(data.coverage.last_updated)}` : ""}.
       </Caption>
     </div>
   );
 }
 
-function RiskOverview({ data }: { data: RiskData }) {
+export function RiskOverview({ data }: { data: RiskData }) {
   const open = useOpenLink();
   const d = data.distribution;
   return (
@@ -324,39 +388,54 @@ function RiskOverview({ data }: { data: RiskData }) {
           { label: "Low", value: d.Low ?? 0, className: "bg-[#16A979]" },
           { label: "Medium", value: d.Medium ?? 0, className: "bg-[#D97706]" },
           { label: "High", value: d.High ?? 0, className: "bg-[#DC3154]" },
-          { label: "Insufficient data", value: d["Insufficient data"] ?? 0, className: "bg-slate-300 dark:bg-slate-600" },
+          {
+            label: "Insufficient data",
+            value: d["Insufficient data"] ?? 0,
+            className: "bg-slate-300 dark:bg-slate-600",
+          },
         ]}
       />
       {data.riskiest.length > 0 && (
         <div className="mt-3">
-          <div className="text-[10.5px] font-semibold uppercase tracking-wide text-[#7B8798] mb-1">Highest scores</div>
+          <div className="text-[10.5px] font-semibold uppercase tracking-wide text-[#7B8798] mb-1">
+            Highest scores
+          </div>
           <ul>
             {data.riskiest.map((r) => (
               <li key={r.participant_id}>
                 <button className={linkRowCls} onClick={() => open(r.link)}>
-                  <span className="flex-1 font-semibold text-[#172033] dark:text-slate-100 truncate">{r.participant_name}</span>
+                  <span className="flex-1 font-semibold text-[#172033] dark:text-slate-100 truncate">
+                    {r.participant_name}
+                  </span>
                   <span className="tabular-nums font-semibold">{r.score.toFixed(1)}</span>
-                  <span className="text-[#526174] dark:text-slate-400 w-16 text-right">{r.band}</span>
+                  <span className="text-[#526174] dark:text-slate-400 w-16 text-right">
+                    {r.band}
+                  </span>
                 </button>
               </li>
             ))}
           </ul>
         </div>
       )}
-      <Caption>Scores 0–100, higher is riskier. Under 3 months of history: insufficient data.</Caption>
+      <Caption>
+        Scores 0–100, higher is riskier. Under 3 months of history: insufficient data.
+      </Caption>
     </div>
   );
 }
 
-function RecentReports({ data }: { data: { period_label: string; items: ReportRun[] } }) {
-  if (!data.items.length) return <Empty>No report you can view has been generated in this period.</Empty>;
+export function RecentReports({ data }: { data: { period_label: string; items: ReportRun[] } }) {
+  if (!data.items.length)
+    return <Empty>No report you can view has been generated in this period.</Empty>;
   return (
     <ul>
       {data.items.map((r) => (
         <li key={r.id} className={rowCls}>
           <FileText className="h-4 w-4 text-[#168FA8] shrink-0 mt-0.5" />
           <span className="flex-1 min-w-0">
-            <span className="block font-semibold text-[#172033] dark:text-slate-100 truncate">{r.name}</span>
+            <span className="block font-semibold text-[#172033] dark:text-slate-100 truncate">
+              {r.name}
+            </span>
             <span className="block text-[#526174] dark:text-slate-400">
               {r.report_name} · {r.generated_by} · {timeAgo(r.generated_at)}
             </span>
@@ -378,7 +457,7 @@ function RecentReports({ data }: { data: { period_label: string; items: ReportRu
   );
 }
 
-function ComplianceOverview({ data }: { data: RateData }) {
+export function ComplianceOverview({ data }: { data: RateData }) {
   const statuses = Object.entries(data.current_status ?? {}).sort((a, b) => b[1] - a[1]);
   return (
     <div>
@@ -404,18 +483,22 @@ function ComplianceOverview({ data }: { data: RateData }) {
 
 // ---- §15.3 Technical / Admin ---------------------------------------------------------------
 
-function ActivePipelines({ data }: { data: PipelinesData }) {
+export function ActivePipelines({ data }: { data: PipelinesData }) {
   return (
     <div className="grid grid-cols-2 gap-4">
       <Stat value={data.running} label="running now" />
       <Stat value={data.queued} label="queued" tone={data.queued ? "warn" : "default"} />
-      <Stat value={data.failed} label={`failed · ${data.period_label.toLowerCase()}`} tone={data.failed ? "bad" : "good"} />
+      <Stat
+        value={data.failed}
+        label={`failed · ${data.period_label.toLowerCase()}`}
+        tone={data.failed ? "bad" : "good"}
+      />
       <Stat value={data.completed} label={`completed · ${data.period_label.toLowerCase()}`} />
     </div>
   );
 }
 
-function FailedIntegrations({ data }: { data: FailedIntegrationsData }) {
+export function FailedIntegrations({ data }: { data: FailedIntegrationsData }) {
   const open = useOpenLink();
   if (!data.items.length) return <Empty>No integration is in Failed state.</Empty>;
   return (
@@ -428,7 +511,9 @@ function FailedIntegrations({ data }: { data: FailedIntegrationsData }) {
               <span className="block font-semibold text-[#172033] dark:text-slate-100 truncate">
                 {i.participant_name} · {i.source_name}
               </span>
-              <span className="block text-[#526174] dark:text-slate-400 line-clamp-2">{i.note || "No reason recorded."}</span>
+              <span className="block text-[#526174] dark:text-slate-400 line-clamp-2">
+                {i.note || "No reason recorded."}
+              </span>
               <span className="block text-[#7B8798]">
                 Failed since {timeAgo(i.since)} · last success {timeAgo(i.last_success_at)}
               </span>
@@ -440,8 +525,9 @@ function FailedIntegrations({ data }: { data: FailedIntegrationsData }) {
   );
 }
 
-function DataFreshness({ data }: { data: FreshnessData }) {
-  if (!data.items.length) return <Empty>No data source is registered for the selected participants.</Empty>;
+export function DataFreshness({ data }: { data: FreshnessData }) {
+  if (!data.items.length)
+    return <Empty>No data source is registered for the selected participants.</Empty>;
   const shown = data.items.slice(0, 8);
   return (
     <div>
@@ -449,11 +535,18 @@ function DataFreshness({ data }: { data: FreshnessData }) {
         {shown.map((i) => (
           <li key={i.integration_id} className={rowCls}>
             <span className="flex-1 min-w-0">
-              <span className="block font-semibold text-[#172033] dark:text-slate-100 truncate">{i.source_name}</span>
-              <span className="block text-[#526174] dark:text-slate-400 truncate">{i.participant_name}</span>
+              <span className="block font-semibold text-[#172033] dark:text-slate-100 truncate">
+                {i.source_name}
+              </span>
+              <span className="block text-[#526174] dark:text-slate-400 truncate">
+                {i.participant_name}
+              </span>
             </span>
             <span className="text-right shrink-0">
-              <span className="block tabular-nums" title={i.last_sync_at ? fmtDateTime(i.last_sync_at) : "Never synced"}>
+              <span
+                className="block tabular-nums"
+                title={i.last_sync_at ? fmtDateTime(i.last_sync_at) : "Never synced"}
+              >
                 {timeAgo(i.last_sync_at)}
               </span>
               {i.stale && (
@@ -467,43 +560,59 @@ function DataFreshness({ data }: { data: FreshnessData }) {
         ))}
       </ul>
       <Caption>
-        {plural(data.count, "data source")}, {data.stale} without a sync within the participant's expected frequency.
+        {plural(data.count, "data source")}, {data.stale} without a sync within the participant's
+        expected frequency.
         {data.count > shown.length && " Stalest shown first."}
       </Caption>
     </div>
   );
 }
 
-function SystemHealth({ data }: { data: SystemHealthData }) {
+export function SystemHealth({ data }: { data: SystemHealthData }) {
   return (
     <div>
       <div className="grid grid-cols-3 gap-3">
-        <Stat value={fmtDuration(data.uptime_seconds)} label={`uptime since ${fmtDateTime(data.started_at)}`} />
+        <Stat
+          value={fmtDuration(data.uptime_seconds)}
+          label={`uptime since ${fmtDateTime(data.started_at)}`}
+        />
         <Stat
           value={data.error_rate_pct === null ? "—" : `${data.error_rate_pct}%`}
           label={`5xx errors · ${data.errors_5xx} of ${data.requests} requests (${data.period_label})`}
           tone={data.errors_5xx ? "bad" : "good"}
         />
-        <Stat value={data.queue_depth} label={`pipeline jobs queued · ${data.running_jobs} running`} tone={data.queue_depth ? "warn" : "default"} />
+        <Stat
+          value={data.queue_depth}
+          label={`pipeline jobs queued · ${data.running_jobs} running`}
+          tone={data.queue_depth ? "warn" : "default"}
+        />
       </div>
       <Caption>Report generation queue: {data.report_queue}.</Caption>
     </div>
   );
 }
 
-function PendingMappings({ data }: { data: MappingsData }) {
+export function PendingMappings({ data }: { data: MappingsData }) {
   const open = useOpenLink();
   return (
     <div>
-      <Stat value={data.count} label="mappings in Draft (never published)" tone={data.count ? "warn" : "good"} />
+      <Stat
+        value={data.count}
+        label="mappings in Draft (never published)"
+        tone={data.count ? "warn" : "good"}
+      />
       {data.items.length > 0 ? (
         <ul className="mt-3">
           {data.items.map((m) => (
             <li key={m.id}>
               <button className={linkRowCls} onClick={() => open(m.link)}>
-                <span className="font-mono text-[11px] font-semibold text-[#168FA8] w-16 shrink-0">{m.code}</span>
+                <span className="font-mono text-[11px] font-semibold text-[#168FA8] w-16 shrink-0">
+                  {m.code}
+                </span>
                 <span className="flex-1 min-w-0">
-                  <span className="block font-semibold text-[#172033] dark:text-slate-100 truncate">{m.name}</span>
+                  <span className="block font-semibold text-[#172033] dark:text-slate-100 truncate">
+                    {m.name}
+                  </span>
                   <span className="block text-[#526174] dark:text-slate-400 truncate">
                     {m.source_system || "—"} · by {m.created_by || "—"}
                   </span>
@@ -519,7 +628,7 @@ function PendingMappings({ data }: { data: MappingsData }) {
   );
 }
 
-function RecentPipelineRuns({ data }: { data: PipelineRunsData }) {
+export function RecentPipelineRuns({ data }: { data: PipelineRunsData }) {
   if (!data.items.length) return <Empty>No pipeline job in this period.</Empty>;
   return (
     <ul>
@@ -541,26 +650,3 @@ function RecentPipelineRuns({ data }: { data: PipelineRunsData }) {
     </ul>
   );
 }
-
-/* eslint-disable @typescript-eslint/no-explicit-any -- each view narrows its own payload */
-export const WIDGET_VIEWS: Record<string, (props: { data: any }) => ReactNode> = {
-  overdue_submissions: OverdueSubmissions,
-  upcoming_deadlines: UpcomingDeadlines,
-  open_incidents: OpenIncidents,
-  compliance_rate: ComplianceRate,
-  overdue_action_items: OverdueActionItems,
-  recent_activity: RecentActivity,
-  integration_health: IntegrationHealth,
-  ai_alerts: AiAlerts,
-  inclusion_snapshot: InclusionSnapshot,
-  risk_overview: RiskOverview,
-  recent_reports: RecentReports,
-  compliance_overview: ComplianceOverview,
-  active_pipelines: ActivePipelines,
-  failed_integrations: FailedIntegrations,
-  data_freshness: DataFreshness,
-  system_health: SystemHealth,
-  pending_mappings: PendingMappings,
-  recent_pipeline_runs: RecentPipelineRuns,
-};
-/* eslint-enable @typescript-eslint/no-explicit-any */
