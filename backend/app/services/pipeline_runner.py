@@ -107,6 +107,7 @@ def set_integration_status(
     Technical/Admin team (REQ-INTG-010, §13) — once per failure, not on
     every later failed attempt."""
     previous = integration.status
+    previous_since = integration.updated_at
     integration.status = status
     integration.note = note
     integration.source = source
@@ -115,6 +116,10 @@ def set_integration_status(
     if warnings is not None:
         integration.warnings = warnings
     session.add(integration)
+    if status != previous:  # status history for integration uptime (REQ-P360-007)
+        from app.services.risk import record_status_change
+
+        record_status_change(session, integration, previous=previous, since=previous_since)
     session.commit()
     if notify and status == IntegrationStatus.failed and previous != IntegrationStatus.failed:
         notify_technical(
