@@ -25,7 +25,10 @@ export function ComplianceStatusCard({ compliance }: { compliance: ParticipantCo
         </>
       }
       action={
-        <a href="/compliance?tab=register" className="text-xs font-semibold text-[#168FA8] hover:underline">
+        <a
+          href="/compliance?tab=register"
+          className="text-xs font-semibold text-[#168FA8] hover:underline"
+        >
           Compliance register
         </a>
       }
@@ -63,7 +66,9 @@ export function ComplianceStatusCard({ compliance }: { compliance: ParticipantCo
                 {requirements.map((r) => (
                   <tr key={r.id}>
                     <td className="py-2 pr-3">
-                      <div className="font-semibold text-[#172033] dark:text-slate-100">{r.requirement_name}</div>
+                      <div className="font-semibold text-[#172033] dark:text-slate-100">
+                        {r.requirement_name}
+                      </div>
                       <div className="text-[11px] text-[#7B8798]">
                         {r.kind} · {r.frequency}
                         {r.regulatory_reference ? ` · ${r.regulatory_reference}` : ""}
@@ -79,7 +84,9 @@ export function ComplianceStatusCard({ compliance }: { compliance: ParticipantCo
                       </div>
                     </td>
                     <td className="py-2">
-                      <Pill className={STATUS_STYLE[r.submission_status] ?? STATUS_STYLE.Pending}>{r.submission_status}</Pill>
+                      <Pill className={STATUS_STYLE[r.submission_status] ?? STATUS_STYLE.Pending}>
+                        {r.submission_status}
+                      </Pill>
                     </td>
                   </tr>
                 ))}
@@ -102,7 +109,9 @@ export function ComplianceStatusCard({ compliance }: { compliance: ParticipantCo
                     <span>
                       {d.requirement_name} ({d.period})
                     </span>
-                    <span className="text-[#DC3154] whitespace-nowrap">{dueText(d.days_until_due, true)}</span>
+                    <span className="text-[#DC3154] whitespace-nowrap">
+                      {dueText(d.days_until_due, true)}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -134,7 +143,9 @@ export function ComplianceStatusCard({ compliance }: { compliance: ParticipantCo
         </div>
 
         <div>
-          <h3 className="text-[11px] font-semibold uppercase tracking-wide text-[#7B8798] mb-1.5">Required documents</h3>
+          <h3 className="text-[11px] font-semibold uppercase tracking-wide text-[#7B8798] mb-1.5">
+            Required documents
+          </h3>
           {documents.length === 0 ? (
             <Empty>No document type is required yet.</Empty>
           ) : (
@@ -145,12 +156,20 @@ export function ComplianceStatusCard({ compliance }: { compliance: ParticipantCo
                   className="p-2.5 rounded-xl border border-[#DCE3E8] dark:border-slate-700 text-xs flex items-center justify-between gap-2"
                 >
                   <span className="min-w-0">
-                    <span className="font-semibold text-[#172033] dark:text-slate-100 block truncate">{d.doc_type}</span>
+                    <span className="font-semibold text-[#172033] dark:text-slate-100 block truncate">
+                      {d.doc_type}
+                    </span>
                     <span className="text-[11px] text-[#7B8798]">
-                      {d.expiry_date ? `expires ${fmtDay(d.expiry_date)}` : d.document ? "no expiry" : "not on file"}
+                      {d.expiry_date
+                        ? `expires ${fmtDay(d.expiry_date)}`
+                        : d.document
+                          ? "no expiry"
+                          : "not on file"}
                     </span>
                   </span>
-                  <Pill className={STATUS_STYLE[d.expiry_status] ?? STATUS_STYLE.Pending}>{d.expiry_status}</Pill>
+                  <Pill className={STATUS_STYLE[d.expiry_status] ?? STATUS_STYLE.Pending}>
+                    {d.expiry_status}
+                  </Pill>
                 </li>
               ))}
             </ul>
