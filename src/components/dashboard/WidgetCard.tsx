@@ -2,9 +2,8 @@
 // the widget's own period and scope pickers (REQ-DASH-010) — changing them
 // refetches only with the new settings, the page never navigates away.
 import type { ReactNode } from "react";
-import { useRouter } from "@tanstack/react-router";
 import { ArrowUpRight, CalendarRange, Loader2 } from "lucide-react";
-import type { OptionSet, Widget } from "@/lib/dashboard";
+import { useOpenLink, type OptionSet, type Widget } from "@/lib/dashboard";
 
 const pickerCls =
   "h-7 pl-2 pr-6 rounded-lg bg-slate-50 dark:bg-slate-800 border border-[#DCE3E8] dark:border-slate-700 text-[11px] font-semibold text-[#526174] dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-[#168FA8]/40 cursor-pointer";
@@ -46,11 +45,6 @@ function Picker({
       ))}
     </select>
   );
-}
-
-export function useOpenLink() {
-  const router = useRouter();
-  return (link: string) => link && router.history.push(link);
 }
 
 export function WidgetCard({
@@ -139,7 +133,9 @@ export function Stat({
       <div className={`font-bold text-[30px] leading-none tracking-tight tabular-nums ${color}`}>
         {value}
       </div>
-      <div className="text-[11px] font-medium text-[#526174] dark:text-slate-400 mt-1.5">{label}</div>
+      <div className="text-[11px] font-medium text-[#526174] dark:text-slate-400 mt-1.5">
+        {label}
+      </div>
     </div>
   );
 }
