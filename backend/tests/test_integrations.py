@@ -3,6 +3,7 @@
 for how to run."""
 
 import json
+import time
 from datetime import datetime, timedelta
 
 from sqlalchemy import create_engine, inspect, text
@@ -300,6 +301,14 @@ def test_sync_failure_marks_failed_and_notifies_technical():
         r = c.post(f"/integrations/{source['id']}/sync", headers=h(TECHNICAL))
         job = wait_job(r.json()["id"])
         assert job["status"] == "Failed" and "HTTP 401" in job["summary"]
+        # The worker marks the job Failed first and notifies right after; the
+        # email (last delivery) appearing means every notification is in.
+        deadline = time.time() + 20
+        while time.time() < deadline:
+            with Session(engine) as s:
+                if s.exec(select(EmailOutbox).where(EmailOutbox.dedupe_key == f"pipeline_failed:{job['id']}")).first():
+                    break
+            time.sleep(0.2)
         logs = c.get(f"/pipelines/jobs/{job['id']}/logs", headers=h(BUSINESS)).json()
         assert any(line["level"] == "ERROR" and "401" in line["message"] for line in logs)
         assert c.get(f"/integrations/{source['id']}", headers=h(BUSINESS)).json()["status"] == "Failed"

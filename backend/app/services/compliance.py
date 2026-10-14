@@ -949,10 +949,12 @@ def adherence_rate(session: Session, participant_id: int, months: int = 12) -> d
             "window_start": start, "months": months}
 
 
-def _events(session: Session, participant_id: Optional[int] = None, *, register_only: bool = False) -> list[dict]:
+def _events(session: Session, participant_id: Optional[int] = None, *, register_only: bool = False,
+            since: Optional[datetime] = None) -> list[dict]:
     """Compliance events, oldest first: every submission and document sent
     and how it was reviewed, correction requests, missed deadlines,
-    incidents and their remediation."""
+    incidents and their remediation. `since` limits the reads to recent
+    events (the dashboard's recent activity)."""
     lk = Lookups(session)
     requirements = {r.id: r for r in session.exec(select(ComplianceRequirement)).all()}
     links = session.exec(select(ComplianceCycleItem)).all()
@@ -983,6 +985,8 @@ def _events(session: Session, participant_id: Optional[int] = None, *, register_
         sub_query = sub_query.where(Submission.participant_id == participant_id)
     if register_only:
         sub_query = sub_query.where(Submission.requirement_id != None)  # noqa: E711
+    if since is not None:
+        sub_query = sub_query.where((Submission.uploaded_at >= since) | (Submission.reviewed_at >= since))
     for s in session.exec(sub_query).all():
         ctx = where(cycle_by_sub.get(s.id), s.requirement_id)
         label = ctx["requirement_name"] or "Data transfer"
@@ -1000,6 +1004,8 @@ def _events(session: Session, participant_id: Optional[int] = None, *, register_
     doc_query = select(ComplianceDocument).where(ComplianceDocument.review_status != "") if register_only else select(ComplianceDocument)
     if participant_id is not None:
         doc_query = doc_query.where(ComplianceDocument.participant_id == participant_id)
+    if since is not None:
+        doc_query = doc_query.where((ComplianceDocument.uploaded_at >= since) | (ComplianceDocument.reviewed_at >= since))
     for d in session.exec(doc_query).all():
         ctx = where(cycle_by_doc.get(d.id), d.requirement_id)
         doc_type = lk.doc_type(d.doc_type_id)
@@ -1043,7 +1049,10 @@ def _events(session: Session, participant_id: Optional[int] = None, *, register_
             add(inc.closed_at, "incident_closed", f"{ref} closed", inc.resolution_summary, "Closed", inc.participant_id, incident_id=inc.id)
     by_incident = {i.id: i for i in incidents}
     if by_incident:
-        for action in session.exec(select(RemediationAction).where(RemediationAction.incident_id.in_(list(by_incident)))).all():
+        action_query = select(RemediationAction).where(RemediationAction.incident_id.in_(list(by_incident)))
+        if since is not None:
+            action_query = action_query.where((RemediationAction.created_at >= since) | (RemediationAction.completed_at >= since))
+        for action in session.exec(action_query).all():
             inc = by_incident[action.incident_id]
             ref = incident_ref(inc)
             owner = lk.user(action.owner_id)
@@ -1052,6 +1061,8 @@ def _events(session: Session, participant_id: Optional[int] = None, *, register_
             if action.completed_at:
                 add(action.completed_at, "remediation_completed", f"Remediation action completed on {ref}", action.description, "Completed",
                     inc.participant_id, incident_id=inc.id)
+    if since is not None:
+        events = [e for e in events if e["at"] >= since]
     events.sort(key=lambda e: e["at"])
     return events
 
@@ -1088,12 +1099,16 @@ def dashboard_summary(session: Session, days: int = 30) -> dict:
     window_start = today - timedelta(days=days)
     recent_cycles = session.exec(
         select(ComplianceCycle).join(ComplianceRequirement, ComplianceCycle.requirement_id == ComplianceRequirement.id).where(
+            ComplianceRequirement.active == True,  # noqa: E712
             ComplianceCycle.due_date >= window_start, ComplianceCycle.due_date < today)
     ).all()
     on_time, total = _adherence(list(recent_cycles))
     gov_overdue = sum(1 for item in session.exec(select(ActionItem).where(ActionItem.status != "Completed")).all()
                       if effective_status(item, today) == "Overdue")
     remediation_overdue = len(overdue_remediation(session, today))
+    recent = _events(session, register_only=True, since=datetime.utcnow() - timedelta(days=90))
+    if len(recent) < 10:
+        recent = _events(session, register_only=True)
     return {
         "as_of": today,
         "overdue_submissions": len(overdue_rows(session, lk=lk)),
@@ -1103,7 +1118,7 @@ def dashboard_summary(session: Session, days: int = 30) -> dict:
                                 "total": total, "window_start": window_start, "days": days},
         "overdue_action_items": {"governance": gov_overdue, "incident_remediation": remediation_overdue,
                                  "total": gov_overdue + remediation_overdue},
-        "recent_activity": list(reversed(_events(session, register_only=True)[-10:])),
+        "recent_activity": list(reversed(recent[-10:])),
     }
 
 

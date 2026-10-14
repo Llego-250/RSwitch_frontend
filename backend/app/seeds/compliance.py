@@ -9,7 +9,6 @@ validation code; documents are generated PDFs. Dates are relative to today
 so the calendar always has deadlines inside the next 1, 7 and 14 days.
 Idempotent: does nothing once the register exists."""
 
-import io
 import random
 from collections import OrderedDict
 from datetime import date, datetime, time, timedelta
@@ -358,7 +357,7 @@ def _annual_document(session: Session, p: Participant, doc_type: RequiredDocumen
         session.add(doc)
         _link(session, cycle, doc)
     elif kind == "correction":
-        doc = _doc(session, p, doc_type, req, _at(today - timedelta(days=6), 10), today - timedelta(days=110), "Submitted", "2025")
+        doc = _doc(session, p, doc_type, req, _at(today - timedelta(days=6), 10), None, "Submitted", "2025")
         _review(doc, "Rejected", _at(today - timedelta(days=4), 16),
                 reason="The certificate sent is last year's audit and expired in June; we need the current certification.")
         session.add(doc)

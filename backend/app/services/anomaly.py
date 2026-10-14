@@ -24,7 +24,7 @@ from app.core.permissions import has_cap
 from app.models.alert import AnomalyAlert
 from app.models.compliance import ComplianceRequirement
 from app.models.document import ComplianceDocument, RequiredDocumentType
-from app.models.enums import IntegrationStatus, IssueSeverity, IssueStatus, SubmissionResult, UserRole
+from app.models.enums import UNRESOLVED_INCIDENT_STATUSES, IntegrationStatus, IssueSeverity, SubmissionResult, UserRole
 from app.models.integration import Integration
 from app.models.issue import Issue
 from app.models.participant import Participant
@@ -684,7 +684,7 @@ def trend_summary(session: Session, months: Optional[int] = None) -> dict:
 
     open_alerts = session.exec(select(AnomalyAlert).where(AnomalyAlert.status != CLOSED)).all()
     snapshot = {
-        "open_incidents": sum(1 for i in issues if i.status in (IssueStatus.open, IssueStatus.in_progress)),
+        "open_incidents": sum(1 for i in issues if i.status in UNRESOLVED_INCIDENT_STATUSES),
         "open_alerts": len(open_alerts),
         "open_alerts_by_severity": {s: sum(1 for a in open_alerts if a.severity == s) for s in reversed(SEVERITIES)},
         "overdue_requirements": sum(
@@ -783,7 +783,7 @@ def risk_scores(session: Session) -> list[dict]:
             bad += {"Missing": 1, "Expired": 1, "Expiring Soon": 0.4}.get(st, 0)
         c_compliance = bad / len(doc_types) * 100 if doc_types else 0
 
-        open_issues = [i for i in issues if i.participant_id == p.id and i.status in (IssueStatus.open, IssueStatus.in_progress)]
+        open_issues = [i for i in issues if i.participant_id == p.id and i.status in UNRESOLVED_INCIDENT_STATUSES]
         c_incidents = min(100, sum(severity_points[i.severity] for i in open_issues))
 
         my_subs = [s for s in subs if s.participant_id == p.id]

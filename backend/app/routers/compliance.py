@@ -265,6 +265,11 @@ def update_requirement(requirement_id: int, body: RequirementIn, request: Reques
     if due is not None:
         changes.append(f"due_date={due}")
         svc.set_due_date(session, requirement, due)
+    elif "frequency" in changes:
+        cycle = svc.current_cycle(session, requirement)
+        if cycle is not None and cycle.stage != svc.APPROVED:
+            cycle.period = svc.period_label(cycle.due_date, requirement.frequency)
+            session.add(cycle)
     requirement.updated_by = _name(user)
     requirement.updated_at = datetime.utcnow()
     session.add(requirement)

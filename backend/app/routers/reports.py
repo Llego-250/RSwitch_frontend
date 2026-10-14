@@ -9,7 +9,7 @@ from sqlmodel import Session, select
 from app.core.permissions import require_staff
 from app.db import get_session
 from app.models.document import ComplianceDocument, RequiredDocumentType
-from app.models.enums import IntegrationStatus, IssueSeverity, IssueStatus, SubmissionResult
+from app.models.enums import UNRESOLVED_INCIDENT_STATUSES, IntegrationStatus, IssueSeverity, SubmissionResult
 from app.models.integration import Integration
 from app.models.issue import Issue
 from app.models.participant import Participant
@@ -29,7 +29,7 @@ def overview(session: Session = Depends(get_session), _: User = Depends(require_
     participants = session.exec(select(Participant)).all()
     integrations = session.exec(select(Integration)).all()
     open_issues = session.exec(
-        select(Issue).where(Issue.status.in_([IssueStatus.open, IssueStatus.in_progress]))
+        select(Issue).where(Issue.status.in_(UNRESOLVED_INCIDENT_STATUSES))
     ).all()
     doc_types = session.exec(select(RequiredDocumentType)).all()
     docs = session.exec(select(ComplianceDocument)).all()

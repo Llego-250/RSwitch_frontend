@@ -13,6 +13,7 @@ from app.routers import (
     alerts,
     auth,
     compliance,
+    dashboard,
     documents,
     governance,
     inclusion,
@@ -47,7 +48,7 @@ app.add_middleware(
 for router in (auth.router, participants.router, templates.router, submissions.router,
                integrations.router, documents.router, issues.router, reports.router, users.router,
                settings_router.router, governance.router, alerts.router, notifications.router,
-               compliance.router, pipelines.router, inclusion.router):
+               compliance.router, pipelines.router, inclusion.router, dashboard.router):
     app.include_router(router)
 
 

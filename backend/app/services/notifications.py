@@ -15,6 +15,7 @@ from app.models.enums import UserRole
 from app.models.integration import Integration
 from app.models.participant import Participant
 from app.services import notify
+from app.services.compliance import is_on_file
 from app.services.settings_store import get_setting
 
 # Integration statuses that mean "the integration fails" (§13). Both the
@@ -57,6 +58,8 @@ def _document_expiry(session: Session, participants: dict) -> int:
     today = date.today()
     sent = 0
     for d in session.exec(select(ComplianceDocument).where(ComplianceDocument.expiry_date != None)).all():  # noqa: E711
+        if not is_on_file(d):
+            continue  # under review or rejected — not the document on file
         left = (d.expiry_date - today).days
         p = participants.get(d.participant_id)
         what = f"{p.name if p else 'A participant'}: {types.get(d.doc_type_id, 'document')}"
