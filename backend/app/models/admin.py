@@ -59,31 +59,74 @@ class Notification(SQLModel, table=True):
 
 
 class ReportRun(SQLModel, table=True):
+    """One generated report (REQ-RPT-004 history). Generation is queued and
+    runs off the request (§17.3), so a run moves Queued → Running →
+    Completed | Failed; only a Completed run has a file to download."""
+
     id: Optional[int] = Field(default=None, primary_key=True)
-    report: str
+    # reporting.REPORT_TYPES key, e.g. "compliance_summary"; who may see the
+    # run follows from it (§14 per-report permissions).
+    report: str = Field(index=True)
+    name: str = ""
     format: str
+    # Every filter the run was generated with (REQ-RPT-006), as submitted.
+    filters: dict = Field(default_factory=dict, sa_column=Column(JSON))
     participant_id: Optional[int] = None
     date_from: Optional[str] = None
     date_to: Optional[str] = None
-    storage_key: str
-    filename: str
+    status: str = "Completed"  # Queued | Running | Completed | Failed
+    error: str = ""
+    row_count: Optional[int] = None
+    storage_key: str = ""
+    filename: str = ""
     size_bytes: int = 0
     generated_by: str = ""
-    generated_at: datetime = Field(default_factory=datetime.utcnow)
-    schedule_id: Optional[int] = None
+    generated_by_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
+    generated_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    finished_at: Optional[datetime] = None
+    schedule_id: Optional[int] = Field(default=None, index=True)
+    # "schedule:<id>:<slot>" for scheduled runs, so a slot is generated once
+    # however many scheduler ticks (or instances) see it due.
+    dedupe_key: str = Field(default="", index=True)
 
 
 class ReportSchedule(SQLModel, table=True):
+    """REQ-RPT-005: a recurring report emailed to the user who set it up
+    (§13 "Scheduled report generated" → requesting user, with attachment)."""
+
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
     report: str
     format: str = "pdf"
     frequency: str = "Monthly"  # Daily | Weekly | Monthly
-    recipient: str = ""
+    filters: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    recipient: str = ""  # legacy free-text recipient; deliveries go to the requester
     active: bool = True
     created_by: str = ""
+    created_by_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    # UTC instant of the next slot; advanced by `frequency` from the start.
+    next_run_at: Optional[datetime] = None
     last_run_at: Optional[datetime] = None
+    last_run_id: Optional[int] = None
+    cancelled_at: Optional[datetime] = None
+    cancelled_by: str = ""
+
+
+class ReportTemplate(SQLModel, table=True):
+    """REQ-RPT-006: a named, saved filter combination for one report type.
+    Private to its owner unless shared with everyone who may run that report."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str
+    report: str = Field(index=True)
+    filters: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    format: str = "pdf"
+    owner_id: int = Field(foreign_key="user.id", index=True)
+    owner_name: str = ""
+    shared: bool = False
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class ParticipantNote(SQLModel, table=True):
