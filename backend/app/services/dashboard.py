@@ -629,7 +629,7 @@ def audit_activity(ctx: Ctx) -> dict:
 
     start, end, label = ctx.window("recent_activity")
     prefixes = ACTIVITY_RELEVANCE.get(ctx.user.role, ())
-    query = select(AuditEvent).where(or_(*[AuditEvent.action.startswith(p) for p in prefixes]))
+    query = select(AuditEvent).where(or_(*[AuditEvent.action.startswith(p, autoescape=True) for p in prefixes]))
     if start:
         query = query.where(AuditEvent.timestamp >= ctx.utc(start))
     if end:
