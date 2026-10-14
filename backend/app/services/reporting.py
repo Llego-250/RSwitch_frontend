@@ -1035,6 +1035,7 @@ def run_schedule(session: Session, schedule: ReportSchedule, slot: datetime) -> 
         session.commit()
         audit.record(session, "REPORT_SCHEDULE_CANCEL", f"{schedule.name} (requester no longer permitted)", status="WARNING")
         return None
+    schedule.created_by_id = requester.id  # legacy rows named the requester only
     filters = schedule.filters or {}
     run = create_run(session, schedule.report, schedule.format, filters, requester, name=schedule.name,
                      generated_by=f"{requester.full_name or requester.email} (scheduled)", schedule_id=schedule.id,
@@ -1067,6 +1068,7 @@ def run_due_schedules(session: Session, now: Optional[datetime] = None) -> int:
     recover_stale_runs(session, now)
     count = 0
     for schedule in session.exec(select(ReportSchedule).where(ReportSchedule.active == True)).all():  # noqa: E712
+        schedule.report = LEGACY.get(schedule.report, schedule.report)  # rows from before the §14 catalogue
         if schedule.frequency not in FREQUENCY_STEP or schedule.report not in REPORT_TYPES:
             continue
         if schedule.next_run_at is None:  # rows from before slots were stored
