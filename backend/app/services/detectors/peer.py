@@ -13,9 +13,9 @@ def _failure_rate(subs) -> float:
     return sum(1 for s in subs if s.result == SubmissionResult.failed) / len(subs) * 100 if subs else 0.0
 
 
-def _growth(h: ParticipantHistory):
+def _growth(h: ParticipantHistory, now):
     """Latest vs previous reporting month's transaction value, in %."""
-    vol = h.volume_months()
+    vol = h.volume_months(now)
     if len(vol) < 2 or not vol[-2].volume:
         return None
     return (vol[-1].volume - vol[-2].volume) / vol[-2].volume * 100, vol[-1], vol[-2]
@@ -72,9 +72,9 @@ class PeerGroupDetector:
                         source_submission_ids=[s.id for s in window],
                     ))
 
-            own = _growth(h)
-            peer_growth = [g[0] for g in (_growth(p) for p in peers) if g is not None]
-            if own and peer_growth and volume_limit > 0 and own[1].month == h.observed_month:
+            own = _growth(h, ctx.now)
+            peer_growth = [g[0] for g in (_growth(p, ctx.now) for p in peers) if g is not None]
+            if own and peer_growth and volume_limit > 0:
                 growth, current, previous = own
                 base = median(peer_growth)
                 gap = growth - base

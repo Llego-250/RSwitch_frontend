@@ -10,11 +10,11 @@ const selectClass =
 /** §17.2 audit trail (user, timestamp, IP, user agent). `actionPrefix` pins
  *  the view to one family of actions, e.g. "USER_*" for REQ-USR-006. Export
  *  (REQ-SET-005) covers the selected date range. */
-export const AuditLogTable: React.FC<{ canExport?: boolean; actionPrefix?: string; title?: string }> = ({
-  canExport = false,
-  actionPrefix,
-  title = "Audit log",
-}) => {
+export const AuditLogTable: React.FC<{
+  canExport?: boolean;
+  actionPrefix?: string;
+  title?: string;
+}> = ({ canExport = false, actionPrefix, title = "Audit log" }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [action, setAction] = useState(actionPrefix ?? "");
@@ -23,11 +23,20 @@ export const AuditLogTable: React.FC<{ canExport?: boolean; actionPrefix?: strin
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
 
-  const filters = { q: searchTerm.trim(), status: statusFilter, action, date_from: dateFrom, date_to: dateTo };
+  const filters = {
+    q: searchTerm.trim(),
+    status: statusFilter,
+    action,
+    date_from: dateFrom,
+    date_to: dateTo,
+  };
   const logs = useAuditLog(filters);
   const actions = useAuditActions();
   const rows = logs.data ?? [];
-  const rangeError = dateFrom && dateTo && dateFrom > dateTo ? "The end date must be on or after the start date." : null;
+  const rangeError =
+    dateFrom && dateTo && dateFrom > dateTo
+      ? "The end date must be on or after the start date."
+      : null;
   const serverFields = fieldErrors(logs.error);
 
   const exportCsv = async () => {
@@ -55,7 +64,9 @@ export const AuditLogTable: React.FC<{ canExport?: boolean; actionPrefix?: strin
             <h3 className="text-sm font-bold text-neutral-900 dark:text-white">{title}</h3>
             {!logs.isLoading && (
               <span className="text-[11px] text-neutral-500">
-                {rows.length === 500 ? "latest 500 matching events" : `${rows.length} event${rows.length === 1 ? "" : "s"}`}
+                {rows.length === 500
+                  ? "latest 500 matching events"
+                  : `${rows.length} event${rows.length === 1 ? "" : "s"}`}
               </span>
             )}
           </div>
@@ -66,7 +77,8 @@ export const AuditLogTable: React.FC<{ canExport?: boolean; actionPrefix?: strin
               title="Exports every event in the selected date range (all of them when no range is set)"
               className="h-9 px-3 text-xs rounded-lg border border-neutral-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold text-[#168FA8] hover:bg-[#E7F5F8] disabled:opacity-50 inline-flex items-center gap-1.5"
             >
-              <Download className="h-3.5 w-3.5" /> {exporting ? "Exporting…" : "Export CSV for date range"}
+              <Download className="h-3.5 w-3.5" />{" "}
+              {exporting ? "Exporting…" : "Export CSV for date range"}
             </button>
           )}
         </div>
@@ -83,7 +95,12 @@ export const AuditLogTable: React.FC<{ canExport?: boolean; actionPrefix?: strin
             />
           </div>
           {!actionPrefix && (
-            <select aria-label="Action" value={action} onChange={(e) => setAction(e.target.value)} className={selectClass}>
+            <select
+              aria-label="Action"
+              value={action}
+              onChange={(e) => setAction(e.target.value)}
+              className={selectClass}
+            >
               <option value="">All actions</option>
               {(actions.data ?? []).map((a) => (
                 <option key={a} value={a}>
@@ -92,7 +109,12 @@ export const AuditLogTable: React.FC<{ canExport?: boolean; actionPrefix?: strin
               ))}
             </select>
           )}
-          <select aria-label="Status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={selectClass}>
+          <select
+            aria-label="Status"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className={selectClass}
+          >
             <option value="">All statuses</option>
             <option value="SUCCESS">Success</option>
             <option value="WARNING">Warning</option>
@@ -100,7 +122,12 @@ export const AuditLogTable: React.FC<{ canExport?: boolean; actionPrefix?: strin
           </select>
           <label className="text-[11px] font-semibold text-neutral-500">
             From
-            <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className={`${selectClass} ml-1.5`} />
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className={`${selectClass} ml-1.5`}
+            />
           </label>
           <label className="text-[11px] font-semibold text-neutral-500">
             To
@@ -149,22 +176,38 @@ export const AuditLogTable: React.FC<{ canExport?: boolean; actionPrefix?: strin
               </tr>
             )}
             {rows.map((log) => (
-              <tr key={log.id} className="hover:bg-neutral-50/70 dark:hover:bg-slate-800/40 transition-colors">
+              <tr
+                key={log.id}
+                className="hover:bg-neutral-50/70 dark:hover:bg-slate-800/40 transition-colors"
+              >
                 <td className="px-4 py-3 whitespace-nowrap">
-                  <div className="font-mono text-neutral-900 dark:text-white font-semibold">#{log.id}</div>
-                  <div className="text-[11px] text-neutral-500">{new Date(log.timestamp + "Z").toLocaleString()}</div>
+                  <div className="font-mono text-neutral-900 dark:text-white font-semibold">
+                    #{log.id}
+                  </div>
+                  <div className="text-[11px] text-neutral-500">
+                    {new Date(log.timestamp + "Z").toLocaleString()}
+                  </div>
                 </td>
                 <td className="px-4 py-3">
-                  <div className="font-medium text-neutral-900 dark:text-white">{log.actor_name}</div>
+                  <div className="font-medium text-neutral-900 dark:text-white">
+                    {log.actor_name}
+                  </div>
                   <div className="text-[11px] text-neutral-500">
                     {log.actor_email} · {log.actor_role}
                   </div>
                 </td>
                 <td className="px-4 py-3 font-mono font-medium text-[#168FA8]">{log.action}</td>
-                <td className="px-4 py-3 text-neutral-700 dark:text-slate-300 max-w-xs break-words">{log.resource}</td>
+                <td className="px-4 py-3 text-neutral-700 dark:text-slate-300 max-w-xs break-words">
+                  {log.resource}
+                </td>
                 <td className="px-4 py-3">
-                  <div className="font-mono text-neutral-600 dark:text-slate-300">{log.ip_address || "—"}</div>
-                  <div className="text-[10px] text-neutral-400 max-w-[220px] truncate" title={log.user_agent}>
+                  <div className="font-mono text-neutral-600 dark:text-slate-300">
+                    {log.ip_address || "—"}
+                  </div>
+                  <div
+                    className="text-[10px] text-neutral-400 max-w-[220px] truncate"
+                    title={log.user_agent}
+                  >
                     {log.user_agent || "—"}
                   </div>
                 </td>

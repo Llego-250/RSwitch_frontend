@@ -18,7 +18,12 @@ interface MfaSetupModalProps {
   mandatory?: boolean;
 }
 
-export const MfaSetupModal: React.FC<MfaSetupModalProps> = ({ isOpen, onClose, onSuccess, mandatory = false }) => {
+export const MfaSetupModal: React.FC<MfaSetupModalProps> = ({
+  isOpen,
+  onClose,
+  onSuccess,
+  mandatory = false,
+}) => {
   const [step, setStep] = useState<"qr" | "verify" | "recovery">("qr");
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
@@ -83,7 +88,9 @@ export const MfaSetupModal: React.FC<MfaSetupModalProps> = ({ isOpen, onClose, o
               <ShieldCheck className="h-6 w-6" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-neutral-900">Set Up Two-Factor Authentication</h3>
+              <h3 className="text-lg font-bold text-neutral-900">
+                Set Up Two-Factor Authentication
+              </h3>
               <p className="text-xs text-neutral-500">
                 {mandatory
                   ? "Required for every RDIP account before you can continue."
@@ -92,7 +99,11 @@ export const MfaSetupModal: React.FC<MfaSetupModalProps> = ({ isOpen, onClose, o
             </div>
           </div>
           {!mandatory && (
-            <button onClick={onClose} aria-label="Close" className="p-1 text-neutral-400 hover:text-neutral-600 rounded-lg">
+            <button
+              onClick={onClose}
+              aria-label="Close"
+              className="p-1 text-neutral-400 hover:text-neutral-600 rounded-lg"
+            >
               <X className="h-5 w-5" />
             </button>
           )}
@@ -101,24 +112,37 @@ export const MfaSetupModal: React.FC<MfaSetupModalProps> = ({ isOpen, onClose, o
         {step === "qr" && (
           <div className="space-y-4">
             <p className="text-sm text-neutral-600">
-              1. Scan this QR code with your authenticator app (Google Authenticator, Microsoft Authenticator, 1Password).
+              1. Scan this QR code with your authenticator app (Google Authenticator, Microsoft
+              Authenticator, 1Password).
             </p>
             <div className="flex flex-col items-center justify-center p-6 bg-neutral-50 rounded-xl border border-neutral-200">
               <div className="w-48 h-48 bg-white p-2 rounded-lg border border-neutral-300 shadow-sm flex items-center justify-center">
                 {setup ? (
-                  <img src={setup.qr_svg_data_uri} alt="Authenticator QR code" className="w-full h-full" />
+                  <img
+                    src={setup.qr_svg_data_uri}
+                    alt="Authenticator QR code"
+                    className="w-full h-full"
+                  />
                 ) : (
-                  <span className="text-xs text-neutral-400 text-center">{error || "Generating…"}</span>
+                  <span className="text-xs text-neutral-400 text-center">
+                    {error || "Generating…"}
+                  </span>
                 )}
               </div>
               <div className="mt-4 flex items-center gap-2">
-                <span className="text-xs text-neutral-500 font-mono break-all">Key: {secretKey}</span>
+                <span className="text-xs text-neutral-500 font-mono break-all">
+                  Key: {secretKey}
+                </span>
                 <button
                   type="button"
                   onClick={handleCopySecret}
                   className="p-1 text-neutral-400 hover:text-[#168FA8] text-xs flex items-center gap-1"
                 >
-                  {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copied ? (
+                    <Check className="h-3.5 w-3.5 text-emerald-500" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5" />
+                  )}
                   {copied ? "Copied" : "Copy"}
                 </button>
               </div>
@@ -129,7 +153,11 @@ export const MfaSetupModal: React.FC<MfaSetupModalProps> = ({ isOpen, onClose, o
                   Cancel
                 </Button>
               )}
-              <Button onClick={() => setStep("verify")} disabled={!setup} className="bg-[#168FA8] hover:bg-[#0F6F83] text-white">
+              <Button
+                onClick={() => setStep("verify")}
+                disabled={!setup}
+                className="bg-[#168FA8] hover:bg-[#0F6F83] text-white"
+              >
                 Next: Verify Code
               </Button>
             </div>
@@ -138,7 +166,9 @@ export const MfaSetupModal: React.FC<MfaSetupModalProps> = ({ isOpen, onClose, o
 
         {step === "verify" && (
           <div className="space-y-4">
-            <p className="text-sm text-neutral-600">2. Enter the 6-digit code your authenticator app shows for RDIP.</p>
+            <p className="text-sm text-neutral-600">
+              2. Enter the 6-digit code your authenticator app shows for RDIP.
+            </p>
             <div className="space-y-2">
               <label htmlFor="mfa-setup-code" className="text-xs font-semibold text-neutral-700">
                 Verification code
@@ -162,7 +192,11 @@ export const MfaSetupModal: React.FC<MfaSetupModalProps> = ({ isOpen, onClose, o
               <Button variant="outline" onClick={() => setStep("qr")}>
                 Back
               </Button>
-              <Button onClick={handleVerify} disabled={busy} className="bg-[#168FA8] hover:bg-[#0F6F83] text-white">
+              <Button
+                onClick={handleVerify}
+                disabled={busy}
+                className="bg-[#168FA8] hover:bg-[#0F6F83] text-white"
+              >
                 {busy ? "Verifying…" : "Verify & Continue"}
               </Button>
             </div>
@@ -174,20 +208,26 @@ export const MfaSetupModal: React.FC<MfaSetupModalProps> = ({ isOpen, onClose, o
             <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2.5">
               <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
               <p className="text-xs text-amber-800">
-                Save these recovery codes somewhere safe, such as a password manager. Each works once if you lose your
-                authenticator, and they won't be shown again.
+                Save these recovery codes somewhere safe, such as a password manager. Each works
+                once if you lose your authenticator, and they won't be shown again.
               </p>
             </div>
             <div className="grid grid-cols-2 gap-2 bg-neutral-900 p-4 rounded-xl font-mono text-sm text-sky-400">
               {result.recovery_codes.map((c, idx) => (
-                <div key={c} className="bg-neutral-800 px-3 py-1.5 rounded border border-neutral-700 flex items-center justify-between">
+                <div
+                  key={c}
+                  className="bg-neutral-800 px-3 py-1.5 rounded border border-neutral-700 flex items-center justify-between"
+                >
                   <span>{c}</span>
                   <span className="text-[10px] text-neutral-500">#{idx + 1}</span>
                 </div>
               ))}
             </div>
             <div className="flex justify-end pt-4">
-              <Button onClick={handleComplete} className="bg-[#168FA8] hover:bg-[#0F6F83] text-white gap-2">
+              <Button
+                onClick={handleComplete}
+                className="bg-[#168FA8] hover:bg-[#0F6F83] text-white gap-2"
+              >
                 <KeyRound className="h-4 w-4" />
                 {mandatory ? "I've saved my codes — continue" : "Finish 2FA Setup"}
               </Button>

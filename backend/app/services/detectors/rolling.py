@@ -57,34 +57,38 @@ class RollingBaselineDetector:
                     source_submission_ids=current.ids + [i for m in prior for i in m.ids],
                 ))
 
-            vol_prior = [m for m in prior if m.volume is not None]
-            if current.volume is not None and len(vol_prior) >= ROLLING_MIN_MONTHS and volume_limit > 0:
+            # Volume uses completed reporting months only (see volume_months).
+            vol = h.volume_months(ctx.now)
+            vol_prior = vol[:-1][-window:]
+            if len(vol_prior) >= ROLLING_MIN_MONTHS and volume_limit > 0:
+                cur = vol[-1]
+                vspan = f"{month_label(vol_prior[0].month)}–{month_label(vol_prior[-1].month)}"
                 values = [m.volume for m in vol_prior]
                 base = mean(values)
                 if base:
-                    dev = (current.volume - base) / base * 100
+                    dev = (cur.volume - base) / base * 100
                     if abs(dev) >= volume_limit:
                         sd = pstdev(values)
-                        z = f"; {abs(current.volume - base) / sd:.1f} standard deviations from the mean" if sd else ""
+                        z = f"; {abs(cur.volume - base) / sd:.1f} standard deviations from the mean" if sd else ""
                         findings.append(Finding(
                             participant_id=h.participant.id,
                             indicator_code="reported_volume",
                             indicator=f"Reported transaction value {'spike' if dev > 0 else 'drop'} vs own baseline",
-                            evidence_key=f"vol{current.month}:{max(s.id for s in current.volume_submissions)}",
-                            baseline_value=f"{base:,.0f} (mean of {len(vol_prior)} months, {span})",
-                            observed_value=f"{current.volume:,.0f} ({month_label(current.month)})",
+                            evidence_key=f"vol{cur.month}:{max(s.id for s in cur.volume_submissions)}",
+                            baseline_value=f"{base:,.0f} (mean of {len(vol_prior)} months, {vspan})",
+                            observed_value=f"{cur.volume:,.0f} ({month_label(cur.month)})",
                             deviation=f"{dev:+.0f}%",
                             deviation_pct=round(dev, 1),
                             severity=ctx.severity(abs(dev) / volume_limit),
                             recommended_area=volume_area(dev),
                             baseline_method_key="rolling",
                             methodology=(
-                                f"Reported transaction value in {month_label(current.month)} against the mean of the participant's "
+                                f"Reported transaction value in {month_label(cur.month)} against the mean of the participant's "
                                 f"previous {len(vol_prior)} reporting months{z}; alerts beyond ±{volume_limit:g}%."
                             ),
                             data_sources=[SOURCES_VOLUME, f"Participant's own submission history ({len(vol_prior)} months)",
                                           "Settings: anomaly.volume_deviation_pct"],
-                            source_submission_ids=[s.id for s in current.volume_submissions]
+                            source_submission_ids=[s.id for s in cur.volume_submissions]
                             + [s.id for m in vol_prior for s in m.volume_submissions],
                         ))
         return findings

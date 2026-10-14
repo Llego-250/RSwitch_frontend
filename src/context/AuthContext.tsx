@@ -31,7 +31,10 @@ interface AuthContextType {
   /** Minutes of inactivity before sign-out (REQ-AUTH-005). */
   sessionTimeoutMinutes: number;
   /** mfaRequired=false means a session is already open (possibly enrolment-only). */
-  login: (email: string, pass: string) => Promise<{ mfaRequired: boolean; mfaSetupRequired: boolean }>;
+  login: (
+    email: string,
+    pass: string,
+  ) => Promise<{ mfaRequired: boolean; mfaSetupRequired: boolean }>;
   verifyMfa: (code: string, trustDevice: boolean) => Promise<void>;
   /** Swap the enrolment-only session for the full one returned by /auth/mfa/enable. */
   completeMfaEnrollment: (accessToken: string) => Promise<void>;
@@ -93,13 +96,23 @@ function trustedDevices(): Record<string, string> {
 
 function saveTrustedDevice(email: string, token: string) {
   try {
-    localStorage.setItem(DEVICES_KEY, JSON.stringify({ ...trustedDevices(), [email.toLowerCase()]: token }));
+    localStorage.setItem(
+      DEVICES_KEY,
+      JSON.stringify({ ...trustedDevices(), [email.toLowerCase()]: token }),
+    );
   } catch {
     /* storage unavailable: the device just won't be remembered */
   }
 }
 
-const ACTIVITY_EVENTS = ["mousemove", "mousedown", "keydown", "touchstart", "wheel", "scroll"] as const;
+const ACTIVITY_EVENTS = [
+  "mousemove",
+  "mousedown",
+  "keydown",
+  "touchstart",
+  "wheel",
+  "scroll",
+] as const;
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [initial] = useState(loadSession);
@@ -180,7 +193,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     if (!isAuthenticated) return;
     const onActivity = () => markActivity();
-    ACTIVITY_EVENTS.forEach((ev) => window.addEventListener(ev, onActivity, { passive: true, capture: true }));
+    ACTIVITY_EVENTS.forEach((ev) =>
+      window.addEventListener(ev, onActivity, { passive: true, capture: true }),
+    );
     let lastPing = Date.now();
     const check = () => {
       const now = Date.now();
@@ -199,7 +214,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const timer = window.setInterval(check, 10_000);
     return () => {
       window.clearInterval(timer);
-      ACTIVITY_EVENTS.forEach((ev) => window.removeEventListener(ev, onActivity, { capture: true }));
+      ACTIVITY_EVENTS.forEach((ev) =>
+        window.removeEventListener(ev, onActivity, { capture: true }),
+      );
     };
   }, [isAuthenticated, timeoutMinutes, logout]);
 

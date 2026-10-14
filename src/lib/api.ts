@@ -6,7 +6,8 @@
 // turned into the SRS §20.1 user-facing messages, keeping §20.2 field-level
 // validation details for inline form errors.
 
-export const API_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:8000";
+export const API_URL =
+  (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:8000";
 
 const STORAGE_KEY = "rdip_auth_session";
 const ACTIVITY_KEY = "rdip_last_activity";
@@ -56,15 +57,25 @@ export class ApiError extends Error {
 
 // Sign-in style flows where the server's own wording is the user message
 // (e.g. "Incorrect email or password", "This account is locked…").
-const AUTH_FLOW_PATHS = ["/auth/login", "/auth/token", "/auth/mfa/", "/auth/password/", "/auth/invite", "/auth/change-password"];
+const AUTH_FLOW_PATHS = [
+  "/auth/login",
+  "/auth/token",
+  "/auth/mfa/",
+  "/auth/password/",
+  "/auth/invite",
+  "/auth/change-password",
+];
 
 function toFieldErrors(detail: unknown): FieldError[] {
   if (!Array.isArray(detail)) return [];
   return detail
     .filter((d): d is Record<string, unknown> => !!d && typeof d === "object")
     .map((d) => ({
-      field: String(d.field ?? (Array.isArray(d.loc) ? d.loc.filter((p) => p !== "body").join(".") : "")),
-      rule: d.rule !== undefined ? String(d.rule) : d.type !== undefined ? String(d.type) : undefined,
+      field: String(
+        d.field ?? (Array.isArray(d.loc) ? d.loc.filter((p) => p !== "body").join(".") : ""),
+      ),
+      rule:
+        d.rule !== undefined ? String(d.rule) : d.type !== undefined ? String(d.type) : undefined,
       message: String(d.message ?? d.msg ?? "Invalid value"),
       row: typeof d.row === "number" ? d.row : undefined,
       column: typeof d.column === "string" ? d.column : undefined,
@@ -73,7 +84,8 @@ function toFieldErrors(detail: unknown): FieldError[] {
 
 function userMessage(status: number, path: string, detail: unknown, code?: string): string {
   const serverText = typeof detail === "string" && detail.trim() ? detail : undefined;
-  if (serverText && (AUTH_FLOW_PATHS.some((p) => path.startsWith(p)) || (status === 401 && code))) return serverText;
+  if (serverText && (AUTH_FLOW_PATHS.some((p) => path.startsWith(p)) || (status === 401 && code)))
+    return serverText;
   if ([400, 409, 422].includes(status)) {
     if (serverText) return serverText;
     const fields = toFieldErrors(detail);
@@ -128,7 +140,11 @@ export function getToken(): string | null {
   }
 }
 
-async function request(path: string, init: RequestInit = {}, token = getToken()): Promise<Response> {
+async function request(
+  path: string,
+  init: RequestInit = {},
+  token = getToken(),
+): Promise<Response> {
   const headers = new Headers(init.headers);
   if (token) headers.set("Authorization", `Bearer ${token}`);
   headers.set("X-RDIP-Idle", String(idleSeconds()));
@@ -152,7 +168,12 @@ async function request(path: string, init: RequestInit = {}, token = getToken())
       /* non-JSON error body */
     }
     const message = userMessage(res.status, path, detail, code);
-    if (res.status === 401 && token && !AUTH_FLOW_PATHS.some((p) => path.startsWith(p)) && path !== "/auth/logout") {
+    if (
+      res.status === 401 &&
+      token &&
+      !AUTH_FLOW_PATHS.some((p) => path.startsWith(p)) &&
+      path !== "/auth/logout"
+    ) {
       window.dispatchEvent(new CustomEvent("rdip:unauthorized", { detail: { code, message } }));
     }
     if (res.status === 403 && code === "mfa_setup_required") {
@@ -163,12 +184,19 @@ async function request(path: string, init: RequestInit = {}, token = getToken())
   return res;
 }
 
-const json = async <T>(res: Response): Promise<T> => (res.status === 204 ? (undefined as T) : res.json());
+const json = async <T>(res: Response): Promise<T> =>
+  res.status === 204 ? (undefined as T) : res.json();
 
 export const api = {
-  get: async <T>(path: string, token?: string | null): Promise<T> => json<T>(await request(path, {}, token ?? getToken())),
+  get: async <T>(path: string, token?: string | null): Promise<T> =>
+    json<T>(await request(path, {}, token ?? getToken())),
   post: async <T>(path: string, body?: unknown): Promise<T> =>
-    json<T>(await request(path, { method: "POST", body: body instanceof FormData ? body : JSON.stringify(body ?? {}) })),
+    json<T>(
+      await request(path, {
+        method: "POST",
+        body: body instanceof FormData ? body : JSON.stringify(body ?? {}),
+      }),
+    ),
   patch: async <T>(path: string, body: unknown): Promise<T> =>
     json<T>(await request(path, { method: "PATCH", body: JSON.stringify(body) })),
   put: async <T>(path: string, body?: unknown): Promise<T> =>
@@ -187,19 +215,33 @@ export const api = {
     URL.revokeObjectURL(url);
   },
   /** §19.1 step 1: password (plus a trusted-device token, if this browser has one). */
-  login: async (email: string, password: string, deviceToken?: string | null): Promise<LoginResult> => {
+  login: async (
+    email: string,
+    password: string,
+    deviceToken?: string | null,
+  ): Promise<LoginResult> => {
     const res = await request(
       "/auth/login",
-      { method: "POST", body: JSON.stringify({ email, password, device_token: deviceToken ?? null }) },
+      {
+        method: "POST",
+        body: JSON.stringify({ email, password, device_token: deviceToken ?? null }),
+      },
       null,
     );
     return res.json();
   },
   /** §19.1 step 2 (only when mfa_required): TOTP or recovery code. */
-  verifyMfa: async (mfaToken: string, code: string, trustDevice: boolean): Promise<SessionResult> => {
+  verifyMfa: async (
+    mfaToken: string,
+    code: string,
+    trustDevice: boolean,
+  ): Promise<SessionResult> => {
     const res = await request(
       "/auth/mfa/verify",
-      { method: "POST", body: JSON.stringify({ mfa_token: mfaToken, code, trust_device: trustDevice }) },
+      {
+        method: "POST",
+        body: JSON.stringify({ mfa_token: mfaToken, code, trust_device: trustDevice }),
+      },
       null,
     );
     return res.json();

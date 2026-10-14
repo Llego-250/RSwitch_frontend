@@ -31,8 +31,8 @@ export const isPublicPath = (pathname: string) =>
   PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
 export function requiredCap(pathname: string): Action {
-  const match = ROUTE_CAPS.filter(([prefix]) => pathname === prefix || pathname.startsWith(`${prefix}/`)).sort(
-    (a, b) => b[0].length - a[0].length,
-  )[0];
+  const match = ROUTE_CAPS.filter(
+    ([prefix]) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  ).sort((a, b) => b[0].length - a[0].length)[0];
   return match ? match[1] : "dashboard.view";
 }

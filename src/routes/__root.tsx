@@ -1,5 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Navigate, Outlet, createRootRouteWithContext, useRouter, useRouterState } from "@tanstack/react-router";
+import {
+  Navigate,
+  Outlet,
+  createRootRouteWithContext,
+  useRouter,
+  useRouterState,
+} from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { RoleProvider } from "../context/RoleContext";
 import { AuthProvider, useAuth } from "../context/AuthContext";

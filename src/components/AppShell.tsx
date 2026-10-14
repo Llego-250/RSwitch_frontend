@@ -7,16 +7,42 @@ import { useOrganization } from "@/lib/queries";
 import type { NotificationRow } from "@/lib/types";
 import { ROLES, hasCap, type Action } from "@/lib/roles";
 import {
-  LayoutDashboard, Plug, GitBranch, Workflow, Users2, Brain,
-  Sparkles, FileCheck2, FileText, Lock, Settings, UserPlus,
-  Search, Bell, ChevronUp, LogOut, Moon, Sun, Menu, X,
-  PanelLeftClose, PanelLeftOpen, Command, CheckCheck,
-  Trash2, Scale, ChevronDown, ScrollText, History,
+  LayoutDashboard,
+  Plug,
+  GitBranch,
+  Workflow,
+  Users2,
+  Brain,
+  Sparkles,
+  FileCheck2,
+  FileText,
+  Lock,
+  Settings,
+  UserPlus,
+  Search,
+  Bell,
+  ChevronUp,
+  LogOut,
+  Moon,
+  Sun,
+  Menu,
+  X,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Command,
+  CheckCheck,
+  Trash2,
+  Scale,
+  ChevronDown,
+  ScrollText,
+  History,
 } from "lucide-react";
 import { useState, useEffect, useRef, type ReactNode } from "react";
 
 function timeAgo(iso: string) {
-  const mins = Math.floor((Date.now() - new Date(iso + (iso.endsWith("Z") ? "" : "Z")).getTime()) / 60_000);
+  const mins = Math.floor(
+    (Date.now() - new Date(iso + (iso.endsWith("Z") ? "" : "Z")).getTime()) / 60_000,
+  );
   if (mins < 1) return "now";
   if (mins < 60) return `${mins}m ago`;
   if (mins < 1440) return `${Math.floor(mins / 60)}h ago`;
@@ -26,45 +52,142 @@ function timeAgo(iso: string) {
 // Each entry needs a capability (SRS §12.1); the sidebar and the ⌘K palette
 // only list what the signed-in role may open (REQ-AUTH-008). Sub-items sit
 // under their parent module.
-type Item = { label: string; to: string; icon: typeof Plug; desc?: string; cap: Action; sub?: Item[] };
+type Item = {
+  label: string;
+  to: string;
+  icon: typeof Plug;
+  desc?: string;
+  cap: Action;
+  sub?: Item[];
+};
 
 const CLUSTERS: { title: string; items: Item[] }[] = [
   {
     title: "Connect & Ingest",
     items: [
-      { label: "Dashboard", to: "/", icon: LayoutDashboard, desc: "Role-aware KPIs and attention queue", cap: "dashboard.view" },
       {
-        label: "Integrations", to: "/integrations", icon: Plug, desc: "Participant connections and data sources", cap: "integrations.view",
-        // REQ-MAP-009: Standards & Mapping is a Technical/Admin tool, not a primary module.
-        sub: [{ label: "Standards & Mapping", to: "/mapping", icon: GitBranch, desc: "Field mappings and schemas", cap: "mapping.view" }],
+        label: "Dashboard",
+        to: "/",
+        icon: LayoutDashboard,
+        desc: "Role-aware KPIs and attention queue",
+        cap: "dashboard.view",
       },
-      { label: "Pipelines", to: "/pipelines", icon: Workflow, desc: "Pipeline jobs, logs and reprocessing", cap: "pipelines.view" },
+      {
+        label: "Integrations",
+        to: "/integrations",
+        icon: Plug,
+        desc: "Participant connections and data sources",
+        cap: "integrations.view",
+        // REQ-MAP-009: Standards & Mapping is a Technical/Admin tool, not a primary module.
+        sub: [
+          {
+            label: "Standards & Mapping",
+            to: "/mapping",
+            icon: GitBranch,
+            desc: "Field mappings and schemas",
+            cap: "mapping.view",
+          },
+        ],
+      },
+      {
+        label: "Pipelines",
+        to: "/pipelines",
+        icon: Workflow,
+        desc: "Pipeline jobs, logs and reprocessing",
+        cap: "pipelines.view",
+      },
     ],
   },
   {
     title: "Govern & Comply",
     items: [
-      { label: "Participant 360", to: "/participant-360", icon: Users2, desc: "Unified institution profile & risk data", cap: "participant360.view" },
-      { label: "Governance", to: "/governance", icon: Scale, desc: "Committee documents, meetings & action items", cap: "governance.view" },
-      { label: "Compliance", to: "/compliance", icon: FileCheck2, desc: "Regulatory deadlines & incident tracking", cap: "compliance.view" },
+      {
+        label: "Participant 360",
+        to: "/participant-360",
+        icon: Users2,
+        desc: "Unified institution profile & risk data",
+        cap: "participant360.view",
+      },
+      {
+        label: "Governance",
+        to: "/governance",
+        icon: Scale,
+        desc: "Committee documents, meetings & action items",
+        cap: "governance.view",
+      },
+      {
+        label: "Compliance",
+        to: "/compliance",
+        icon: FileCheck2,
+        desc: "Regulatory deadlines & incident tracking",
+        cap: "compliance.view",
+      },
     ],
   },
   {
     title: "Intelligence & Reports",
     items: [
-      { label: "AI Decision Support", to: "/ai", icon: Brain, desc: "Explainable anomaly alerts & risk ranking", cap: "ai.view" },
-      { label: "Financial Inclusion", to: "/inclusion", icon: Sparkles, desc: "Reach by institution type, region & channel", cap: "inclusion.view" },
-      { label: "Reports", to: "/reports", icon: FileText, desc: "Generate, download & schedule reports", cap: "reports.view" },
+      {
+        label: "AI Decision Support",
+        to: "/ai",
+        icon: Brain,
+        desc: "Explainable anomaly alerts & risk ranking",
+        cap: "ai.view",
+      },
+      {
+        label: "Financial Inclusion",
+        to: "/inclusion",
+        icon: Sparkles,
+        desc: "Reach by institution type, region & channel",
+        cap: "inclusion.view",
+      },
+      {
+        label: "Reports",
+        to: "/reports",
+        icon: FileText,
+        desc: "Generate, download & schedule reports",
+        cap: "reports.view",
+      },
     ],
   },
   {
     title: "Administration",
     items: [
-      { label: "Users & Security", to: "/users", icon: Lock, desc: "Invitations, roles & account status", cap: "users.manage" },
-      { label: "Participant Onboarding", to: "/onboarding", icon: UserPlus, desc: "Register a participant institution", cap: "integrations.manage" },
-      { label: "Audit Log", to: "/audit", icon: ScrollText, desc: "Who changed what, when and from where", cap: "audit.view" },
-      { label: "Notifications", to: "/notifications", icon: History, desc: "Your notification history (90 days)", cap: "notifications.view" },
-      { label: "Settings", to: "/settings", icon: Settings, desc: "Organization, security & notification policy", cap: "settings.view" },
+      {
+        label: "Users & Security",
+        to: "/users",
+        icon: Lock,
+        desc: "Invitations, roles & account status",
+        cap: "users.manage",
+      },
+      {
+        label: "Participant Onboarding",
+        to: "/onboarding",
+        icon: UserPlus,
+        desc: "Register a participant institution",
+        cap: "integrations.manage",
+      },
+      {
+        label: "Audit Log",
+        to: "/audit",
+        icon: ScrollText,
+        desc: "Who changed what, when and from where",
+        cap: "audit.view",
+      },
+      {
+        label: "Notifications",
+        to: "/notifications",
+        icon: History,
+        desc: "Your notification history (90 days)",
+        cap: "notifications.view",
+      },
+      {
+        label: "Settings",
+        to: "/settings",
+        icon: Settings,
+        desc: "Organization, security & notification policy",
+        cap: "settings.view",
+      },
     ],
   },
 ];
@@ -77,7 +200,6 @@ type NotificationItem = {
   read: boolean;
   type: "alert" | "info" | "warning";
 };
-
 
 export function AppShell({
   title,
@@ -152,8 +274,10 @@ export function AppShell({
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("theme");
       if (saved) return saved === "dark";
-      return document.documentElement.classList.contains("dark") ||
-        window.matchMedia("(prefers-color-scheme: dark)").matches;
+      return (
+        document.documentElement.classList.contains("dark") ||
+        window.matchMedia("(prefers-color-scheme: dark)").matches
+      );
     }
     return false;
   });
@@ -173,7 +297,6 @@ export function AppShell({
   useEffect(() => {
     localStorage.setItem("rdip_sidebar_collapsed", isCollapsed ? "true" : "false");
   }, [isCollapsed]);
-
 
   // Keyboard shortcut listener for Command Palette (⌘K or Ctrl+K or /)
   useEffect(() => {
@@ -236,21 +359,25 @@ export function AppShell({
   const avatarInitial = (user?.fullName ?? roleLabel).charAt(0).toUpperCase();
 
   // Filter items for search command palette
-  const allNavItems = CLUSTERS.flatMap((c) => c.items.flatMap((i) => [i, ...(i.sub ?? [])])).filter(canSee);
-  const filteredSearchItems = searchQuery.trim() === ""
-    ? allNavItems
-    : allNavItems.filter((i) =>
-      i.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (i.desc && i.desc.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
+  const allNavItems = CLUSTERS.flatMap((c) => c.items.flatMap((i) => [i, ...(i.sub ?? [])])).filter(
+    canSee,
+  );
+  const filteredSearchItems =
+    searchQuery.trim() === ""
+      ? allNavItems
+      : allNavItems.filter(
+          (i) =>
+            i.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (i.desc && i.desc.toLowerCase().includes(searchQuery.toLowerCase())),
+        );
 
-  const filteredNotifs = notifFilter === "all"
-    ? notifs
-    : notifs.filter((n) => n.type === notifFilter);
+  const filteredNotifs =
+    notifFilter === "all" ? notifs : notifs.filter((n) => n.type === notifFilter);
 
   return (
-    <div className={`h-screen max-h-screen overflow-hidden ${isDark ? 'bg-[#121B22] text-[#E2E8F0]' : 'bg-[#E4EAEE] text-[#1E293B]'} p-3 md:p-4 lg:p-5 flex gap-3 lg:gap-4 relative font-sans transition-colors duration-200`}>
-
+    <div
+      className={`h-screen max-h-screen overflow-hidden ${isDark ? "bg-[#121B22] text-[#E2E8F0]" : "bg-[#E4EAEE] text-[#1E293B]"} p-3 md:p-4 lg:p-5 flex gap-3 lg:gap-4 relative font-sans transition-colors duration-200`}
+    >
       {/* ─── LEFT SIDEBAR PANEL ─── */}
       <aside
         className={`
@@ -320,29 +447,35 @@ export function AppShell({
                     {c.title}
                   </div>
                 )}
-                {items.flatMap((parent) => [parent, ...(parent.sub ?? []).filter(canSee)]).map((it) => {
-                  const isSub = !items.includes(it);
-                  const active = pathname === it.to || (it.to !== "/" && pathname.startsWith(it.to + "/"));
-                  const Icon = it.icon;
-                  return (
-                    <Link
-                      key={it.to}
-                      to={it.to}
-                      onClick={() => setMobileNavOpen(false)}
-                      title={isCollapsed ? it.label : undefined}
-                      className={`
+                {items
+                  .flatMap((parent) => [parent, ...(parent.sub ?? []).filter(canSee)])
+                  .map((it) => {
+                    const isSub = !items.includes(it);
+                    const active =
+                      pathname === it.to || (it.to !== "/" && pathname.startsWith(it.to + "/"));
+                    const Icon = it.icon;
+                    return (
+                      <Link
+                        key={it.to}
+                        to={it.to}
+                        onClick={() => setMobileNavOpen(false)}
+                        title={isCollapsed ? it.label : undefined}
+                        className={`
                         w-full rounded-xl ${isCollapsed ? "px-0 justify-center h-10" : isSub ? "pl-10 pr-3.5 py-2 text-[13px]" : "px-3.5 py-2.5 text-[15px]"} flex items-center gap-3 transition-all duration-200 relative group
-                        ${active
-                          ? "bg-[#073B4C] text-white font-semibold shadow-md"
-                          : "text-white/95 hover:bg-white/15 hover:text-white font-medium"
+                        ${
+                          active
+                            ? "bg-[#073B4C] text-white font-semibold shadow-md"
+                            : "text-white/95 hover:bg-white/15 hover:text-white font-medium"
                         }
                       `}
-                    >
-                      <Icon className={`${isSub ? "h-4 w-4" : "h-5 w-5"} shrink-0 ${active ? "text-[#168FA8]" : "text-white"}`} />
-                      {!isCollapsed && <span className="truncate">{it.label}</span>}
-                    </Link>
-                  );
-                })}
+                      >
+                        <Icon
+                          className={`${isSub ? "h-4 w-4" : "h-5 w-5"} shrink-0 ${active ? "text-[#168FA8]" : "text-white"}`}
+                        />
+                        {!isCollapsed && <span className="truncate">{it.label}</span>}
+                      </Link>
+                    );
+                  })}
               </div>
             );
           })}
@@ -350,11 +483,12 @@ export function AppShell({
 
         {/* Bottom Section: Desktop Collapse Toggle + User Profile */}
         <div className="pt-2 relative border-t border-white/25 space-y-2" ref={roleMenuRef}>
-
           {/* User Profile Card */}
           <div
             onClick={() => setRoleOpen(!roleOpen)}
-            title={isCollapsed ? `${roleLabel} (${ROLES.find(r => r.id === role)?.scope})` : undefined}
+            title={
+              isCollapsed ? `${roleLabel} (${ROLES.find((r) => r.id === role)?.scope})` : undefined
+            }
             className={`p-2.5 rounded-2xl bg-white/90 border border-white/90 shadow-sm flex items-center ${isCollapsed ? "justify-center" : "justify-between"} gap-3 cursor-pointer hover:bg-white transition-all text-[#092E3D]`}
           >
             <div className="h-9 w-9 rounded-full bg-[#56B4D3] text-[#092E3D] font-extrabold text-xs flex items-center justify-center shadow-sm shrink-0">
@@ -367,7 +501,7 @@ export function AppShell({
                     {user?.fullName ?? roleLabel}
                   </div>
                   <div className="text-[10px] font-mono text-[#2B8FB1] font-bold truncate">
-                    {user?.roleTitle ?? ROLES.find(r => r.id === role)?.scope}
+                    {user?.roleTitle ?? ROLES.find((r) => r.id === role)?.scope}
                   </div>
                 </div>
                 <ChevronUp className="h-4 w-4 text-[#2B8FB1] shrink-0" />
@@ -378,22 +512,33 @@ export function AppShell({
           {/* Role selector menu popover */}
           {roleOpen && (
             <div
-              className={`absolute bottom-full left-0 right-0 mb-2 rounded-2xl border shadow-2xl p-2 z-50 min-w-[240px] ${isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-[#E1E7EA]'}`}
+              className={`absolute bottom-full left-0 right-0 mb-2 rounded-2xl border shadow-2xl p-2 z-50 min-w-[240px] ${isDark ? "bg-slate-900 border-slate-700" : "bg-white border-[#E1E7EA]"}`}
             >
               <div className="px-3 py-1.5">
-                <div className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">{user?.fullName}</div>
-                <div className="text-[10px] font-mono text-slate-400 truncate">{user?.email} · {user?.roleTitle}</div>
+                <div className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">
+                  {user?.fullName}
+                </div>
+                <div className="text-[10px] font-mono text-slate-400 truncate">
+                  {user?.email} · {user?.roleTitle}
+                </div>
               </div>
               <div className="border-t my-1 border-slate-200 dark:border-slate-800" />
               <button
-                onClick={() => { setRoleOpen(false); navigate({ to: "/profile" }); }}
+                onClick={() => {
+                  setRoleOpen(false);
+                  navigate({ to: "/profile" });
+                }}
                 className="w-full text-left px-3 py-2 rounded-xl text-xs flex items-center gap-2 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors font-semibold"
               >
                 <Settings className="h-3.5 w-3.5 text-sky-500" />
                 Profile &amp; 2FA Settings
               </button>
               <button
-                onClick={() => { setRoleOpen(false); logout("manual"); navigate({ to: "/login" }); }}
+                onClick={() => {
+                  setRoleOpen(false);
+                  logout("manual");
+                  navigate({ to: "/login" });
+                }}
                 className="w-full text-left px-3 py-2 rounded-xl text-xs flex items-center gap-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors font-semibold"
               >
                 <LogOut className="h-3.5 w-3.5" />
@@ -414,10 +559,8 @@ export function AppShell({
 
       {/* ─── RIGHT MAIN SHELL AREA ─── */}
       <div className="flex-1 flex flex-col gap-3 lg:gap-4 min-w-0 h-full overflow-hidden">
-
         {/* ─── TOP UTILITY HEADER BAR ─── */}
         <header className="flex items-center justify-between gap-3 h-11 shrink-0">
-
           {/* Mobile menu button */}
           <button
             onClick={() => setMobileNavOpen(true)}
@@ -429,11 +572,22 @@ export function AppShell({
 
           {/* Organization branding (REQ-SET-001) */}
           {orgName && (
-            <div className="hidden md:flex items-center gap-2 min-w-0 max-w-[260px] shrink" title={orgName}>
+            <div
+              className="hidden md:flex items-center gap-2 min-w-0 max-w-[260px] shrink"
+              title={orgName}
+            >
               {logoUrl && (
-                <img src={logoUrl} alt={`${orgName} logo`} className="h-9 w-9 rounded-xl bg-white object-contain p-1 border border-white/60 shadow-sm shrink-0" />
+                <img
+                  src={logoUrl}
+                  alt={`${orgName} logo`}
+                  className="h-9 w-9 rounded-xl bg-white object-contain p-1 border border-white/60 shadow-sm shrink-0"
+                />
               )}
-              <span className={`text-xs font-semibold truncate ${isDark ? "text-slate-200" : "text-[#334155]"}`}>{orgName}</span>
+              <span
+                className={`text-xs font-semibold truncate ${isDark ? "text-slate-200" : "text-[#334155]"}`}
+              >
+                {orgName}
+              </span>
             </div>
           )}
 
@@ -447,10 +601,11 @@ export function AppShell({
               type="text"
               readOnly
               placeholder="Search portal modules, reports, governance... (Press ⌘K)"
-              className={`w-full h-full pl-11 pr-16 rounded-full ${isDark
-                ? 'bg-slate-800/80 text-slate-200 placeholder:text-slate-400 border-slate-700'
-                : 'bg-[#DAE2E7] hover:bg-[#D6E0E6] text-[#1E293B] placeholder:text-[#7A8E9C] border-white/60'
-                } text-xs sm:text-sm font-medium transition-all border shadow-inner outline-none cursor-pointer`}
+              className={`w-full h-full pl-11 pr-16 rounded-full ${
+                isDark
+                  ? "bg-slate-800/80 text-slate-200 placeholder:text-slate-400 border-slate-700"
+                  : "bg-[#DAE2E7] hover:bg-[#D6E0E6] text-[#1E293B] placeholder:text-[#7A8E9C] border-white/60"
+              } text-xs sm:text-sm font-medium transition-all border shadow-inner outline-none cursor-pointer`}
             />
             <div className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-1 px-2 py-1 rounded-md bg-white/60 dark:bg-slate-700/80 border border-slate-200 dark:border-slate-600 text-[10px] font-mono text-slate-500 dark:text-slate-300">
               <Command className="h-3 w-3" />
@@ -460,14 +615,16 @@ export function AppShell({
 
           {/* Right Top Bar Utilities */}
           <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-
             {/* Dark/Light mode toggle button */}
             <button
               onClick={toggleDarkMode}
               aria-label="Toggle theme"
               title={isDark ? "Switch to light mode" : "Switch to dark mode"}
-              className={`h-11 w-11 rounded-full ${isDark ? 'bg-slate-800 text-amber-400 border-slate-700' : 'bg-[#DAE2E7] text-[#526678] border-white/60'
-                } hover:bg-white dark:hover:bg-slate-700 flex items-center justify-center border shadow-sm transition-all cursor-pointer`}
+              className={`h-11 w-11 rounded-full ${
+                isDark
+                  ? "bg-slate-800 text-amber-400 border-slate-700"
+                  : "bg-[#DAE2E7] text-[#526678] border-white/60"
+              } hover:bg-white dark:hover:bg-slate-700 flex items-center justify-center border shadow-sm transition-all cursor-pointer`}
             >
               {isDark ? <Sun className="h-4.5 w-4.5" /> : <Moon className="h-4.5 w-4.5" />}
             </button>
@@ -477,11 +634,20 @@ export function AppShell({
               <button
                 onClick={() => setNotifOpen(!notifOpen)}
                 aria-label="View notifications"
-                className={`h-11 px-3.5 sm:px-4 rounded-full ${isDark ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-[#DAE2E7] text-[#526678] border-white/60'
-                  } hover:bg-white dark:hover:bg-slate-700 flex items-center gap-2 text-xs font-mono border shadow-sm transition-all relative cursor-pointer`}
+                className={`h-11 px-3.5 sm:px-4 rounded-full ${
+                  isDark
+                    ? "bg-slate-800 text-slate-300 border-slate-700"
+                    : "bg-[#DAE2E7] text-[#526678] border-white/60"
+                } hover:bg-white dark:hover:bg-slate-700 flex items-center gap-2 text-xs font-mono border shadow-sm transition-all relative cursor-pointer`}
               >
                 <Bell className="h-4 w-4 text-[#56B4D3]" />
-                <span className="hidden sm:inline">{new Date().toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" })}</span>
+                <span className="hidden sm:inline">
+                  {new Date().toLocaleDateString("en-US", {
+                    month: "2-digit",
+                    day: "2-digit",
+                    year: "numeric",
+                  })}
+                </span>
                 {unreadCount > 0 ? (
                   <span className="h-4 px-1.5 rounded-full bg-red-500 text-white font-bold text-[10px] flex items-center justify-center animate-pulse">
                     {unreadCount}
@@ -494,13 +660,18 @@ export function AppShell({
               {/* Notification Popover Modal */}
               {notifOpen && (
                 <div
-                  className={`absolute right-0 top-full mt-2 w-80 sm:w-96 rounded-2xl border shadow-2xl p-4 z-50 ${isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'
-                    }`}
+                  className={`absolute right-0 top-full mt-2 w-80 sm:w-96 rounded-2xl border shadow-2xl p-4 z-50 ${
+                    isDark
+                      ? "bg-slate-900 border-slate-700 text-white"
+                      : "bg-white border-slate-200 text-slate-800"
+                  }`}
                 >
                   <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
                     <div className="flex items-center gap-2">
                       <Bell className="h-4 w-4 text-[#56B4D3]" />
-                      <span className="font-bold text-sm">Notifications ({unreadCount} unread)</span>
+                      <span className="font-bold text-sm">
+                        Notifications ({unreadCount} unread)
+                      </span>
                     </div>
                     <div className="flex items-center gap-2">
                       {unreadCount > 0 && (
@@ -532,10 +703,11 @@ export function AppShell({
                       <button
                         key={tab}
                         onClick={() => setNotifFilter(tab)}
-                        className={`flex-1 py-1 rounded-lg capitalize transition-colors ${notifFilter === tab
-                          ? "bg-white dark:bg-slate-700 text-[#56B4D3] shadow-xs font-bold"
-                          : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
-                          }`}
+                        className={`flex-1 py-1 rounded-lg capitalize transition-colors ${
+                          notifFilter === tab
+                            ? "bg-white dark:bg-slate-700 text-[#56B4D3] shadow-xs font-bold"
+                            : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
+                        }`}
                       >
                         {tab}
                       </button>
@@ -554,25 +726,33 @@ export function AppShell({
                           key={n.id}
                           onClick={() => openNotification(n)}
                           title="Open"
-                          className={`pt-2 flex items-start gap-2.5 cursor-pointer p-2 rounded-xl transition-colors ${!n.read
-                            ? isDark ? 'bg-slate-800/80' : 'bg-blue-50/70'
-                            : 'hover:bg-slate-100 dark:hover:bg-slate-800/50'
-                            }`}
+                          className={`pt-2 flex items-start gap-2.5 cursor-pointer p-2 rounded-xl transition-colors ${
+                            !n.read
+                              ? isDark
+                                ? "bg-slate-800/80"
+                                : "bg-blue-50/70"
+                              : "hover:bg-slate-100 dark:hover:bg-slate-800/50"
+                          }`}
                         >
                           <span
-                            className={`h-2 w-2 rounded-full shrink-0 mt-1.5 ${n.type === "alert"
-                              ? "bg-red-500"
-                              : n.type === "warning"
-                                ? "bg-amber-500"
-                                : "bg-blue-500"
-                              }`}
+                            className={`h-2 w-2 rounded-full shrink-0 mt-1.5 ${
+                              n.type === "alert"
+                                ? "bg-red-500"
+                                : n.type === "warning"
+                                  ? "bg-amber-500"
+                                  : "bg-blue-500"
+                            }`}
                           />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between">
                               <span className="font-semibold text-xs truncate">{n.title}</span>
-                              <span className="text-[10px] text-slate-400 font-mono shrink-0 ml-1">{n.time}</span>
+                              <span className="text-[10px] text-slate-400 font-mono shrink-0 ml-1">
+                                {n.time}
+                              </span>
                             </div>
-                            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">{n.desc}</p>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">
+                              {n.desc}
+                            </p>
                           </div>
                         </div>
                       ))
@@ -597,31 +777,35 @@ export function AppShell({
                 </div>
               )}
             </div>
-
           </div>
         </header>
 
         {/* ─── MAIN CONTENT FRAME ─── */}
-        <div className={`relative flex-1 ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-gradient-to-br from-[#E2ECF2] via-[#F4F7F9] to-[#DCE6ED] border-[#DCE3E8]'} rounded-[24px] flex flex-col overflow-hidden border shadow-xs relative`}>
+        <div
+          className={`relative flex-1 ${isDark ? "bg-slate-950 border-slate-800" : "bg-gradient-to-br from-[#E2ECF2] via-[#F4F7F9] to-[#DCE6ED] border-[#DCE3E8]"} rounded-[24px] flex flex-col overflow-hidden border shadow-xs relative`}
+        >
           {/* Ambient glowing background shapes to highlight frosted glass blur */}
           <div className="absolute top-2 left-12 w-96 h-40 bg-sky-400/20 dark:bg-sky-500/15 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute top-16 right-12 w-80 h-36 bg-teal-400/20 dark:bg-teal-500/15 rounded-full blur-3xl pointer-events-none" />
 
-          <div className={`w-full h-full ${isDark ? 'bg-slate-900/75 border-slate-800' : 'bg-[#F4F7F9]/75 border-white'} rounded-[24px] flex flex-col overflow-hidden relative z-10`}>
-
+          <div
+            className={`w-full h-full ${isDark ? "bg-slate-900/75 border-slate-800" : "bg-[#F4F7F9]/75 border-white"} rounded-[24px] flex flex-col overflow-hidden relative z-10`}
+          >
             {/* ─── LIQUID FROSTED GLASS PAGE HEADER CARD ─── */}
             <div
               className={`mx-4 mt-4 lg:mx-6 lg:mt-6 rounded-2xl border transition-all duration-300 ${
                 isDark
-                  ? 'bg-slate-900/65 border-white/10 text-white shadow-xl'
-                  : 'bg-white/65 border-white/80 text-slate-900 shadow-[0_8px_32px_0_rgba(31,38,135,0.08),_inset_0_1px_1px_rgba(255,255,255,0.8)]'
+                  ? "bg-slate-900/65 border-white/10 text-white shadow-xl"
+                  : "bg-white/65 border-white/80 text-slate-900 shadow-[0_8px_32px_0_rgba(31,38,135,0.08),_inset_0_1px_1px_rgba(255,255,255,0.8)]"
               } overflow-hidden shrink-0`}
               style={{
                 backdropFilter: "blur(20px) saturate(180%)",
                 WebkitBackdropFilter: "blur(20px) saturate(180%)",
               }}
             >
-              <div className={`px-6 transition-all duration-300 ${headerCollapsed ? "py-3" : "py-4.5"} flex flex-wrap items-center justify-between gap-4`}>
+              <div
+                className={`px-6 transition-all duration-300 ${headerCollapsed ? "py-3" : "py-4.5"} flex flex-wrap items-center justify-between gap-4`}
+              >
                 <div className="min-w-0">
                   {breadcrumb && (
                     <div className="text-[11px] font-mono font-bold tracking-wider uppercase text-sky-600 dark:text-sky-400 mb-0.5 flex items-center gap-1.5">
@@ -630,7 +814,9 @@ export function AppShell({
                     </div>
                   )}
                   <div className="flex items-center gap-3">
-                    <h1 className={`font-bold tracking-tight truncate ${headerCollapsed ? "text-lg lg:text-xl" : "text-2xl lg:text-[28px]"} ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    <h1
+                      className={`font-bold tracking-tight truncate ${headerCollapsed ? "text-lg lg:text-xl" : "text-2xl lg:text-[28px]"} ${isDark ? "text-white" : "text-slate-900"}`}
+                    >
                       {title}
                     </h1>
                     {headerCollapsed && subtitle && (
@@ -648,12 +834,16 @@ export function AppShell({
 
                 <div className="flex items-center gap-2.5 shrink-0">
                   {primaryAction && <div className="flex items-center gap-2">{primaryAction}</div>}
-                  
+
                   {/* Chevron Toggle Button for Collapsing Header */}
                   <button
                     onClick={() => setHeaderCollapsed(!headerCollapsed)}
                     aria-label={headerCollapsed ? "Expand page header" : "Collapse page header"}
-                    title={headerCollapsed ? "Expand header to view details" : "Collapse header to expand content view"}
+                    title={
+                      headerCollapsed
+                        ? "Expand header to view details"
+                        : "Collapse header to expand content view"
+                    }
                     className={`h-9 w-9 rounded-xl border flex items-center justify-center transition-all cursor-pointer shadow-xs ${
                       isDark
                         ? "bg-slate-800/80 hover:bg-slate-700 text-slate-200 border-slate-700"
@@ -673,7 +863,7 @@ export function AppShell({
               {!headerCollapsed && toolbar && (
                 <div
                   className={`px-6 py-2.5 border-t ${
-                    isDark ? 'border-white/10 bg-slate-950/40' : 'border-white/60 bg-white/45'
+                    isDark ? "border-white/10 bg-slate-950/40" : "border-white/60 bg-white/45"
                   } flex flex-wrap items-center gap-2 text-xs transition-all`}
                   style={{
                     backdropFilter: "blur(16px)",
@@ -689,16 +879,16 @@ export function AppShell({
             <div className="flex-1 overflow-auto p-4 lg:p-6 text-[#172033] dark:text-slate-100">
               {children}
             </div>
-
           </div>
         </div>
-
       </div>
 
       {/* ─── SEARCH COMMAND PALETTE OVERLAY (⌘K) ─── */}
       {searchOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-start justify-center pt-16 sm:pt-24 p-4">
-          <div className={`w-full max-w-xl rounded-2xl border shadow-2xl overflow-hidden flex flex-col ${isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-[#DCE3E8] text-[#172033]'}`}>
+          <div
+            className={`w-full max-w-xl rounded-2xl border shadow-2xl overflow-hidden flex flex-col ${isDark ? "bg-slate-900 border-slate-700 text-white" : "bg-white border-[#DCE3E8] text-[#172033]"}`}
+          >
             <div className="p-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center gap-3">
               <Search className="h-5 w-5 text-[#168FA8] shrink-0" />
               <input
@@ -741,9 +931,7 @@ export function AppShell({
                             {it.label}
                           </div>
                           {it.desc && (
-                            <div className="text-xs text-[#526174] font-normal">
-                              {it.desc}
-                            </div>
+                            <div className="text-xs text-[#526174] font-normal">{it.desc}</div>
                           )}
                         </div>
                       </div>
@@ -758,7 +946,6 @@ export function AppShell({
           </div>
         </div>
       )}
-
     </div>
   );
 }
@@ -822,9 +1009,7 @@ export function FilterChip({
       onClick={onClick}
       className="h-9 px-3.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-[#526174] dark:text-slate-200 border border-[#DCE3E8] dark:border-slate-700 shadow-2xs transition-all inline-flex items-center gap-2 text-xs font-semibold cursor-pointer active:scale-98 font-sans"
     >
-      <span className="text-xs font-normal text-[#526174] dark:text-slate-400">
-        {label}
-      </span>
+      <span className="text-xs font-normal text-[#526174] dark:text-slate-400">{label}</span>
       <span className="font-semibold text-[#168FA8]">{value}</span>
       <ChevronDown className="h-3.5 w-3.5 opacity-70 text-[#526174]" />
     </button>
@@ -845,7 +1030,9 @@ export function SectionCard({
   className?: string;
 }) {
   return (
-    <div className={`rounded-2xl bg-white dark:bg-slate-900 border border-[#DCE3E8] dark:border-slate-800 shadow-2xs overflow-hidden ${className || ""}`}>
+    <div
+      className={`rounded-2xl bg-white dark:bg-slate-900 border border-[#DCE3E8] dark:border-slate-800 shadow-2xs overflow-hidden ${className || ""}`}
+    >
       {title && (
         <div className="px-6 py-4 flex items-center justify-between border-b border-[#DCE3E8] dark:border-slate-800 bg-white dark:bg-slate-900">
           <div className="font-bold text-[17px] text-[#172033] dark:text-white flex items-center gap-2 font-sans">

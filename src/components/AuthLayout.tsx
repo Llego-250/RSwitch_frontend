@@ -26,11 +26,15 @@ export function AuthLayout({ children }: { children: ReactNode }) {
               className="h-full w-full object-contain drop-shadow-[0_6px_12px_rgba(0,0,0,0.25)]"
             />
           </div>
-          <div className="text-[32px] font-extrabold leading-tight tracking-tight text-[var(--neutral-900)]">RDIP Platform</div>
-          <div className="mt-2 text-sm tracking-wide text-[var(--neutral-500)]">Governed insights · Secure access</div>
+          <div className="text-[32px] font-extrabold leading-tight tracking-tight text-[var(--neutral-900)]">
+            RDIP Platform
+          </div>
+          <div className="mt-2 text-sm tracking-wide text-[var(--neutral-500)]">
+            Governed insights · Secure access
+          </div>
           <div className="mt-2.5 max-w-[500px] text-sm leading-relaxed text-[var(--neutral-600)]">
-            The RSwitch Data Intelligence Platform: participant integrations, compliance, governance and financial
-            inclusion in one secure workspace for RSwitch staff.
+            The RSwitch Data Intelligence Platform: participant integrations, compliance, governance
+            and financial inclusion in one secure workspace for RSwitch staff.
           </div>
         </div>
       </div>
@@ -46,14 +50,23 @@ export const authLabelClass = "mb-1.5 block text-[13px] font-medium text-[var(--
 export const authButtonClass =
   "flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-[var(--primary-500)] text-[15px] font-semibold text-white transition-colors hover:bg-[var(--primary-700)] disabled:opacity-60";
 
-export function AuthNotice({ tone, children }: { tone: "error" | "info" | "success"; children: ReactNode }) {
+export function AuthNotice({
+  tone,
+  children,
+}: {
+  tone: "error" | "info" | "success";
+  children: ReactNode;
+}) {
   const styles = {
     error: "bg-[var(--fail-bg)] text-[var(--fail)] border-[rgba(225,29,72,0.18)]",
     info: "bg-sky-50 text-sky-800 border-sky-200",
     success: "bg-emerald-50 text-emerald-800 border-emerald-200",
   }[tone];
   return (
-    <div role={tone === "error" ? "alert" : "status"} className={`mb-4 rounded-md border px-3 py-2.5 text-[13px] font-medium ${styles}`}>
+    <div
+      role={tone === "error" ? "alert" : "status"}
+      className={`mb-4 rounded-md border px-3 py-2.5 text-[13px] font-medium ${styles}`}
+    >
       {children}
     </div>
   );

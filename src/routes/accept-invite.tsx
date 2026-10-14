@@ -4,12 +4,20 @@ import { useState } from "react";
 import { CheckCircle2, UserCheck } from "lucide-react";
 import { api, errorMessage, fieldErrors } from "@/lib/api";
 import { usePasswordPolicy } from "@/lib/queries";
-import { AuthLayout, AuthNotice, authButtonClass, authInputClass, authLabelClass } from "@/components/AuthLayout";
+import {
+  AuthLayout,
+  AuthNotice,
+  authButtonClass,
+  authInputClass,
+  authLabelClass,
+} from "@/components/AuthLayout";
 import { PasswordRules, passwordChecks } from "@/components/PasswordRules";
 
 // REQ-USR-002: the time-limited registration link from the invitation email.
 export const Route = createFileRoute("/accept-invite")({
-  validateSearch: (search: Record<string, unknown>) => ({ token: typeof search.token === "string" ? search.token : "" }),
+  validateSearch: (search: Record<string, unknown>) => ({
+    token: typeof search.token === "string" ? search.token : "",
+  }),
   component: AcceptInvite,
 });
 
@@ -33,7 +41,8 @@ function AcceptInvite() {
 
   async function submit() {
     const local: Record<string, string> = {};
-    if (policy && passwordChecks(password, policy).some((c) => !c.ok)) local.password = "The password doesn't meet every rule below.";
+    if (policy && passwordChecks(password, policy).some((c) => !c.ok))
+      local.password = "The password doesn't meet every rule below.";
     if (password !== confirm) local.confirm = "The two passwords don't match.";
     setErrors(local);
     setError(null);
@@ -51,7 +60,11 @@ function AcceptInvite() {
     }
   }
 
-  const invalid = !token ? "This invitation link is incomplete. Open the link from your email again." : invite.error ? errorMessage(invite.error) : null;
+  const invalid = !token
+    ? "This invitation link is incomplete. Open the link from your email again."
+    : invite.error
+      ? errorMessage(invite.error)
+      : null;
 
   return (
     <AuthLayout>
@@ -65,10 +78,12 @@ function AcceptInvite() {
       ) : done ? (
         <div>
           <CheckCircle2 size={44} strokeWidth={1.5} className="mb-4 text-emerald-600" />
-          <div className="mb-2 text-lg font-semibold text-[var(--neutral-900)]">Your account is ready</div>
+          <div className="mb-2 text-lg font-semibold text-[var(--neutral-900)]">
+            Your account is ready
+          </div>
           <p className="mb-6 text-[13px] leading-relaxed text-[var(--neutral-500)]">
-            Sign in with {invite.data?.email} and your new password. You'll then set up two-factor authentication with an
-            authenticator app.
+            Sign in with {invite.data?.email} and your new password. You'll then set up two-factor
+            authentication with an authenticator app.
           </p>
           <Link to="/login" className={authButtonClass}>
             Go to sign in
@@ -84,12 +99,14 @@ function AcceptInvite() {
         >
           <UserCheck size={40} strokeWidth={1.5} className="mb-3 text-[var(--primary-500)]" />
           <div className="mb-1.5 text-xl font-bold text-[var(--neutral-900)]">
-            {invite.data ? `Welcome, ${invite.data.full_name || invite.data.email}` : "Loading your invitation…"}
+            {invite.data
+              ? `Welcome, ${invite.data.full_name || invite.data.email}`
+              : "Loading your invitation…"}
           </div>
           {invite.data && (
             <p className="mb-5 text-[13px] text-[var(--neutral-500)]">
-              You've been invited to RDIP as a <b>{invite.data.role}</b> user ({invite.data.email}). Choose a password to
-              activate your account.
+              You've been invited to RDIP as a <b>{invite.data.role}</b> user ({invite.data.email}).
+              Choose a password to activate your account.
             </p>
           )}
           <div className="mb-4">
@@ -106,8 +123,13 @@ function AcceptInvite() {
               aria-invalid={!!errors.password}
               autoFocus
             />
-            {errors.password && <p className="mt-1 text-xs font-medium text-rose-600">{errors.password}</p>}
-            <PasswordRules password={password} policy={policy ? { ...policy, history: 0 } : undefined} />
+            {errors.password && (
+              <p className="mt-1 text-xs font-medium text-rose-600">{errors.password}</p>
+            )}
+            <PasswordRules
+              password={password}
+              policy={policy ? { ...policy, history: 0 } : undefined}
+            />
           </div>
           <div className="mb-5">
             <label className={authLabelClass} htmlFor="invite-confirm">
@@ -122,7 +144,9 @@ function AcceptInvite() {
               autoComplete="new-password"
               aria-invalid={!!errors.confirm}
             />
-            {errors.confirm && <p className="mt-1 text-xs font-medium text-rose-600">{errors.confirm}</p>}
+            {errors.confirm && (
+              <p className="mt-1 text-xs font-medium text-rose-600">{errors.confirm}</p>
+            )}
           </div>
           {error && <AuthNotice tone="error">{error}</AuthNotice>}
           <button type="submit" className={authButtonClass} disabled={busy || !invite.data}>

@@ -4,7 +4,13 @@ import { Shield, Eye, EyeOff, ArrowRight, KeyRound, MailCheck } from "lucide-rea
 import { LOGOUT_NOTICE_KEY, useAuth } from "@/context/AuthContext";
 import { api, errorMessage } from "@/lib/api";
 import { usePasswordPolicy } from "@/lib/queries";
-import { AuthLayout, AuthNotice, authButtonClass, authInputClass, authLabelClass } from "@/components/AuthLayout";
+import {
+  AuthLayout,
+  AuthNotice,
+  authButtonClass,
+  authInputClass,
+  authLabelClass,
+} from "@/components/AuthLayout";
 
 export const Route = createFileRoute("/login")({
   component: Login,
@@ -155,8 +161,12 @@ function Login() {
           noValidate
         >
           <div className="mb-5">
-            <div className="mb-1.5 text-xl font-bold text-[var(--neutral-900)]">Sign in to your account</div>
-            <div className="text-[13px] text-[var(--neutral-500)]">Use your RSwitch work credentials to continue.</div>
+            <div className="mb-1.5 text-xl font-bold text-[var(--neutral-900)]">
+              Sign in to your account
+            </div>
+            <div className="text-[13px] text-[var(--neutral-500)]">
+              Use your RSwitch work credentials to continue.
+            </div>
           </div>
           {notice && <AuthNotice tone="info">{notice}</AuthNotice>}
 
@@ -234,7 +244,9 @@ function Login() {
           noValidate
         >
           <Shield size={48} strokeWidth={1.5} className="mb-4 text-[var(--primary-500)]" />
-          <h2 className="mb-2 text-lg font-semibold tracking-tight text-[var(--neutral-900)]">Two-Factor Authentication</h2>
+          <h2 className="mb-2 text-lg font-semibold tracking-tight text-[var(--neutral-900)]">
+            Two-Factor Authentication
+          </h2>
           <p className="mb-6 text-[13px] leading-relaxed text-[var(--neutral-500)]">
             {useRecovery
               ? "Enter one of the recovery codes you saved when you set up two-factor authentication. Each code works once."
@@ -257,7 +269,11 @@ function Login() {
               />
             </div>
           ) : (
-            <div className="mb-5 flex justify-between gap-2" role="group" aria-label="Authentication code">
+            <div
+              className="mb-5 flex justify-between gap-2"
+              role="group"
+              aria-label="Authentication code"
+            >
               {code.map((c, i) => (
                 <input
                   key={i}
@@ -276,7 +292,9 @@ function Login() {
                   onPaste={i === 0 ? handleCodePaste : undefined}
                   autoFocus={i === 0}
                   className={`h-11 w-11 shrink-0 rounded-lg border-[1.5px] text-center font-mono text-xl font-semibold text-[var(--neutral-900)] outline-none transition-colors focus:border-[var(--primary-500)] ${
-                    c ? "border-[var(--primary-500)] bg-[var(--primary-50)]" : "border-[var(--neutral-200)] bg-white"
+                    c
+                      ? "border-[var(--primary-500)] bg-[var(--primary-50)]"
+                      : "border-[var(--neutral-200)] bg-white"
                   }`}
                 />
               ))}
@@ -314,7 +332,11 @@ function Login() {
             </button>
           </div>
           <div className="mt-2 text-center">
-            <button type="button" onClick={backToSignIn} className="py-1 text-[13px] text-[var(--neutral-400)] hover:text-[var(--neutral-700)]">
+            <button
+              type="button"
+              onClick={backToSignIn}
+              className="py-1 text-[13px] text-[var(--neutral-400)] hover:text-[var(--neutral-700)]"
+            >
               ← Use a different account
             </button>
           </div>
@@ -330,7 +352,9 @@ function Login() {
           noValidate
         >
           <div className="mb-5">
-            <div className="mb-1.5 text-xl font-bold text-[var(--neutral-900)]">Reset your password</div>
+            <div className="mb-1.5 text-xl font-bold text-[var(--neutral-900)]">
+              Reset your password
+            </div>
             <div className="text-[13px] text-[var(--neutral-500)]">
               Enter your account's email address and we'll send you a link to choose a new password.
               {resetMinutes ? ` The link expires in ${resetMinutes} minutes.` : ""}
@@ -355,7 +379,11 @@ function Login() {
             {busy ? "Sending…" : "Send reset link"}
           </button>
           <div className="mt-3 text-center">
-            <button type="button" onClick={backToSignIn} className="py-1 text-[13px] text-[var(--neutral-400)] hover:text-[var(--neutral-700)]">
+            <button
+              type="button"
+              onClick={backToSignIn}
+              className="py-1 text-[13px] text-[var(--neutral-400)] hover:text-[var(--neutral-700)]"
+            >
               ← Back to sign in
             </button>
           </div>
@@ -365,9 +393,12 @@ function Login() {
       {step === "forgot-sent" && (
         <div>
           <MailCheck size={44} strokeWidth={1.5} className="mb-4 text-[var(--primary-500)]" />
-          <div className="mb-2 text-lg font-semibold text-[var(--neutral-900)]">Check your email</div>
+          <div className="mb-2 text-lg font-semibold text-[var(--neutral-900)]">
+            Check your email
+          </div>
           <p className="mb-6 text-[13px] leading-relaxed text-[var(--neutral-500)]">
-            If an account exists for <b>{email.trim()}</b>, we've sent a link to reset its password. The link works once
+            If an account exists for <b>{email.trim()}</b>, we've sent a link to reset its password.
+            The link works once
             {resetMinutes ? ` and expires in ${resetMinutes} minutes` : ""}.
           </p>
           <button type="button" onClick={backToSignIn} className={authButtonClass}>

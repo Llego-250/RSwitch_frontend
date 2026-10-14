@@ -31,11 +31,11 @@ function NotificationHistory() {
   const rows = history.data ?? [];
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["notifications"] });
-  const run = (p: Promise<unknown>) =>
-    p.then(refresh).catch((e) => setError(errorMessage(e)));
+  const run = (p: Promise<unknown>) => p.then(refresh).catch((e) => setError(errorMessage(e)));
 
   const markAll = () => run(api.post("/notifications/read-all"));
-  const setRead = (n: NotificationRow, read: boolean) => run(api.post(`/notifications/${n.id}/${read ? "read" : "unread"}`));
+  const setRead = (n: NotificationRow, read: boolean) =>
+    run(api.post(`/notifications/${n.id}/${read ? "read" : "unread"}`));
 
   return (
     <AppShell
@@ -55,7 +55,9 @@ function NotificationHistory() {
                 key={s}
                 onClick={() => setStatus(s)}
                 className={`h-7 px-3 rounded-lg text-xs font-semibold capitalize ${
-                  status === s ? "bg-white dark:bg-slate-700 text-[#168FA8] shadow-xs" : "text-slate-500"
+                  status === s
+                    ? "bg-white dark:bg-slate-700 text-[#168FA8] shadow-xs"
+                    : "text-slate-500"
                 }`}
               >
                 {s}
@@ -92,7 +94,14 @@ function NotificationHistory() {
           {error ?? errorMessage(history.error)}
         </div>
       )}
-      <SectionCard title={<><Bell className="h-4 w-4 text-[#168FA8]" /> History</>} noPad>
+      <SectionCard
+        title={
+          <>
+            <Bell className="h-4 w-4 text-[#168FA8]" /> History
+          </>
+        }
+        noPad
+      >
         {history.isLoading ? (
           <div className="p-8 text-center text-sm text-slate-400">Loading…</div>
         ) : rows.length === 0 ? (
@@ -104,8 +113,13 @@ function NotificationHistory() {
         ) : (
           <ul className="divide-y divide-slate-100 dark:divide-slate-800">
             {rows.map((n) => (
-              <li key={n.id} className={`flex items-start gap-3 px-6 py-4 ${n.read ? "" : "bg-sky-50/60 dark:bg-slate-800/50"}`}>
-                <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${SEVERITY_DOT[n.severity] ?? "bg-sky-500"}`} />
+              <li
+                key={n.id}
+                className={`flex items-start gap-3 px-6 py-4 ${n.read ? "" : "bg-sky-50/60 dark:bg-slate-800/50"}`}
+              >
+                <span
+                  className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${SEVERITY_DOT[n.severity] ?? "bg-sky-500"}`}
+                />
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <button
@@ -125,7 +139,9 @@ function NotificationHistory() {
                     )}
                   </div>
                   <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-300">{n.message}</p>
-                  <p className="mt-1 text-[11px] text-slate-400">{new Date(n.created_at + "Z").toLocaleString()}</p>
+                  <p className="mt-1 text-[11px] text-slate-400">
+                    {new Date(n.created_at + "Z").toLocaleString()}
+                  </p>
                 </div>
                 <button
                   onClick={() => setRead(n, !n.read)}

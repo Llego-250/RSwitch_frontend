@@ -13,7 +13,9 @@ function Message() {
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-500 dark:bg-slate-800">
           <ShieldOff className="h-6 w-6" />
         </div>
-        <h1 className="text-xl font-semibold text-slate-900 dark:text-white">You don't have access to this page</h1>
+        <h1 className="text-xl font-semibold text-slate-900 dark:text-white">
+          You don't have access to this page
+        </h1>
         <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
           If you think you should, contact your RDIP administrator.
         </p>

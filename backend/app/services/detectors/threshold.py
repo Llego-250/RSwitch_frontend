@@ -63,10 +63,10 @@ class ThresholdDetector:
                         source_submission_ids=[s.id for s in failed] + [s.id for s in window if s.result != SubmissionResult.failed],
                     ))
 
-            vol = h.volume_months()
+            vol = h.volume_months(ctx.now)
             if len(vol) >= 2 and volume_limit > 0:
                 current, previous = vol[-1], vol[-2]
-                if current.month == h.observed_month and previous.volume:
+                if previous.volume:
                     dev = (current.volume - previous.volume) / previous.volume * 100
                     if abs(dev) >= volume_limit:
                         findings.append(Finding(
