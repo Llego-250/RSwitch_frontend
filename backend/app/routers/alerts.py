@@ -90,7 +90,13 @@ def trends(months: Optional[int] = Query(None, ge=1, le=24), session: Session = 
 
 @router.get("/risk-ranking")
 def risk_ranking(session: Session = Depends(get_session), _: User = Depends(view)):
-    return anomaly.risk_scores(session)
+    """Participant risk scores (services.risk), riskiest first. Participants
+    under 3 months of submission history are listed unscored with
+    "Insufficient data — score pending." (REQ-P360-012). `score`,
+    `components` and `history_months` keep the pre-P360 field names."""
+    from app.services import risk
+
+    return [{**r, "score": r["composite"], "history_months": r["months_of_history"]} for r in risk.latest_scores(session)]
 
 
 @router.get("/assignees")
