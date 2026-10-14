@@ -129,6 +129,8 @@ export interface RiskMethodology {
   scope: string;
   advisory: string;
   config: RiskConfig;
+  /** The SRS §11.5 default methodology. */
+  defaults: RiskConfig;
   config_hash: string;
   warning: string;
   recomputed?: number;
@@ -196,7 +198,12 @@ export interface OutstandingAction {
 export interface OutstandingActions {
   items: OutstandingAction[];
   total: number;
-  counts: { RSwitch: number; Institution: number; overdue: number; by_kind: Record<string, number> };
+  counts: {
+    RSwitch: number;
+    Institution: number;
+    overdue: number;
+    by_kind: Record<string, number>;
+  };
 }
 
 export interface ParticipantComplianceStatus {

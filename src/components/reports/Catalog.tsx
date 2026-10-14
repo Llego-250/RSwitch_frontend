@@ -39,7 +39,9 @@ export function Catalog({
         <div
           key={t.key}
           className={`rounded-2xl border p-4 flex flex-col gap-2 bg-white dark:bg-slate-900 ${
-            t.can_view ? "border-[#DCE3E8] dark:border-slate-800" : "border-dashed border-slate-300 dark:border-slate-700 opacity-75"
+            t.can_view
+              ? "border-[#DCE3E8] dark:border-slate-800"
+              : "border-dashed border-slate-300 dark:border-slate-700 opacity-75"
           }`}
         >
           <div className="flex items-start justify-between gap-2">

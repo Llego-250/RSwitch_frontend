@@ -26,7 +26,9 @@ export function SubmissionHistoryCard({ profile }: { profile: ParticipantProfile
       {summary.no_data ? (
         <div className="p-6">
           <div className="rounded-xl border border-dashed border-[#DCE3E8] dark:border-slate-700 p-4 text-center">
-            <div className="font-semibold text-sm text-[#172033] dark:text-white">{summary.message ?? NO_DATA_MESSAGE}</div>
+            <div className="font-semibold text-sm text-[#172033] dark:text-white">
+              {summary.message ?? NO_DATA_MESSAGE}
+            </div>
             <p className="text-xs text-[#526174] dark:text-slate-400 mt-1">
               {summary.expected_due
                 ? `Expected by ${fmtDay(summary.expected_due.date)} — ${summary.expected_due.basis}.`
@@ -37,8 +39,9 @@ export function SubmissionHistoryCard({ profile }: { profile: ParticipantProfile
       ) : (
         <>
           <div className="px-6 py-3 text-[11px] text-[#526174] dark:text-slate-400 border-b border-[#DCE3E8] dark:border-slate-800">
-            {summary.total} transfer(s): {summary.passed} passed, {summary.failed_validation} failed validation ·{" "}
-            {summary.records_received.toLocaleString()} records · first {formatDateTime(summary.first_submission_at)}
+            {summary.total} transfer(s): {summary.passed} passed, {summary.failed_validation} failed
+            validation · {summary.records_received.toLocaleString()} records · first{" "}
+            {formatDateTime(summary.first_submission_at)}
             {summary.expected_due && ` · next expected ${fmtDay(summary.expected_due.date)}`}
           </div>
           {submissions.error ? (
@@ -65,7 +68,9 @@ export function SubmissionHistoryCard({ profile }: { profile: ParticipantProfile
                 <tbody className="divide-y divide-[#EEF2F5] dark:divide-slate-800">
                   {rows.map((s) => (
                     <tr key={s.id}>
-                      <td className="px-4 py-2 whitespace-nowrap">{formatDateTime(s.uploaded_at)}</td>
+                      <td className="px-4 py-2 whitespace-nowrap">
+                        {formatDateTime(s.uploaded_at)}
+                      </td>
                       <td className="px-3 py-2 font-mono font-semibold">SUB-{s.id}</td>
                       <td className="px-3 py-2">
                         <div className="text-[#172033] dark:text-slate-100">{s.period}</div>
@@ -75,12 +80,18 @@ export function SubmissionHistoryCard({ profile }: { profile: ParticipantProfile
                         </div>
                       </td>
                       <td className="px-3 py-2">
-                        <StatusBadge status={SUBMISSION_BADGE[s.status] ?? "draft"}>{s.status}</StatusBadge>
+                        <StatusBadge status={SUBMISSION_BADGE[s.status] ?? "draft"}>
+                          {s.status}
+                        </StatusBadge>
                       </td>
-                      <td className="px-3 py-2 text-right font-mono">{s.records_received.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right font-mono">
+                        {s.records_received.toLocaleString()}
+                      </td>
                       <td className="px-4 py-2 text-right font-mono">
                         {s.error_count}
-                        {s.warning_count ? <span className="text-[#7B8798]"> +{s.warning_count}w</span> : null}
+                        {s.warning_count ? (
+                          <span className="text-[#7B8798]"> +{s.warning_count}w</span>
+                        ) : null}
                       </td>
                     </tr>
                   ))}

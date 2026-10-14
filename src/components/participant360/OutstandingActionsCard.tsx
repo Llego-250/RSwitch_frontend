@@ -23,11 +23,16 @@ function ActionList({ items, empty }: { items: OutstandingAction[]; empty: strin
         <li
           key={`${a.kind}-${a.ref}-${a.title}`}
           className={`p-2.5 rounded-xl border text-xs ${
-            a.overdue ? "border-[#DC3154]/40 bg-[#FDECEF]/40 dark:bg-red-950/20" : "border-[#DCE3E8] dark:border-slate-700"
+            a.overdue
+              ? "border-[#DC3154]/40 bg-[#FDECEF]/40 dark:bg-red-950/20"
+              : "border-[#DCE3E8] dark:border-slate-700"
           }`}
         >
           <div className="flex items-start justify-between gap-2">
-            <a href={a.link} className="font-semibold text-[#172033] dark:text-slate-100 hover:underline">
+            <a
+              href={a.link}
+              className="font-semibold text-[#172033] dark:text-slate-100 hover:underline"
+            >
               {a.title}
             </a>
             <Pill className={STATUS_STYLE[a.status] ?? STATUS_STYLE.Pending}>{a.status}</Pill>
@@ -60,7 +65,8 @@ export function OutstandingActionsCard({ actions }: { actions: OutstandingAction
       }
       action={
         <span className="text-xs text-[#526174] dark:text-slate-400">
-          {actions.total} pending{actions.counts.overdue ? ` · ${actions.counts.overdue} overdue` : ""}
+          {actions.total} pending
+          {actions.counts.overdue ? ` · ${actions.counts.overdue} overdue` : ""}
         </span>
       }
     >

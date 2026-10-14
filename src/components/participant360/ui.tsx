@@ -2,7 +2,15 @@
 import type { ReactNode } from "react";
 import { BAND_STYLE, PENDING_STYLE, type RiskBand } from "@/lib/participant360";
 
-export function Pill({ className, children, title }: { className: string; children: ReactNode; title?: string }) {
+export function Pill({
+  className,
+  children,
+  title,
+}: {
+  className: string;
+  children: ReactNode;
+  title?: string;
+}) {
   return (
     <span
       title={title}
@@ -53,9 +61,15 @@ export function Stat({
       title={title}
       className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-[#DCE3E8] dark:border-slate-700 min-w-0"
     >
-      <span className="text-[10px] font-semibold uppercase tracking-wide text-[#7B8798] block">{label}</span>
-      <span className="text-lg font-bold font-mono text-[#172033] dark:text-slate-100 block">{value}</span>
-      {sub && <span className="text-[11px] text-[#526174] dark:text-slate-400 block mt-0.5">{sub}</span>}
+      <span className="text-[10px] font-semibold uppercase tracking-wide text-[#7B8798] block">
+        {label}
+      </span>
+      <span className="text-lg font-bold font-mono text-[#172033] dark:text-slate-100 block">
+        {value}
+      </span>
+      {sub && (
+        <span className="text-[11px] text-[#526174] dark:text-slate-400 block mt-0.5">{sub}</span>
+      )}
     </div>
   );
 }

@@ -21,15 +21,20 @@ export function ProfileHeader({ profile }: { profile: ParticipantProfile }) {
             {(profile.short_name || profile.code).charAt(0)}
           </div>
           <div className="min-w-0">
-            <h1 className="text-xl font-bold text-[#172033] dark:text-white truncate">{profile.name}</h1>
+            <h1 className="text-xl font-bold text-[#172033] dark:text-white truncate">
+              {profile.name}
+            </h1>
             <p className="text-xs text-[#526174] dark:text-slate-400 mt-0.5">
-              <span className="font-mono">{profile.code}</span> · ID {profile.id} · {profile.type || "Type not set"}
+              <span className="font-mono">{profile.code}</span> · ID {profile.id} ·{" "}
+              {profile.type || "Type not set"}
               {profile.region ? ` · ${profile.region}` : ""}
             </p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <StatusBadge status={STATUS_BADGE[overall.status] ?? "draft"}>{overall.status}</StatusBadge>
+          <StatusBadge status={STATUS_BADGE[overall.status] ?? "draft"}>
+            {overall.status}
+          </StatusBadge>
           <RiskBadge composite={risk?.composite} band={risk?.band} />
         </div>
       </div>
@@ -64,7 +69,9 @@ export function ProfileHeader({ profile }: { profile: ParticipantProfile }) {
           <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
         )}
         <div>
-          <span className="font-semibold">Overall status: {overall.status} — {overall.health}.</span>
+          <span className="font-semibold">
+            Overall status: {overall.status} — {overall.health}.
+          </span>
           {attention && <span> {overall.attention.join(" · ")}.</span>}
         </div>
       </div>

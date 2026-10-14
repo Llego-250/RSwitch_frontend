@@ -888,8 +888,8 @@ function PriorityPanel() {
                   {r.signal_strength}
                 </span>
                 <div className="text-[10px] text-[#7B8798]">
-                  {r.risk_score === null ? "risk pending" : `risk ${r.risk_score.toFixed(0)}`} · alerts{" "}
-                  {r.alert_points}
+                  {r.risk_score === null ? "risk pending" : `risk ${r.risk_score.toFixed(0)}`} ·
+                  alerts {r.alert_points}
                 </div>
               </div>
             </li>

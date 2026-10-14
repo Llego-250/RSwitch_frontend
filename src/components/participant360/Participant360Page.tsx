@@ -33,7 +33,10 @@ export function Participant360Page({
   const [search, setSearch] = useState("");
 
   const list = useMemo(() => participants.data ?? [], [participants.data]);
-  const scoreById = useMemo(() => new Map((scores.data ?? []).map((s) => [s.participant_id, s])), [scores.data]);
+  const scoreById = useMemo(
+    () => new Map((scores.data ?? []).map((s) => [s.participant_id, s])),
+    [scores.data],
+  );
   const q = search.trim().toLowerCase();
   const filtered = q
     ? list.filter(
@@ -46,7 +49,8 @@ export function Participant360Page({
     : list;
 
   const currentId = selectedId ?? list[0]?.id;
-  const missing = selectedId !== undefined && participants.isSuccess && !list.some((p) => p.id === selectedId);
+  const missing =
+    selectedId !== undefined && participants.isSuccess && !list.some((p) => p.id === selectedId);
   const profile = useParticipantProfile(missing ? undefined : currentId);
 
   function onSearchKey(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -110,11 +114,18 @@ export function Participant360Page({
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <span className="font-semibold text-sm text-[#172033] dark:text-white">{p.name}</span>
-                        <RiskBadge composite={score?.composite} band={score?.band} pendingLabel="Pending" />
+                        <span className="font-semibold text-sm text-[#172033] dark:text-white">
+                          {p.name}
+                        </span>
+                        <RiskBadge
+                          composite={score?.composite}
+                          band={score?.band}
+                          pendingLabel="Pending"
+                        />
                       </div>
                       <div className="text-[11px] text-[#526174] dark:text-slate-400 mt-1">
-                        <span className="font-mono">{p.code}</span> · ID {p.id} · {p.type || "—"} · {p.status}
+                        <span className="font-mono">{p.code}</span> · ID {p.id} · {p.type || "—"} ·{" "}
+                        {p.status}
                       </div>
                     </button>
                   </li>
@@ -142,7 +153,10 @@ export function Participant360Page({
                 <ComplianceStatusCard compliance={profile.data.compliance} />
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
                   <IncidentsCard incidents={profile.data.incidents} />
-                  <NotesCard participantId={profile.data.id} canWrite={hasCap(role, "participant360.notes")} />
+                  <NotesCard
+                    participantId={profile.data.id}
+                    canWrite={hasCap(role, "participant360.notes")}
+                  />
                 </div>
                 <SubmissionHistoryCard profile={profile.data} />
                 <p className="text-[11px] text-[#7B8798]">{profile.data.scope_notice}</p>

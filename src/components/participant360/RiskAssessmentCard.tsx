@@ -56,7 +56,10 @@ function CategoryBlock({ category }: { category: RiskCategoryScore }) {
               <th className="px-4 py-2 text-left font-semibold">Indicator</th>
               <th className="px-3 py-2 text-left font-semibold">Measured</th>
               <th className="px-3 py-2 text-left font-semibold">Risk</th>
-              <th className="px-3 py-2 text-right font-semibold" title="Share of the composite this run">
+              <th
+                className="px-3 py-2 text-right font-semibold"
+                title="Share of the composite this run"
+              >
                 Share
               </th>
               <th className="px-4 py-2 text-right font-semibold" title="Composite points added">
@@ -68,22 +71,34 @@ function CategoryBlock({ category }: { category: RiskCategoryScore }) {
             {Object.entries(category.indicators).map(([key, ind]) => (
               <tr key={key} className={ind.enabled ? "" : "opacity-60"}>
                 <td className="px-4 py-2 align-top">
-                  <div className="font-semibold text-[#172033] dark:text-slate-100">{ind.label}</div>
+                  <div className="font-semibold text-[#172033] dark:text-slate-100">
+                    {ind.label}
+                  </div>
                   <div className="text-[11px] text-[#526174] dark:text-slate-400">{ind.detail}</div>
-                  {!ind.enabled && <div className="text-[10px] text-[#7B8798]">Disabled in Settings</div>}
+                  {!ind.enabled && (
+                    <div className="text-[10px] text-[#7B8798]">Disabled in Settings</div>
+                  )}
                   {ind.enabled && ind.weight === 0 && (
                     <div className="text-[10px] text-[#7B8798]">Measured, not weighted (0%)</div>
                   )}
                   {ind.enabled && ind.weight > 0 && !ind.measured && (
-                    <div className="text-[10px] text-[#7B8798]">Not measurable — weight redistributed</div>
+                    <div className="text-[10px] text-[#7B8798]">
+                      Not measurable — weight redistributed
+                    </div>
                   )}
                 </td>
-                <td className="px-3 py-2 align-top font-mono whitespace-nowrap">{fmtValue(ind.value, ind.unit)}</td>
+                <td className="px-3 py-2 align-top font-mono whitespace-nowrap">
+                  {fmtValue(ind.value, ind.unit)}
+                </td>
                 <td className="px-3 py-2 align-top">
                   <ScoreBar score={ind.score} />
                 </td>
-                <td className="px-3 py-2 align-top text-right font-mono">{ind.applied_weight.toFixed(1)}%</td>
-                <td className="px-4 py-2 align-top text-right font-mono">{ind.contribution.toFixed(1)}</td>
+                <td className="px-3 py-2 align-top text-right font-mono">
+                  {ind.applied_weight.toFixed(1)}%
+                </td>
+                <td className="px-4 py-2 align-top text-right font-mono">
+                  {ind.contribution.toFixed(1)}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -100,10 +115,14 @@ export function MethodologyDetails({ methodology }: { methodology: RiskMethodolo
   }));
   return (
     <div className="space-y-4 text-xs text-[#526174] dark:text-slate-400">
-      {methodology.warning && <p className="text-[#9A5300] dark:text-amber-300">{methodology.warning}</p>}
+      {methodology.warning && (
+        <p className="text-[#9A5300] dark:text-amber-300">{methodology.warning}</p>
+      )}
       <p>{methodology.summary}</p>
       <p>
-        <span className="font-semibold text-[#172033] dark:text-slate-200">SRS {methodology.srs_formula}</span>{" "}
+        <span className="font-semibold text-[#172033] dark:text-slate-200">
+          SRS {methodology.srs_formula}
+        </span>{" "}
         {methodology.reproduces_srs_formula
           ? "The weights in force reproduce it exactly."
           : "The weights in force have been changed from it in Settings."}
@@ -118,8 +137,11 @@ export function MethodologyDetails({ methodology }: { methodology: RiskMethodolo
               <li key={i.key}>
                 <span className="font-semibold text-[#172033] dark:text-slate-200">{i.label}</span>
                 {i.srs_component && <span> (§11.5 {i.srs_component})</span>} —{" "}
-                {i.enabled ? `${i.weight}% of the category, ${i.effective_weight}% of the composite` : "disabled"}.{" "}
-                {i.definition} <span className="italic">Scale: {i.scale}.</span> Source: {i.data_source}; {i.window}.
+                {i.enabled
+                  ? `${i.weight}% of the category, ${i.effective_weight}% of the composite`
+                  : "disabled"}
+                . {i.definition} <span className="italic">Scale: {i.scale}.</span> Source:{" "}
+                {i.data_source}; {i.window}.
               </li>
             ))}
           </ul>
@@ -130,7 +152,8 @@ export function MethodologyDetails({ methodology }: { methodology: RiskMethodolo
         {Object.entries(methodology.severity_points)
           .map(([k, v]) => `${k} ${v}`)
           .join(", ")}
-        . Bands: Low {methodology.bands.Low}; Medium {methodology.bands.Medium}; High {methodology.bands.High}.
+        . Bands: Low {methodology.bands.Low}; Medium {methodology.bands.Medium}; High{" "}
+        {methodology.bands.High}.
       </p>
       <p>{methodology.minimum_history}</p>
       <p>{methodology.recalculation}</p>
@@ -181,8 +204,8 @@ export function RiskAssessmentCard({ risk }: { risk: ParticipantRisk | null }) {
                 <Pill className={BAND_STYLE[risk.band!]}>{risk.band} risk</Pill>
                 {risk.change !== null && (
                   <span className="text-[11px] text-[#526174] dark:text-slate-400">
-                    {risk.change > 0 ? "▲" : risk.change < 0 ? "▼" : "■"} {Math.abs(risk.change).toFixed(1)} since the
-                    previous run
+                    {risk.change > 0 ? "▲" : risk.change < 0 ? "▼" : "■"}{" "}
+                    {Math.abs(risk.change).toFixed(1)} since the previous run
                   </span>
                 )}
               </div>
@@ -216,7 +239,9 @@ export function RiskAssessmentCard({ risk }: { risk: ParticipantRisk | null }) {
         {scored && (
           <div className="space-y-3">
             {RISK_CATEGORIES.map((key) =>
-              risk.categories[key] ? <CategoryBlock key={key} category={risk.categories[key]!} /> : null,
+              risk.categories[key] ? (
+                <CategoryBlock key={key} category={risk.categories[key]!} />
+              ) : null,
             )}
           </div>
         )}
@@ -245,7 +270,9 @@ export function RiskAssessmentCard({ risk }: { risk: ParticipantRisk | null }) {
                   {history.map((h) => (
                     <tr key={`${h.computed_at}-${h.trigger}`}>
                       <td className="py-1.5 font-sans">{fmtDateTime(h.computed_at)}</td>
-                      <td className="py-1.5 font-sans text-[#526174] dark:text-slate-400">{h.trigger}</td>
+                      <td className="py-1.5 font-sans text-[#526174] dark:text-slate-400">
+                        {h.trigger}
+                      </td>
                       <td className="py-1.5 text-right">{h.compliance?.toFixed(1) ?? "—"}</td>
                       <td className="py-1.5 text-right">{h.operational?.toFixed(1) ?? "—"}</td>
                       <td className="py-1.5 text-right">{h.technical?.toFixed(1) ?? "—"}</td>
