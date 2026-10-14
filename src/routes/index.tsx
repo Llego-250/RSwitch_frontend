@@ -6,6 +6,7 @@ import { FilterBar } from "@/components/dashboard/FilterBar";
 import { WidgetCard } from "@/components/dashboard/WidgetCard";
 import { WIDGET_VIEWS } from "@/components/dashboard/views";
 import { FormError } from "@/components/governance/ui";
+import { useAuth } from "@/context/AuthContext";
 import { useRole } from "@/context/RoleContext";
 import { errorMessage } from "@/lib/api";
 import {
@@ -30,9 +31,18 @@ export const Route = createFileRoute("/")({
 function Dashboard() {
   const { role, scope } = useRole();
   const navigate = useNavigate();
-  const [filters, setFilters] = useSessionState<DashboardFilters>("rdip_dash_filters", {});
-  const [settings, setSettings] = useSessionState<WidgetSettings>(`rdip_dash_widgets_${role}`, {});
-  const [autoRefresh, setAutoRefresh] = useSessionState<boolean>("rdip_dash_autorefresh", false);
+  // Session-scoped per signed-in user, so a shared browser never carries one
+  // person's filters into another's session (REQ-DASH-009).
+  const who = useAuth().user?.email ?? "anonymous";
+  const [filters, setFilters] = useSessionState<DashboardFilters>(`rdip_dash_filters:${who}`, {});
+  const [settings, setSettings] = useSessionState<WidgetSettings>(
+    `rdip_dash_widgets:${who}:${role}`,
+    {},
+  );
+  const [autoRefresh, setAutoRefresh] = useSessionState<boolean>(
+    `rdip_dash_autorefresh:${who}`,
+    false,
+  );
   const dash = useDashboard(filters, settings, autoRefresh);
   const d = dash.data;
   const busy = dash.isFetching;
