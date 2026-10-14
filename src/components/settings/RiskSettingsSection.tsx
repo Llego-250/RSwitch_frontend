@@ -53,7 +53,9 @@ function localErrors(cfg: RiskConfig, m: RiskMethodology): Record<string, string
 export function RiskSettingsSection({ canEdit }: { canEdit: boolean }) {
   const methodology = useRiskMethodology();
   const refresh = useRefreshRisk();
-  const [form, setForm] = useState<RiskConfig | null>(null);
+  const [form, setForm] = useState<RiskConfig | null>(() =>
+    methodology.data ? structuredClone(methodology.data.config) : null,
+  );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState<string | null>(null);
   const [showDefinitions, setShowDefinitions] = useState(false);
