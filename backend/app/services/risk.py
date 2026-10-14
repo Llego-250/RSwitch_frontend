@@ -839,6 +839,7 @@ def methodology(session: Session, cfg: Optional[dict] = None, warning: str = "")
         "scope": "Institution-level indicators only — no customer-level data (REQ-P360-013).",
         "advisory": "Advisory: the score informs RSwitch staff and never changes a participant's status by itself.",
         "config": cfg,
+        "defaults": default,  # the §11.5 methodology, for "reset to defaults"
         "config_hash": config_hash(cfg),
         "warning": warning,
     }
