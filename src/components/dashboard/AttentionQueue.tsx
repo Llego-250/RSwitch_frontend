@@ -5,8 +5,14 @@
 // state, so it reappears if it changes.
 import { ArrowUpRight, Bell, X } from "lucide-react";
 import { SeverityPill } from "@/components/compliance/ui";
-import { useSessionState, timeAgo, type AttentionData, type Widget } from "@/lib/dashboard";
-import { useOpenLink, WidgetCard } from "./WidgetCard";
+import {
+  useOpenLink,
+  useSessionState,
+  timeAgo,
+  type AttentionData,
+  type Widget,
+} from "@/lib/dashboard";
+import { WidgetCard } from "./WidgetCard";
 
 const SHOWN = 10;
 
@@ -34,14 +40,19 @@ export function AttentionQueue({
           {data.total} unresolved
         </span>
         {Object.entries(data.by_kind).map(([kind, n]) => (
-          <span key={kind} className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-[#526174] dark:text-slate-300">
+          <span
+            key={kind}
+            className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-[#526174] dark:text-slate-300"
+          >
             {kind} {n}
           </span>
         ))}
       </div>
       {visible.length === 0 ? (
         <p className="text-sm py-8 text-center text-[#7B8798]">
-          {data.items.length ? "Every item is dismissed for this session." : "Nothing needs attention right now."}
+          {data.items.length
+            ? "Every item is dismissed for this session."
+            : "Nothing needs attention right now."}
         </p>
       ) : (
         <ul className="space-y-2">
@@ -52,10 +63,14 @@ export function AttentionQueue({
             >
               <div className="flex items-center gap-2 mb-1">
                 <SeverityPill severity={item.severity} />
-                <span className="text-[11px] font-semibold text-[#526174] dark:text-slate-300">{item.kind}</span>
+                <span className="text-[11px] font-semibold text-[#526174] dark:text-slate-300">
+                  {item.kind}
+                </span>
                 <span className="ml-auto text-[11px] text-[#7B8798]">{timeAgo(item.since)}</span>
               </div>
-              <p className="text-xs font-semibold text-[#172033] dark:text-slate-100 leading-snug">{item.title}</p>
+              <p className="text-xs font-semibold text-[#172033] dark:text-slate-100 leading-snug">
+                {item.title}
+              </p>
               <p className="text-[11px] text-[#526174] dark:text-slate-400 mt-0.5 line-clamp-2">
                 {[item.participant_name, item.detail].filter(Boolean).join(" · ")}
               </p>
@@ -80,12 +95,17 @@ export function AttentionQueue({
       )}
       <div className="flex items-center justify-between mt-3 text-[11px] text-[#7B8798]">
         <span>
-          {visible.length > SHOWN ? `Top ${SHOWN} of ${visible.length} shown` : `${visible.length} shown`}
-          {data.total > data.items.length && ` · ${data.total - data.items.length} lower-priority not listed`}
+          {visible.length > SHOWN
+            ? `Top ${SHOWN} of ${visible.length} shown`
+            : `${visible.length} shown`}
+          {data.total > data.items.length &&
+            ` · ${data.total - data.items.length} lower-priority not listed`}
         </span>
         {dismissedHere > 0 && (
           <button
-            onClick={() => setDismissed(dismissed.filter((id) => !data.items.some((i) => i.id === id)))}
+            onClick={() =>
+              setDismissed(dismissed.filter((id) => !data.items.some((i) => i.id === id)))
+            }
             className="font-semibold text-[#168FA8] hover:underline cursor-pointer"
           >
             Restore {dismissedHere} dismissed
