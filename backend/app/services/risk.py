@@ -900,7 +900,8 @@ def run_nightly_if_due(session: Session, now: Optional[datetime] = None) -> Opti
     night = local.date() if local.hour >= NIGHTLY_HOUR else local.date() - timedelta(days=1)
     since = datetime.combine(night, time(NIGHTLY_HOUR), tzinfo=zone).astimezone(timezone.utc).replace(tzinfo=None)
     done = session.exec(select(ParticipantRiskScore.id).where(ParticipantRiskScore.trigger == "Nightly",
-                                                              ParticipantRiskScore.computed_at >= since)).first()
+                                                              ParticipantRiskScore.computed_at >= since,
+                                                              ParticipantRiskScore.computed_at < since + timedelta(days=1))).first()
     if done is not None:
         return None
     return recompute(session, trigger="Nightly", now=now)
