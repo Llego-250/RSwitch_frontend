@@ -437,7 +437,8 @@ export function RecentReports({ data }: { data: { period_label: string; items: R
               {r.name}
             </span>
             <span className="block text-[#526174] dark:text-slate-400">
-              {r.report_name} · {r.generated_by} · {timeAgo(r.generated_at)}
+              {r.name !== r.report_name && `${r.report_name} · `}
+              {r.generated_by} · {timeAgo(r.generated_at)}
             </span>
           </span>
           {r.status === "Completed" ? (
