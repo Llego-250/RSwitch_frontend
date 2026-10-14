@@ -10,28 +10,39 @@ function IncidentRow({ incident }: { incident: Incident }) {
   return (
     <li className="p-3 rounded-xl border border-[#DCE3E8] dark:border-slate-700 text-xs space-y-1">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="font-mono font-bold text-[#526174] dark:text-slate-300">{incident.ref}</span>
+        <span className="font-mono font-bold text-[#526174] dark:text-slate-300">
+          {incident.ref}
+        </span>
         <span className="flex gap-1.5">
           <Pill className={SEVERITY_STYLE[incident.severity]}>{incident.severity}</Pill>
-          <Pill className={STATUS_STYLE[incident.status] ?? STATUS_STYLE.Pending}>{incident.status}</Pill>
+          <Pill className={STATUS_STYLE[incident.status] ?? STATUS_STYLE.Pending}>
+            {incident.status}
+          </Pill>
         </span>
       </div>
       <div className="text-[#172033] dark:text-slate-100">{incident.description}</div>
       <div className="text-[11px] text-[#7B8798]">
-        {incident.incident_date ? `Occurred ${incident.incident_date} · ` : ""}raised {fmtDate(incident.raised_at)} · owner{" "}
+        {incident.incident_date ? `Occurred ${incident.incident_date} · ` : ""}raised{" "}
+        {fmtDate(incident.raised_at)} · owner{" "}
         {incident.owner?.name ?? (incident.assignee || "unassigned")}
         {actions.total > 0 &&
           ` · ${actions.completed}/${actions.total} remediation action(s) done${actions.overdue ? `, ${actions.overdue} overdue` : ""}`}
         {incident.resolved_at ? ` · resolved ${fmtDate(incident.resolved_at)}` : ""}
       </div>
       {incident.resolution_summary && (
-        <div className="text-[11px] text-[#526174] dark:text-slate-400">Resolution: {incident.resolution_summary}</div>
+        <div className="text-[11px] text-[#526174] dark:text-slate-400">
+          Resolution: {incident.resolution_summary}
+        </div>
       )}
     </li>
   );
 }
 
-export function IncidentsCard({ incidents }: { incidents: { open: Incident[]; resolved: Incident[] } }) {
+export function IncidentsCard({
+  incidents,
+}: {
+  incidents: { open: Incident[]; resolved: Incident[] };
+}) {
   const [tab, setTab] = useState<"open" | "resolved">("open");
   const rows = incidents[tab];
   return (
