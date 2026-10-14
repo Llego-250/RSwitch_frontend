@@ -6,17 +6,20 @@ from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from app.core.errors import problem, validation_error
-from app.core.permissions import require_cap, require_roles, require_staff
+from app.core.permissions import has_cap, require_cap
 from app.core.security import is_valid_email, normalize_email
 from app.db import get_session
 from app.models.admin import ParticipantNote
-from app.models.enums import REGIONS, InstitutionType, ParticipantStatus, UserRole
-from app.models.submission import Submission
-from app.services import audit
+from app.models.enums import REGIONS, InstitutionType, ParticipantStatus
 from app.models.participant import Participant
+from app.models.submission import Submission
 from app.models.user import User
+from app.services import audit, participant360, risk
 
 router = APIRouter(prefix="/participants", tags=["participants"])
+
+NOT_FOUND = "The requested record could not be found."
+MAX_NOTE_CHARS = 4000
 
 TYPES = [t.value for t in InstitutionType]
 STATUSES = [s.value for s in ParticipantStatus]
@@ -43,9 +46,54 @@ def list_participants(
     if region is not None:
         query = query.where(Participant.region == region)
     if q:
+        # §8.1: search by participant name or ID (the numeric id, or the code).
         like = f"%{q.strip()}%"
-        query = query.where(Participant.name.ilike(like) | Participant.code.ilike(like) | Participant.short_name.ilike(like))
+        match = Participant.name.ilike(like) | Participant.code.ilike(like) | Participant.short_name.ilike(like)
+        if q.strip().isdigit():
+            match = match | (Participant.id == int(q.strip()))
+        query = query.where(match)
     return session.exec(query.order_by(Participant.name)).all()
+
+
+# ---- risk assessment (REQ-P360-009..012, §11.5) — above /{participant_id} -------
+
+@router.get("/risk-scores")
+def risk_scores(session: Session = Depends(get_session), _: User = Depends(require_cap("participant360.view"))):
+    """Current score of every participant, riskiest first; insufficient-data
+    participants last, unscored (REQ-P360-012)."""
+    return risk.latest_scores(session)
+
+
+@router.post("/risk-scores/recompute")
+def recompute_risk(request: Request, session: Session = Depends(get_session),
+                   user: User = Depends(require_cap("settings.manage"))):
+    """Recalculate now rather than waiting for the nightly run."""
+    count = risk.recompute(session, trigger="On demand")
+    audit.record(session, "RISK_RECALCULATE", f"{count} participant(s), on demand", user, request)
+    return {"recomputed": count, "distribution": risk.distribution(session)}
+
+
+@router.get("/risk-methodology")
+def risk_methodology(session: Session = Depends(get_session),
+                     _: User = Depends(require_cap("participant360.risk_methodology"))):
+    """REQ-P360-009/011: indicators, definitions, weights, thresholds, data
+    sources. Shown read-only to every role; edited in Settings."""
+    return risk.methodology(session)
+
+
+@router.put("/risk-methodology")
+def update_risk_methodology(request: Request, value: dict = Body(...), session: Session = Depends(get_session),
+                            admin: User = Depends(require_cap("settings.manage"))):
+    """REQ-P360-011: Technical/Admin reconfigures weights (each set adding up
+    to 100), thresholds and indicators. Every score is recalculated at once."""
+    before = risk.config(session)
+    saved, problems = risk.save_config(session, value)
+    if problems:
+        raise validation_error(problems)
+    changed = [k for k in saved if saved[k] != before.get(k)]
+    audit.record(session, "SETTINGS_UPDATE", f"risk: {', '.join(changed) or 'no changes'}"[:900], admin, request)
+    count = risk.recompute(session, trigger="Settings change") if changed else 0
+    return {**risk.methodology(session), "recomputed": count}
 
 
 class ParticipantIn(BaseModel):
@@ -140,16 +188,20 @@ def create_participant(
     return participant
 
 
-@router.get("/{participant_id}", response_model=Participant)
-def get_participant(
-    participant_id: int,
-    session: Session = Depends(get_session),
-    _: User = Depends(require_staff),
-):
+def _participant(session: Session, participant_id: int) -> Participant:
     participant = session.get(Participant, participant_id)
     if not participant:
-        raise HTTPException(status_code=404, detail="Participant not found")
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
     return participant
+
+
+@router.get("/{participant_id}")
+def get_participant(participant_id: int, session: Session = Depends(get_session),
+                    user: User = Depends(require_cap("participant360.view"))):
+    """§19.2 Participant 360 profile (REQ-P360-001..009): the §10.1 fields
+    plus integrations, submission summary, compliance status, incidents,
+    technical performance, outstanding actions and the risk assessment."""
+    return participant360.profile(session, _participant(session, participant_id), user)
 
 
 def _update(participant_id: int, body: ParticipantIn, request: Request, session: Session, user: User) -> Participant:
@@ -194,58 +246,63 @@ def participant_submissions(participant_id: int, session: Session = Depends(get_
     return [submission_out(session, s) for s in rows]
 
 
-@router.get("/{participant_id}/risk-score")
-def get_risk_score(
-    participant_id: int,
-    session: Session = Depends(get_session),
-    _: User = Depends(require_cap("participant360.view")),
-):
-    """REQ-P360-009..012: participant risk score with methodology.
-    Returns {status: 'insufficient_data', message: ...} when < 3 months history."""
-    from app.services import risk as risk_svc
+@router.get("/{participant_id}/incidents")
+def participant_incidents(participant_id: int, session: Session = Depends(get_session),
+                          user: User = Depends(require_cap("participant360.view"))):
+    """§19.2 / REQ-P360-006: open and resolved incidents."""
+    _participant(session, participant_id)
+    return participant360.incidents(session, participant_id, user)
 
-    result = risk_svc.participant_risk(session, participant_id)
-    if result is None:
-        raise HTTPException(status_code=404, detail="Participant not found")
-    if result["status"] == "insufficient_data":
-        result["message"] = "Insufficient data — score pending."
-    return result
+
+@router.get("/{participant_id}/risk-score")
+def participant_risk_score(participant_id: int, session: Session = Depends(get_session),
+                           user: User = Depends(require_cap("participant360.view"))):
+    """§19.2 current risk score with breakdown (REQ-P360-009..012): the three
+    categories, composite, inputs, history and — for authorized users — the
+    methodology. status "insufficient_data" with message "Insufficient data —
+    score pending." under 3 months of submission history."""
+    _participant(session, participant_id)
+    row = risk.participant_risk(session, participant_id)
+    if not has_cap(user, "participant360.risk_methodology"):
+        row.pop("methodology", None)
+    return row
 
 
 @router.get("/{participant_id}/outstanding-actions")
-def get_outstanding_actions(
-    participant_id: int,
-    session: Session = Depends(get_session),
-    _: User = Depends(require_cap("participant360.view")),
-):
+def participant_outstanding_actions(participant_id: int, session: Session = Depends(get_session),
+                                    _: User = Depends(require_cap("participant360.view"))):
     """REQ-P360-008: pending items assigned to RSwitch or the institution."""
-    from app.services import risk as risk_svc
-
-    if not session.get(Participant, participant_id):
-        raise HTTPException(status_code=404, detail="Participant not found")
-    return risk_svc.outstanding_actions(session, participant_id)
+    _participant(session, participant_id)
+    return participant360.outstanding_actions(session, participant_id)
 
 
 @router.get("/{participant_id}/notes", response_model=list[ParticipantNote])
-def list_notes(participant_id: int, session: Session = Depends(get_session), _: User = Depends(require_staff)):
+def list_notes(participant_id: int, session: Session = Depends(get_session),
+               _: User = Depends(require_cap("participant360.view"))):
+    """REQ-P360-014 notes, newest first; every role reads them."""
+    _participant(session, participant_id)
     return session.exec(
-        select(ParticipantNote).where(ParticipantNote.participant_id == participant_id).order_by(ParticipantNote.created_at.desc())
+        select(ParticipantNote).where(ParticipantNote.participant_id == participant_id)
+        .order_by(ParticipantNote.created_at.desc(), ParticipantNote.id.desc())
     ).all()
 
 
-@router.post("/{participant_id}/notes", response_model=ParticipantNote)
+@router.post("/{participant_id}/notes", response_model=ParticipantNote, status_code=201)
 def add_note(
     participant_id: int,
     request: Request,
     note: str = Body(..., embed=True),
     session: Session = Depends(get_session),
-    user: User = Depends(require_roles(UserRole.compliance)),
+    user: User = Depends(require_cap("participant360.notes")),
 ):
-    if not session.get(Participant, participant_id):
-        raise HTTPException(status_code=404, detail="Participant not found")
-    if not note.strip():
-        raise HTTPException(status_code=422, detail="Note can't be empty")
-    row = ParticipantNote(participant_id=participant_id, author=user.full_name or user.email, note=note.strip())
+    """REQ-P360-014: Compliance users annotate a participant's profile."""
+    _participant(session, participant_id)
+    text = (note or "").strip()
+    if not text:
+        raise validation_error([problem("note", "required", "Write the note before saving it.")])
+    if len(text) > MAX_NOTE_CHARS:
+        raise validation_error([problem("note", "max_length", f"Notes are limited to {MAX_NOTE_CHARS} characters.")])
+    row = ParticipantNote(participant_id=participant_id, author=user.full_name or user.email, note=text)
     session.add(row)
     session.commit()
     session.refresh(row)
