@@ -10,7 +10,13 @@ import { Empty, LoadError } from "./ui";
 
 const MAX_CHARS = 4000;
 
-export function NotesCard({ participantId, canWrite }: { participantId: number; canWrite: boolean }) {
+export function NotesCard({
+  participantId,
+  canWrite,
+}: {
+  participantId: number;
+  canWrite: boolean;
+}) {
   const notes = useParticipantNotes(participantId);
   const add = useAddNote(participantId);
   const [text, setText] = useState("");
@@ -64,11 +70,16 @@ export function NotesCard({ participantId, canWrite }: { participantId: number; 
         ) : (
           <ul className="space-y-2.5">
             {notes.data!.map((n) => (
-              <li key={n.id} className="p-3 rounded-xl border border-[#DCE3E8] dark:border-slate-700 text-xs">
+              <li
+                key={n.id}
+                className="p-3 rounded-xl border border-[#DCE3E8] dark:border-slate-700 text-xs"
+              >
                 <div className="text-[11px] text-[#7B8798] mb-1">
                   {n.author} · {fmtDateTime(n.created_at)}
                 </div>
-                <div className="whitespace-pre-wrap text-[#172033] dark:text-slate-100">{n.note}</div>
+                <div className="whitespace-pre-wrap text-[#172033] dark:text-slate-100">
+                  {n.note}
+                </div>
               </li>
             ))}
           </ul>
