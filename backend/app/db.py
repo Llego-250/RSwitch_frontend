@@ -125,6 +125,51 @@ def _upgrade_integrations() -> None:
             ))
 
 
+def _upgrade_compliance() -> None:
+    """Rows from before the SRS compliance lifecycle (§9.2, §9.4). Enum
+    columns store member NAMES and are compared as text: a Postgres enum
+    type created fresh has no old labels. Portable SQLite/Postgres;
+    idempotent (each statement only matches rows still in the old shape).
+
+    - Incidents: the pre-SRS "In Progress" (in_progress) becomes Remediation
+      In Progress when the incident has open remediation actions, otherwise
+      Under Investigation. Runs before the ORM reads an incident.
+    - Submissions recorded before Submission.status existed got the column
+      default "Submitted"; their real state comes from result/review_status."""
+    insp = inspect(engine)
+    status = "CAST(status AS VARCHAR)"
+    with engine.begin() as conn:
+        if insp.has_table("issue"):
+            if insp.has_table("remediationaction"):
+                conn.execute(text(
+                    f"UPDATE issue SET status = 'remediation_in_progress' WHERE {status} = 'in_progress' AND EXISTS "
+                    "(SELECT 1 FROM remediationaction r WHERE r.incident_id = issue.id AND r.status = 'Open')"))
+            conn.execute(text(f"UPDATE issue SET status = 'under_investigation' WHERE {status} = 'in_progress'"))
+        if insp.has_table("submission"):
+            legacy = f"{status} = 'Submitted' AND requirement_id IS NULL"
+            result = "CAST(result AS VARCHAR)"
+            conn.execute(text(f"UPDATE submission SET status = 'Validation Failed' WHERE {legacy} AND {result} = 'failed'"))
+            conn.execute(text(f"UPDATE submission SET status = 'Approved' WHERE {legacy} AND {result} = 'passed' AND review_status = 'Approved'"))
+            conn.execute(text(
+                f"UPDATE submission SET rejection_reason = review_note WHERE {legacy} AND {result} = 'passed' "
+                "AND review_status = 'Rejected' AND (rejection_reason IS NULL OR rejection_reason = '')"))
+            conn.execute(text(f"UPDATE submission SET status = 'Rejected' WHERE {legacy} AND {result} = 'passed' AND review_status = 'Rejected'"))
+
+    from app.models.issue import Issue
+    from app.models.user import User
+
+    with Session(engine) as session:
+        for issue in session.exec(select(Issue).where((Issue.incident_date == None) | ((Issue.owner_id == None) & (Issue.assignee != "")))).all():  # noqa: E711
+            if issue.incident_date is None and issue.created_at:
+                issue.incident_date = issue.created_at.date()
+            if issue.owner_id is None and issue.assignee:
+                owner = session.exec(select(User).where((User.full_name == issue.assignee) | (User.email == issue.assignee))).first()
+                if owner is not None:
+                    issue.owner_id = owner.id
+            session.add(issue)
+        session.commit()
+
+
 def _upgrade_existing_schema() -> None:
     """Data fixes an older database needs. Every step is idempotent."""
     from app.models.enums import UserRole
@@ -132,6 +177,7 @@ def _upgrade_existing_schema() -> None:
     from app.models.user import User
 
     _upgrade_integrations()
+    _upgrade_compliance()
     with Session(engine) as session:
         # Participants no longer sign in.
         for user in session.exec(select(User).where(User.role == UserRole.participant, User.is_active == True)).all():  # noqa: E712

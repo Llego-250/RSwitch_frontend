@@ -13,7 +13,16 @@ export type IntegrationStatus =
   | "Queued"
   | "Paused";
 export type IssueSeverity = "Critical" | "High" | "Medium" | "Low";
-export type IssueStatus = "Open" | "In Progress" | "Resolved" | "Closed";
+// SRS §9.4 incident status ("Issues" are now Incidents — see lib/compliance.ts).
+export type IncidentStatusValue =
+  | "Open"
+  | "Under Investigation"
+  | "Remediation In Progress"
+  | "Resolved"
+  | "Closed";
+/** "In Progress" is never returned any more (stored rows were converted);
+ *  it stays in the union only so older comparisons still compile. */
+export type IssueStatus = IncidentStatusValue | "In Progress";
 export type DocumentStatus = "On File" | "Expiring Soon" | "Expired" | "Missing";
 
 export interface Me {
@@ -97,16 +106,29 @@ export interface IntegrationRow {
   updated_by: string;
 }
 
+/** An incident as GET /issues returns it: the original fields plus the
+ *  §10.4 ones. New code should use lib/compliance.ts (Incident). */
 export interface Issue {
   id: number;
   participant_id: number;
   description: string;
   severity: IssueSeverity;
+  /** The assigned owner's name. */
   assignee: string;
   status: IssueStatus;
   due_date: string | null;
   notes: string;
   created_at: string;
+  ref?: string;
+  participant_name?: string;
+  incident_date?: string | null;
+  raised_at?: string;
+  owner_id?: number | null;
+  resolved_at?: string | null;
+  closed_at?: string | null;
+  resolution_summary?: string;
+  /** Not yet Resolved or Closed. */
+  is_open?: boolean;
 }
 
 /** One transfer (upload or API pull). errors/warnings come with GET /submissions/{id}. */

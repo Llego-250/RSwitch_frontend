@@ -1,64 +1,101 @@
+"""/issues — the original incident endpoints, kept for pages that still read
+them. Rows carry the old fields (description, severity, assignee, status,
+due_date, notes, created_at) plus the §10.4 ones; statuses are the SRS §9.4
+words. Writes go through the same workflow rules as /compliance/incidents
+(app.services.incidents), which new code should use."""
+
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel
 from sqlmodel import Session, select
 
-from app.core.permissions import require_staff
-from app.core.security import get_current_user
+from app.core.permissions import require_cap
 from app.db import get_session
 from app.models.enums import IssueSeverity, IssueStatus
-from app.models.issue import Issue
+from app.models.issue import Issue, RemediationAction
 from app.models.user import User
-from app.services import audit
+from app.services import audit, incidents
+from app.services.compliance import Lookups
+from app.services.notify import user_by_name_or_email
 
 router = APIRouter(prefix="/issues", tags=["issues"])
 
+view = require_cap("compliance.view")
+manage = require_cap("compliance.manage")
 
-@router.get("", response_model=list[Issue])
+
+@router.get("")
 def list_issues(
     participant_id: Optional[int] = None,
     severity: Optional[IssueSeverity] = None,
     status: Optional[IssueStatus] = None,
     session: Session = Depends(get_session),
-    _: User = Depends(require_staff),
+    user: User = Depends(view),
 ):
-    query = select(Issue)
+    query = select(Issue).order_by(Issue.created_at.desc(), Issue.id.desc())
     if participant_id is not None:
         query = query.where(Issue.participant_id == participant_id)
     if severity is not None:
         query = query.where(Issue.severity == severity)
     if status is not None:
         query = query.where(Issue.status == status)
-    return session.exec(query).all()
+    lk = Lookups(session)
+    return [incidents.incident_out(session, i, user, lk) for i in session.exec(query).all()]
 
 
-@router.get("/mine", response_model=list[Issue])
-def my_issues(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
-    name = current_user.full_name or current_user.email
-    return session.exec(select(Issue).where(Issue.assignee == name)).all()
+@router.get("/mine")
+def my_issues(session: Session = Depends(get_session), user: User = Depends(view)):
+    """Incidents the viewer owns or holds a remediation action on."""
+    actioned = set(session.exec(select(RemediationAction.incident_id).where(RemediationAction.owner_id == user.id)).all())
+    name = user.full_name or user.email
+    rows = session.exec(select(Issue).order_by(Issue.created_at.desc())).all()
+    lk = Lookups(session)
+    return [incidents.incident_out(session, i, user, lk) for i in rows
+            if i.owner_id == user.id or i.id in actioned or (i.owner_id is None and i.assignee == name)]
 
 
-@router.post("", response_model=Issue)
-def create_issue(issue: Issue, request: Request, session: Session = Depends(get_session), user: User = Depends(require_staff)):
-    session.add(issue)
-    session.commit()
-    session.refresh(issue)
-    audit.record(session, "ISSUE_CREATE", f"ISS-{issue.id}: {issue.description}", user, request)
-    return issue
+class LegacyIssueIn(BaseModel):
+    participant_id: Optional[int] = None
+    description: Optional[str] = None
+    severity: Optional[str] = None
+    assignee: Optional[str] = None
+    owner_id: Optional[int] = None
+    incident_date: Optional[str] = None
+    status: Optional[str] = None
+    notes: Optional[str] = None
+    resolution_summary: Optional[str] = None
 
 
-@router.patch("/{issue_id}", response_model=Issue)
-def update_issue(
-    issue_id: int, updates: dict, request: Request, session: Session = Depends(get_session), user: User = Depends(require_staff)
-):
-    issue = session.get(Issue, issue_id)
-    if not issue:
-        raise HTTPException(status_code=404, detail="Issue not found")
-    for key, value in updates.items():
-        if hasattr(issue, key):
-            setattr(issue, key, value)
-    session.add(issue)
-    session.commit()
-    session.refresh(issue)
-    audit.record(session, "ISSUE_UPDATE", f"ISS-{issue.id}: {', '.join(f'{k}={v}' for k, v in updates.items())}", user, request)
-    return issue
+def _owner_id(session: Session, body: LegacyIssueIn) -> Optional[int]:
+    if body.owner_id:
+        return body.owner_id
+    owner = user_by_name_or_email(session, body.assignee or "")
+    return owner.id if owner else None
+
+
+@router.post("", status_code=201)
+def create_issue(body: LegacyIssueIn, request: Request, session: Session = Depends(get_session), user: User = Depends(manage)):
+    from app.services.compliance import today_for
+
+    incident = incidents.create(session, user, participant_id=body.participant_id, description=body.description or "",
+                                severity=body.severity or "Medium", incident_date=body.incident_date or today_for(session),
+                                owner_id=_owner_id(session, body), notes=body.notes or "")
+    audit.record(session, "INCIDENT_CREATE", f"{incidents.incident_ref(incident)}: {incident.description[:80]}", user, request)
+    return incidents.incident_out(session, incident, user)
+
+
+@router.patch("/{issue_id}")
+def update_issue(issue_id: int, body: LegacyIssueIn, request: Request, session: Session = Depends(get_session),
+                 user: User = Depends(view)):
+    incident = session.get(Issue, issue_id)
+    if not incident:
+        raise HTTPException(status_code=404, detail="The requested record could not be found.")
+    data = body.model_dump(exclude_unset=True)
+    data.pop("participant_id", None)
+    if "assignee" in data:
+        data["owner_id"] = _owner_id(session, body)
+        data.pop("assignee")
+    incident = incidents.update(session, incident, user, data)
+    audit.record(session, "INCIDENT_UPDATE", f"{incidents.incident_ref(incident)}: {', '.join(sorted(data)) or 'no change'}", user, request)
+    return incidents.incident_out(session, incident, user)

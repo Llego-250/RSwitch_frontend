@@ -11,9 +11,8 @@ from datetime import date
 from sqlmodel import Session, select
 
 from app.models.document import ComplianceDocument, RequiredDocumentType
-from app.models.enums import IssueStatus, UserRole
+from app.models.enums import UserRole
 from app.models.integration import Integration
-from app.models.issue import Issue
 from app.models.participant import Participant
 from app.services import notify
 from app.services.settings_store import get_setting
@@ -77,26 +76,12 @@ def _document_expiry(session: Session, participants: dict) -> int:
 
 
 def _issues(session: Session) -> int:
-    """Interim: issue due / overdue to its assignee, else to Compliance users.
-    The compliance module replaces this with incident remediation rules."""
-    today = date.today()
-    sent = 0
-    open_states = [IssueStatus.open, IssueStatus.in_progress]
-    for iss in session.exec(select(Issue).where(Issue.status.in_(open_states), Issue.due_date != None)).all():  # noqa: E711
-        days = (iss.due_date - today).days
-        if days > 1:
-            continue
-        assignee = notify.user_by_name_or_email(session, iss.assignee)
-        recipients = [assignee] if assignee and assignee.is_active else notify.users_with_roles(session, UserRole.compliance)
-        overdue = days < 0
-        sent += notify.dispatch(
-            session, "incident_remediation_overdue" if overdue else "compliance_deadline_reminder", recipients,
-            "Issue overdue" if overdue else "Issue due soon",
-            f"{iss.description} (due {iss.due_date}).",
-            link="/compliance", severity="alert" if overdue else "warning",
-            dedupe_key=f"issue:{iss.id}:{iss.due_date}:{'overdue' if overdue else 'due'}",
-        )
-    return sent
+    """Incident remediation (§6.2 step 5a, REQ-COMP-011, §13): an action
+    item past its due date on an unresolved incident escalates to senior
+    Compliance users. Incident creation is notified when it happens."""
+    from app.services.incidents import notify_overdue_remediation
+
+    return notify_overdue_remediation(session)
 
 
 def generate(session: Session) -> int:

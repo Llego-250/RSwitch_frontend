@@ -14,7 +14,6 @@ from app.core.errors import problem, validation_error
 from app.core.permissions import require_cap
 from app.db import get_session
 from app.models.compliance import ComplianceRequirement
-from app.models.enums import SubmissionResult
 from app.models.integration import Integration, IntegrationMode
 from app.models.participant import Participant
 from app.models.pipeline import PipelineJob
@@ -338,22 +337,17 @@ def review_submission(
     session: Session = Depends(get_session),
     user: User = Depends(require_cap("compliance.manage")),
 ):
+    """Kept for older callers; PUT /compliance/submissions/{id}/review is the
+    §19.3 endpoint. Same rules (app.services.compliance.review): Submitted →
+    Under Review → Approved | Rejected; `note` is the rejection reason
+    (≥ 20 characters) when rejecting, the reviewer's note otherwise."""
+    from app.services import compliance
+
     submission = _get(session, submission_id)
-    if submission.result != SubmissionResult.passed:
-        raise HTTPException(status_code=422, detail="Only submissions that passed validation can be reviewed")
-    if decision not in ("Approved", "Rejected"):
-        raise HTTPException(status_code=422, detail="decision must be Approved or Rejected")
-    if decision == "Rejected" and len(note.strip()) < 20:
-        raise HTTPException(status_code=422, detail="Rejection requires a reason of at least 20 characters")
-    submission.review_status = decision
-    submission.status = decision
-    submission.review_note = note.strip()
-    submission.rejection_reason = note.strip() if decision == "Rejected" else ""
-    submission.reviewed_by = user.full_name or user.email
-    submission.reviewed_at = datetime.utcnow()
-    session.add(submission)
-    session.commit()
+    rejecting = decision == compliance.REJECTED
+    compliance.review(session, submission, decision, user, notes="" if rejecting else note,
+                      rejection_reason=note if rejecting else "")
     session.refresh(submission)
     audit.record(session, "SUBMISSION_REVIEW", f"SUB-{submission.id} ({decision})", user, request,
-                 status="WARNING" if decision == "Rejected" else "SUCCESS")
+                 status="WARNING" if rejecting else "SUCCESS")
     return submission_out(session, submission)
