@@ -1,6 +1,16 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Shield, Eye, EyeOff, ArrowRight, KeyRound, MailCheck } from "lucide-react";
+import {
+  Shield,
+  Eye,
+  EyeOff,
+  ArrowRight,
+  KeyRound,
+  MailCheck,
+  Copy,
+  Check,
+  Sparkles,
+} from "lucide-react";
 import { LOGOUT_NOTICE_KEY, useAuth } from "@/context/AuthContext";
 import { api, errorMessage } from "@/lib/api";
 import { usePasswordPolicy } from "@/lib/queries";
@@ -15,6 +25,54 @@ import {
 export const Route = createFileRoute("/login")({
   component: Login,
 });
+
+const DEMO_PASSWORD = "Rdip-Demo-2026!";
+
+interface DemoAccount {
+  name: string;
+  email: string;
+  role: string;
+  badge: string;
+  badgeColor: string;
+}
+
+const DEMO_ACCOUNTS: DemoAccount[] = [
+  {
+    name: "RDIP Admin",
+    email: "admin@rswitch.rw",
+    role: "Technical / Admin",
+    badge: "Admin",
+    badgeColor: "bg-purple-100 text-purple-700 border-purple-200",
+  },
+  {
+    name: "Compliance Officer",
+    email: "compliance@rswitch.rw",
+    role: "Compliance Officer",
+    badge: "Compliance",
+    badgeColor: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  },
+  {
+    name: "Head of Compliance",
+    email: "compliance.lead@rswitch.rw",
+    role: "Senior Compliance",
+    badge: "Lead Compliance",
+    badgeColor: "bg-teal-100 text-teal-700 border-teal-200",
+  },
+  {
+    name: "Business Analyst",
+    email: "business@rswitch.rw",
+    role: "Business Analyst",
+    badge: "Business",
+    badgeColor: "bg-blue-100 text-blue-700 border-blue-200",
+  },
+  {
+    name: "Head of Business",
+    email: "business.lead@rswitch.rw",
+    role: "Senior Business",
+    badge: "Lead Business",
+    badgeColor: "bg-indigo-100 text-indigo-700 border-indigo-200",
+  },
+];
 
 type Step = "creds" | "mfa" | "forgot" | "forgot-sent";
 
@@ -41,11 +99,24 @@ function Login() {
   // REQ-AUTH-005: why the previous session ended (e.g. 30 min of inactivity).
   const [notice, setNotice] = useState<string | null>(readLogoutNotice);
   const [busy, setBusy] = useState(false);
+  const [copiedPwd, setCopiedPwd] = useState(false);
   const navigate = useNavigate();
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const { login: authLogin, verifyMfa: authVerifyMfa, isAuthenticated } = useAuth();
   const policy = usePasswordPolicy().data;
   const resetMinutes = policy?.reset_link_minutes;
+
+  function handleSelectDemo(demoEmail: string) {
+    setEmail(demoEmail);
+    setPwd(DEMO_PASSWORD);
+    setErrorMsg(null);
+  }
+
+  function handleCopyPassword() {
+    navigator.clipboard.writeText(DEMO_PASSWORD);
+    setCopiedPwd(true);
+    setTimeout(() => setCopiedPwd(false), 2000);
+  }
 
   useEffect(() => {
     if (isAuthenticated) navigate({ to: "/" });
@@ -229,7 +300,89 @@ function Login() {
             <ArrowRight size={16} />
           </button>
 
-          <p className="mt-5 text-center text-xs leading-normal text-[var(--neutral-400)]">
+          {/* Quick Demo Credentials */}
+          <div className="mt-6 border-t border-[var(--neutral-200)] pt-4">
+            <div className="mb-2.5 flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--neutral-800)]">
+                <Sparkles size={14} className="text-[var(--primary-500)]" />
+                <span>System Test Credentials</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleCopyPassword}
+                className="inline-flex items-center gap-1 rounded bg-[var(--neutral-100)] px-2 py-0.5 text-[11px] font-medium text-[var(--neutral-700)] transition hover:bg-[var(--neutral-200)]"
+                title="Copy demo password"
+              >
+                {copiedPwd ? (
+                  <>
+                    <Check size={12} className="text-emerald-600" />
+                    <span className="font-semibold text-emerald-700">Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy size={12} />
+                    <span>Copy Password</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            <div className="mb-2.5 flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50/80 px-2.5 py-1.5 text-[11px] text-amber-900">
+              <span className="font-medium">Password for all accounts:</span>
+              <code className="rounded border border-amber-200 bg-white/90 px-1.5 py-0.5 font-mono text-xs font-bold text-amber-950">
+                {DEMO_PASSWORD}
+              </code>
+            </div>
+
+            <div className="mb-1 text-[11px] font-medium text-[var(--neutral-500)]">
+              Click any account below to autofill and sign in:
+            </div>
+
+            <div className="grid max-h-[195px] grid-cols-1 gap-1.5 overflow-y-auto pr-0.5">
+              {DEMO_ACCOUNTS.map((acc) => {
+                const isSelected = email.trim().toLowerCase() === acc.email.toLowerCase();
+                return (
+                  <button
+                    key={acc.email}
+                    type="button"
+                    onClick={() => handleSelectDemo(acc.email)}
+                    className={`flex items-center justify-between rounded-lg border p-2 text-left transition-all ${
+                      isSelected
+                        ? "border-[var(--primary-500)] bg-[var(--primary-50)]/50 ring-1 ring-[var(--primary-500)]"
+                        : "border-[var(--neutral-200)] bg-white hover:border-[var(--neutral-300)] hover:bg-[var(--neutral-50)]"
+                    }`}
+                  >
+                    <div className="min-w-0 pr-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="truncate text-xs font-semibold text-[var(--neutral-900)]">
+                          {acc.name}
+                        </span>
+                        <span
+                          className={`inline-block rounded border px-1.5 py-0.5 text-[10px] font-medium ${acc.badgeColor}`}
+                        >
+                          {acc.badge}
+                        </span>
+                      </div>
+                      <div className="truncate font-mono text-[11px] text-[var(--neutral-500)]">
+                        {acc.email}
+                      </div>
+                    </div>
+                    <span
+                      className={`shrink-0 rounded px-2 py-0.5 text-[11px] font-semibold transition ${
+                        isSelected
+                          ? "bg-[var(--primary-500)] text-white"
+                          : "bg-[var(--neutral-100)] text-[var(--primary-600)] hover:bg-[var(--primary-100)]"
+                      }`}
+                    >
+                      {isSelected ? "Selected" : "Autofill"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <p className="mt-4 text-center text-xs leading-normal text-[var(--neutral-400)]">
             Accounts are created by invitation. Need help? Contact your RDIP administrator.
           </p>
         </form>
