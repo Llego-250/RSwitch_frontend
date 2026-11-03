@@ -9,6 +9,8 @@
   ],
   "scripts": {
     "dev": "vite dev",
+    "backend": "cd backend && .venv/bin/uvicorn app.main:app --reload --port 8000",
+    "backend:seed": "cd backend && .venv/bin/python -m app.seed_demo",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
