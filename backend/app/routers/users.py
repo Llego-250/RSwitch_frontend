@@ -22,7 +22,7 @@ from app.models.enums import UserRole
 from app.models.user import ASSIGNABLE_ROLES, User
 from app.services import accounts, audit, notify
 
-router = APIRouter(tags=["users"])
+router = APIRouter(tags=["Users & Audit Log"])
 
 require_users_admin = require_cap("users.manage")
 

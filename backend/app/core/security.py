@@ -14,8 +14,8 @@ from typing import Optional
 from uuid import uuid4
 
 import bcrypt
-from fastapi import Depends, Header, Request, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi import Depends, Request, Security, status
+from fastapi.security import APIKeyHeader, OAuth2PasswordBearer
 from jose import JWTError, jwt
 from sqlalchemy import func
 from sqlmodel import Session, select
@@ -27,8 +27,20 @@ from app.models.admin import ApiKey, UserSession
 from app.models.user import User
 from app.services.settings_store import get_setting
 
-# auto_error=False so a request may authenticate with X-API-Key instead.
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token", auto_error=False)
+# Both schemes use auto_error=False: a request may authenticate with either,
+# and _resolve_user decides. Declaring them as security schemes (rather than
+# a plain Header parameter) is what puts them in Swagger's Authorize dialog.
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="auth/token",
+    auto_error=False,
+    description="Sign in with an RDIP staff email and password. Accounts with two-step sign-in "
+                "can't finish MFA here: use BearerToken instead (see the API description).",
+)
+api_key_scheme = APIKeyHeader(
+    name="X-API-Key",
+    auto_error=False,
+    description="An API key created under Settings → API keys. It acts as the user who created it.",
+)
 
 MFA_TOKEN_MINUTES = 5
 SCOPE_ACCESS = "access"
@@ -297,7 +309,7 @@ def _resolve_user(
 def get_current_user(
     request: Request,
     token: Optional[str] = Depends(oauth2_scheme),
-    x_api_key: Optional[str] = Header(default=None),
+    x_api_key: Optional[str] = Security(api_key_scheme),
     session: Session = Depends(get_session),
 ) -> User:
     """A fully signed-in user (full session or API key)."""
@@ -307,7 +319,7 @@ def get_current_user(
 def get_enrolling_user(
     request: Request,
     token: Optional[str] = Depends(oauth2_scheme),
-    x_api_key: Optional[str] = Header(default=None),
+    x_api_key: Optional[str] = Security(api_key_scheme),
     session: Session = Depends(get_session),
 ) -> User:
     """Also accepts the MFA-setup session — only for /auth/me, the MFA

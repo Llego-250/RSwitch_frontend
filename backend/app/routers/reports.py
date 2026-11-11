@@ -30,7 +30,7 @@ from app.services import audit, inclusion, reporting
 from app.services.compliance import document_status
 from app.services.reporting import run_due_schedules  # noqa: F401 — the scheduler's entry point
 
-router = APIRouter(prefix="/reports", tags=["reports"])
+router = APIRouter(prefix="/reports", tags=["Reports"])
 
 view = require_cap("reports.view")
 schedule_cap = require_cap("reports.schedule")

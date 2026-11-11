@@ -40,7 +40,7 @@ from app.services import audit, notify
 from app.services.governance_jobs import dispatch_each, effective_status, org_time, org_today
 from app.storage import get_file, put_file
 
-router = APIRouter(prefix="/governance", tags=["governance"])
+router = APIRouter(prefix="/governance", tags=["Governance"])
 
 can_view = require_cap("governance.view")
 can_manage = require_cap("governance.manage")

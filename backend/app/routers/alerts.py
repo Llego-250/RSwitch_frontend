@@ -21,7 +21,7 @@ from app.services import anomaly, audit
 from app.services.detectors import method_label
 from app.services.detectors.context import error_column
 
-router = APIRouter(prefix="/alerts", tags=["ai"])
+router = APIRouter(prefix="/alerts", tags=["AI Decision Support"])
 
 view = require_cap("ai.view")
 

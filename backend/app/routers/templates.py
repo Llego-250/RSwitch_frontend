@@ -14,7 +14,7 @@ from app.models.template import IngestionTemplate, TemplateColumn
 from app.models.user import User
 from app.services import audit
 
-router = APIRouter(prefix="/templates", tags=["templates"])
+router = APIRouter(prefix="/templates", tags=["Ingestion Templates"])
 
 view = require_cap("integrations.view")
 manage = require_cap("mapping.manage")

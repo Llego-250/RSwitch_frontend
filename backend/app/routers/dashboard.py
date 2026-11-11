@@ -16,7 +16,7 @@ from app.db import get_session
 from app.models.user import User
 from app.services import dashboard as svc
 
-router = APIRouter(prefix="/dashboard", tags=["dashboard"])
+router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
 view = require_cap("dashboard.view")
 

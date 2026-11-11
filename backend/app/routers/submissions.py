@@ -23,7 +23,7 @@ from app.models.user import User
 from app.services import audit, ingestion
 from app.storage import get_file
 
-router = APIRouter(prefix="/submissions", tags=["submissions"])
+router = APIRouter(prefix="/submissions", tags=["Submissions"])
 
 view = require_cap("integrations.view")
 uploader = require_cap("integrations.upload")

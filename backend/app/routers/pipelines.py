@@ -22,7 +22,7 @@ from app.models.user import User
 from app.services import audit, pipeline_jobs, pipeline_runner
 from app.services.settings_store import get_setting, put_setting
 
-router = APIRouter(prefix="/pipelines", tags=["pipelines"])
+router = APIRouter(prefix="/pipelines", tags=["Pipelines"])
 
 view = require_cap("pipelines.view")
 manage = require_cap("pipelines.manage")

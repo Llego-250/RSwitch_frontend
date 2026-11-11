@@ -23,7 +23,7 @@ from app.services import audit, compliance
 from app.services.compliance import document_status, is_on_file
 from app.storage import get_file, put_file
 
-router = APIRouter(prefix="/documents", tags=["documents"])
+router = APIRouter(prefix="/documents", tags=["Compliance Documents"])
 
 view = require_cap("compliance.view")
 manage = require_cap("compliance.manage")

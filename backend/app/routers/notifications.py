@@ -16,7 +16,7 @@ from app.models.admin import Notification
 from app.models.user import User
 from app.services import notify
 
-router = APIRouter(prefix="/notifications", tags=["notifications"])
+router = APIRouter(prefix="/notifications", tags=["Notifications"])
 
 HISTORY_DAYS = 90
 require_view = require_cap("notifications.view")

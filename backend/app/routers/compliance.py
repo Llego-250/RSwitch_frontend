@@ -27,7 +27,7 @@ from app.models.template import IngestionTemplate
 from app.models.user import User
 from app.services import audit, compliance as svc, incidents as inc_svc
 
-router = APIRouter(prefix="/compliance", tags=["compliance"])
+router = APIRouter(prefix="/compliance", tags=["Compliance"])
 
 view = require_cap("compliance.view")
 manage = require_cap("compliance.manage")

@@ -18,7 +18,7 @@ from app.services import audit, inclusion
 from app.services.reporting import MEDIA
 from app.storage import put_file
 
-router = APIRouter(prefix="/inclusion", tags=["inclusion"])
+router = APIRouter(prefix="/inclusion", tags=["Financial Inclusion"])
 
 view = require_cap("inclusion.view")
 

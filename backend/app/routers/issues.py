@@ -19,7 +19,7 @@ from app.services import audit, incidents
 from app.services.compliance import Lookups
 from app.services.notify import user_by_name_or_email
 
-router = APIRouter(prefix="/issues", tags=["issues"])
+router = APIRouter(prefix="/issues", tags=["Incidents (legacy)"])
 
 view = require_cap("compliance.view")
 manage = require_cap("compliance.manage")

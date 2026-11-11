@@ -31,7 +31,7 @@ from app.models.user import User
 from app.routers import mappings
 from app.services import audit, pipeline_jobs, pipeline_runner
 
-router = APIRouter(prefix="/integrations", tags=["integrations"])
+router = APIRouter(prefix="/integrations", tags=["Integrations"])
 # Standards & Mapping lives inside the Integrations area (REQ-MAP-009).
 # Included first so /integrations/mappings never reaches /{integration_id}.
 router.include_router(mappings.router)
@@ -125,7 +125,7 @@ def demo_feed_key(code: str) -> str:
     return "demo-" + hashlib.sha256(f"{settings.jwt_secret}:demo-feed:{code.upper()}".encode()).hexdigest()[:24]
 
 
-@router.get("/demo-feed/{code}", tags=["demo"])
+@router.get("/demo-feed/{code}", tags=["Demo"])
 def demo_feed(
     code: str,
     since: Optional[datetime] = Query(default=None, description="Last successful transfer (UTC); only newer hours are returned"),

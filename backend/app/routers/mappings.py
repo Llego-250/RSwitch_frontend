@@ -18,7 +18,7 @@ from app.models.template import FieldMapping, IngestionTemplate, MappingVersion
 from app.models.user import User
 from app.services import audit, mapping as svc
 
-router = APIRouter(prefix="/mappings", tags=["standards & mapping"])
+router = APIRouter(prefix="/mappings", tags=["Standards & Mapping"])
 
 view = require_cap("mapping.view")
 manage = require_cap("mapping.manage")

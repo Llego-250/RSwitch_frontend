@@ -26,7 +26,7 @@ from app.services import audit, notify
 from app.services.settings_store import DEFAULTS, all_settings, get_setting, put_setting
 from app.storage import get_file, put_file
 
-router = APIRouter(prefix="/settings", tags=["settings"])
+router = APIRouter(prefix="/settings", tags=["Settings"])
 
 DATE_FORMATS = ["YYYY-MM-DD", "DD/MM/YYYY", "MM/DD/YYYY", "DD MMM YYYY"]
 LOGO_TYPES = {"image/png": "png", "image/jpeg": "jpg", "image/webp": "webp"}

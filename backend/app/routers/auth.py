@@ -47,7 +47,7 @@ from app.models.user import User
 from app.services import accounts, audit
 from app.services.settings_store import get_setting
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 ISSUER = "RDIP · RSwitch"
 # REQ-AUTH-003: the same words whether or not the email exists.

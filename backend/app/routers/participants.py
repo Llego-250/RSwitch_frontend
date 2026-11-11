@@ -16,7 +16,7 @@ from app.models.submission import Submission
 from app.models.user import User
 from app.services import audit, participant360, risk
 
-router = APIRouter(prefix="/participants", tags=["participants"])
+router = APIRouter(prefix="/participants", tags=["Participants"])
 
 NOT_FOUND = "The requested record could not be found."
 MAX_NOTE_CHARS = 4000
