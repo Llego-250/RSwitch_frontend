@@ -17,7 +17,7 @@ def _notification_defaults() -> dict:
 DEFAULTS: dict[str, dict] = {
     # REQ-SET-001
     "organization": {
-        "name": "RSwitch Ltd (Rwanda National Switch)",
+        # "name": "RSwitch Ltd (Rwanda National Switch)",
         # Set only by the logo upload endpoint: logo_url is the API path that
         # serves it, logo_key the storage object.
         "logo_url": "",

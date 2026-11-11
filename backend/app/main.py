@@ -2,6 +2,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select
 
+from app.api_docs import (
+    API_DESCRIPTION,
+    API_VERSION,
+    LICENSE_INFO,
+    SWAGGER_UI_PARAMETERS,
+    TAGS_METADATA,
+    install_openapi,
+)
 from app.config import settings
 from app.core.errors import register_error_handlers
 from app.core.metrics import MetricsMiddleware
@@ -32,7 +40,16 @@ from app.routers import (
 from app.services.scheduler import start_scheduler
 from app.storage import init_bucket
 
-app = FastAPI(title="RDIP API")
+app = FastAPI(
+    title="RDIP API",
+    version=API_VERSION,
+    description=API_DESCRIPTION,
+    openapi_tags=TAGS_METADATA,
+    license_info=LICENSE_INFO,
+    swagger_ui_parameters=SWAGGER_UI_PARAMETERS,
+)
+# Swagger UI at /docs, ReDoc at /redoc, the spec at /openapi.json.
+install_openapi(app)
 # SRS §20: structured validation errors, no internals in 500s.
 register_error_handlers(app)
 
@@ -78,6 +95,7 @@ def on_startup() -> None:
     app.state.scheduler = start_scheduler()
 
 
-@app.get("/health")
+@app.get("/health", tags=["System"], summary="Check the service is running")
 def health():
+    """Public. Returns `{"status": "ok"}` while the API is up; used by load balancers and monitoring."""
     return {"status": "ok"}
